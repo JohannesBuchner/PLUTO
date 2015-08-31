@@ -1,0 +1,270 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Graphic User Interface &mdash; pyPLUTO 4.2 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '4.2',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="pyPLUTO 4.2 documentation" href="index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="graphic-user-interface">
+<h1>Graphic User Interface<a class="headerlink" href="#graphic-user-interface" title="Permalink to this headline">¶</a></h1>
+<p>The Graphic User Interface for the pyPLUTO code.</p>
+<div class="figure align-center">
+<a class="reference internal image-reference" href="_images/GetStarted.png"><img alt="_images/GetStarted.png" src="_images/GetStarted.png" style="width: 792.0px; height: 570.0px;" /></a>
+</div>
+<p>The Graphic User Interface of the pyPLUTO code for a typical
+three dimensional Hydrodynamical example.</p>
+<p><strong>Usage :</strong></p>
+<p>On installing the pyPLUTO source code via local install process,
+the executable for the GUI version of the code will be present in <code class="docutils literal"><span class="pre">&lt;path</span> <span class="pre">to</span> <span class="pre">MyPython_Modules&gt;/bin</span></code>.
+In order to use directly from the command line append the <code class="docutils literal"><span class="pre">$PATH</span></code>
+variable as follows:</p>
+<p><code class="docutils literal"><span class="pre">export</span> <span class="pre">PATH=&lt;path</span> <span class="pre">to</span> <span class="pre">MyPython_Modules&gt;/bin:$PATH</span></code>, after which data can be
+visualized using following commands in the directory which has the
+relevant data -</p>
+<p><code class="docutils literal"><span class="pre">GUI_pyPLUTO.py</span></code> - This will work in case the data is in double format.</p>
+<p><code class="docutils literal"><span class="pre">GUI_pyPLUTO.py</span> <span class="pre">--float</span></code> &#8211; For data in float format one has to use the flag <em>&#8211;float</em></p>
+<p><code class="docutils literal"><span class="pre">GUI_pyPLUTO.py</span> <span class="pre">--vtk</span></code> &#8211; For data in VTK format one has to use the flag <em>&#8211;vtk</em></p>
+<p>The various functionalities in the Graphic User Interface (GUI) of the
+pyPLUTO code are marked with numbers as shown in the figure and explained in details below:</p>
+<p>1. <strong>Save As</strong> : The drop down menu allows the user to save the figure
+displayed in various
+formats viz. &#8216;eps&#8217;, &#8216;pdf&#8217;, &#8216;jpg&#8217;, &#8216;png&#8217;. <strong>NOTE</strong> - In case of surface
+images, it is recommended to save as &#8216;png&#8217; and/or  &#8216;jpg&#8217; and then
+convert as the way the code plots surface is using pcolormesh (to
+account for non-uniform grid) and its been a known fact that rendering
+of pcolormesh images in eps takes loads of time.</p>
+<p>2. <strong>Quit</strong> : The user can close the GUI using this
+button.</p>
+<p>3. <strong>Loading the Data</strong> :  This allows the user to load
+data.</p>
+<blockquote>
+<div><p>a. <strong>Nstep</strong> : The number of the data file should be inputted in the
+blank panel provided. By default initial data file i.e. Nstep = 0 is
+loaded. The input number should be a valid positive number and the
+corresponding data file should exists in the working directory.</p>
+<p>b. <strong>Load Data</strong> : The user can click on this button to load the
+appropriate data file whose number is inputted in the Nstep
+panel. Each time the user modifies the value in the Nstep field, this
+button needs to be clicked to load the corresponding file.</p>
+</div></blockquote>
+<p>4. <strong>Axis cuts</strong> : The user can choose the appropriate values in these
+panels to plot/image a particular cut/slice.
+No default value is set so error will occur if invalid entry is inputted.</p>
+<blockquote>
+<div><p>a. <strong>x1</strong> : The field to input the x1 cut value. This field should not be
+blank if the user either chooses <em>Along x2</em> or <em>Along x3</em> or <em>Along
+x2-x3</em> in (6). This field is disabled if the problem considered is
+1-D.</p>
+<p>b. <strong>x2</strong> : The field to input the x2 cut value. This field should not
+be blank if the user either chooses <em>Along x1</em> or <em>Along x3</em> or
+<em>Along x3-x1</em> in (6). This field is disabled if the
+problem considered is 1-D.</p>
+<p>c. <strong>x3</strong> : The field to input the x3 cut value. This field should not
+be blank if the user either chooses <em>Along x1</em> or <em>Along x2</em> or
+<em>Along x1-x2</em> in (6).  This field is disabled if the
+problem considered is either 1-D or 2-D.</p>
+</div></blockquote>
+<p>5. <strong>Choose Variables</strong> : The user can choose the variable to plot from the list. This list also includes any additional variable stored using the <em>userdef_output.c</em>. So basically all the variables
+listed in the <em>dbl.out</em> (or <em>flt.out</em>)  are enlisted in this column. The code will
+have a disabled <em>Plot</em> and  <em>Surface</em>, until a variable is chosen in
+this column. <strong>NOTE</strong> - If the user wish to plot a userdef variable
+and also saves the vector potential then it is recommended to save
+data as multiple_files instead of single_file in pluto.ini.</p>
+<p>6. <strong>Choose Slices</strong> : The code provides the user to either plot a 1D <em>Plot</em> of any of the chosen variable along any axis. Alternatively, the code also allows the user to make a 2D  <em>Surface</em> image along
+any combination of two axes. This column is redundant in case the
+numerical problem under consideration is a 1D problem. With the choice
+of the slice, the user should also have appropriate axis cuts
+specified as mentioned above else the code will result into an error.</p>
+<p>7. <strong>Additional Processing</strong> : The GUI interface allows the user to
+carry some additional processing on the variable chosen. They are the
+following -</p>
+<blockquote>
+<div><p>a. <strong>Log</strong> : The user can plot logarithmic values using this
+option.</p>
+<p>b. <strong>Polar</strong> : The user can use this option to project the data from
+Spherical coordinates to Cylindrical coordinates. In the present
+version, the code handles the projection in the r-θ plane
+(<em>Along x1-x2</em>) and the r-φ plane (<em>Along x3-x1</em>).</p>
+<p>c. <strong>Aspect</strong> : Choosing this option allows the user to ensure that the
+image (only the Surface) produced has proper aspect ratio. By default
+the aspect ratio is set to &#8216;auto&#8217;.</p>
+<p>d. <strong>Contour</strong> : The user can choose this option to overplot the
+surface
+plot with contours [see (10 a,b)].</p>
+<p>e. <strong>Arrow</strong> : The user can choose this option to overplot the surface
+plot with vector arrows [see (11 a,b)].</p>
+</div></blockquote>
+<p>8. <strong>Information Panel</strong> : The user can view the basic information
+regarding the problem under consideration. In this panel, the user
+can get information of the current working directory, along with the
+domain of the numerical problem and finally also the final time
+step of that problem.</p>
+<p>9. <strong>Figure Window</strong> : In this panel the corresponding <em>Plot</em> or the <em>Surface</em> (image with colorbar) will be displayed. In
+order that the GUI fits into the whole screen, the user can play with
+the size of the figure by modifying the code and specifying the size
+of the figure window. The default value is : figsize=(7,7).</p>
+<p>10. <strong>Contours</strong> : The user can activate this option by choosing the
+<em>Contour</em> tab [7(d)].</p>
+<blockquote>
+<div><p>a. <strong>Contour Variable</strong> : The 2D contours of listed variables can be plotted on
+the surface plot. The user can choose among all the variables
+that are available for plotting along with additional provision
+[only for the MHD problem] of plotting the <em>Current</em>
+[x1*b3] and <em>Magnetic field lines</em> [x1*A3]. The Magnetic
+field lines contour will only work if the code data consists
+information on the vector potential &#8216;A3&#8217;.
+The list by default is set to &#8216;None&#8217; and thus
+will give error is the user tries to plot contours without
+choosing the appropriate variable from the drop down list.</p>
+<p>b. <strong>Contour Levels</strong> : The user can provide the contours levels which is required separated by &#8216;,&#8217;. If the user does not
+wish to provide the levels then by default a total of 5 contours of automatically chosen levels will be displayed. Further, the
+user can also choose to display logarithmic contours by having the
+first entry in this panels as <em>log</em>. For example,</p>
+<blockquote>
+<div><ul class="simple">
+<li>log,-1.5,-1.8,-2.0 : This plots the logarithmic contours for the chosen Contour variable at levels marked by 10^{-1.5}, 10^{-1.8} and 10^{-2.0}</li>
+<li>1.0,2.0,3.0 : This will display normal contours for the chosen Contour variable at levels marked by 1.0, 2.0, and 3.0</li>
+<li>Blank [Default]: 5 contours of automatically chosen  levels will be displayed</li>
+</ul>
+</div></blockquote>
+<p>There is no limit to the number of levels that can be inputed in this
+field. By convention all negative contours will be shown as
+<em>dashes</em>. In case of logarithmic contours, the <em>dashes</em> would
+represent contours for levels less than unity.</p>
+</div></blockquote>
+<p>11. <strong>Arrows</strong> : The user can activate this option by choosing the
+&#8216;Arrows&#8217; tab [7(e)].</p>
+<blockquote>
+<div><p>a. <strong>Arrow Variable</strong> : The vector arrows of velocity field [Vp and
+Vp_norm] and the magnetic field [Bp and Bp_norm] (only in
+MHD) can be displayed. The options of . The variables with &#8216;_norm&#8217; indicate that the
+arrows are normalized, i.e. each arrow will have unit length.
+The list by default is set to &#8216;None&#8217; and thus
+will give error is the user tries to plot arrows without
+choosing the appropriate variable from the drop down list.</p>
+<p>b. <strong>Arrow Spacing</strong> : The user can provide the spacing
+value which indicates the size of the congrid matrix used to
+create the vector plots. Higher values will produce a more
+&#8220;dense&#8221; plot. Default is set to 20.</p>
+</div></blockquote>
+<p>12. <strong>Plot</strong> : This button is by default deactivated and it will be active only when the user has fulfilled the conditions of valid
+loading of data [(3) a,b], choosing the variable [(5)] and choosing to
+plot either Along x1 or Along x2 or Along x3 [(6)].  Only in case of
+1-D numerical problems this button will be activated by default.</p>
+<p>13. <strong>Surface</strong> : This button is by default deactivated and it will be
+active only when the user has fulfilled the conditions of valid
+loading of data [(3) a,b], choosing the variable [(5)] and choosing to
+plot either <em>Along x1-x2</em> or <em>Along x2-x3</em> or <em>Along x3-x1</em>
+[(6)]. Consecutively pressing this button will clear the existing
+image and create a new one.</p>
+<p>14. <strong>Clear</strong> : This button allows the user to
+clear the plot.</p>
+<p>15. <strong>Labels</strong> : The user can choose the x and y labels for
+their plots/images. The user can also use standard TeX symbols within
+the &#8216;$&#8217; sign. By default they are set to &#8216;xlabel&#8217; and &#8216;ylabel&#8217; respectively.</p>
+<p>16. <strong>Ranges</strong> : The user can choose range of values to be displayed
+from these panels.</p>
+<blockquote>
+<div><p>a. <strong>Xrange</strong> : To set the minimum (left entry) and maximum (right
+entry) range of the X axis. A &#8216;blank&#8217; entry would mean that by
+default the minimum and the maximum of the X vector will be shown (i.e. the full range).</p>
+<p>b. <strong>Yrange</strong> : To set the minimum (left entry) and maximum (right
+entry) range of the Y axis. A &#8216;blank&#8217; entry would mean that by default the minimum and the maximum of the Y
+vector will be shown (i.e. the full range). This becomes
+ineffective in case if the user wants to plots a line. To set the
+range for the Y axis in case of &#8216;Plot&#8217;, the user should use the
+VarRange option.</p>
+<p>c. <strong>VarRange</strong> : To set the minimum (left entry) and maximum
+(right entry) range of the Variable. A &#8216;blank&#8217; entry
+would mean that by default the minimum and the maximum of the Variable
+will be shown (i.e. the full range). In case the user wants a
+&#8216;Surface&#8217; image then with this option the user can choose the
+maximum and the minimum of the image. In case of &#8216;Plot&#8217;, this
+becomes the Y axis range.</p>
+</div></blockquote>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/gui.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Bhargav Vaidya.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.6</a>
+      
+      |
+      <a href="_sources/gui.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

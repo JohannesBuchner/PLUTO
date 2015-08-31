@@ -1,0 +1,135 @@
+# *********************************************************
+#
+#             PLUTO-Chombo 4.1  Makefile
+#
+# *********************************************************
+
+pluto:                              # Default target
+
+ARCH         =                      # machine architecture flags here
+PLUTO_DIR    = 
+SRC          = $(PLUTO_DIR)/Src
+
+include $(PLUTO_DIR)/Config/$(ARCH)
+include make.vars
+INCLUDE_DIRS  = -I. -I$(SRC) -I$(SRC)/Chombo  
+INCLUDE_DIRS += -I$(CHOMBO_HOME)/src/AMRTimeDependent 
+INCLUDE_DIRS += -I$(CHOMBO_HOME)/src/AMRTools 
+INCLUDE_DIRS += -I$(CHOMBO_HOME)/src/BoxTools
+INCLUDE_DIRS += -I$(CHOMBO_HOME)/src/BaseTools
+
+#VPATH  = ./:$(SRC):$(SRC)/Time_Stepping:$(SRC)/States
+VPATH  = ./:$(SRC)/New:$(SRC):$(SRC)/Time_Stepping:$(SRC)/States
+VPATH += $(SRC)/Chombo
+
+CFLAGS += -DCH_SPACEDIM=$(DIM)
+ifeq ($(strip $(MPI)), TRUE)
+ CFLAGS += -DCH_MPI
+endif
+
+PARALLEL = FALSE # disbale static grid parallel implementation
+
+####################################################
+#
+# The following section has been built following
+# Chombo/lib/mk/Make.example, 
+# Chombo/lib/mk/Make.defs, and 
+# Chombo/lib/mk/Make.rules
+#
+#
+###################################################
+
+LibNames := AMRTimeDependent AMRTools BoxTools BaseTools
+
+_lib_names := $(shell echo $(LibNames) | tr 'A-Z' 'a-z')
+_libflags := -L$(CHOMBO_HOME) $(patsubst %,-l%$(config),$(_lib_names)) \
+$(subst FALSE,$(HDFLIBFLAGS),$(subst TRUE,$(HDFMPILIBFLAGS) $(mpilibflags),$(MPI))) \
+$(flibflags) $(syslibflags)
+
+CPPFLAGS += -DCH_LANG_CC
+LDFLAGS = $(_libflags)
+
+# 
+# the $(cxxc) variable (see Make.rules) contains
+# the path to g++ (serial) or mpiCC (parallel) 
+# and is the one to be used for compiling .cpp files.
+#
+
+CXX = $(cxxc)
+
+print:
+	@echo $(CPPFLAGS)
+	@echo " --------------------- "
+	@echo $(CXXFLAGS)
+	@echo " --------------------- "
+	@echo $(LDFLAGS)
+	@echo " -------------------- "
+	@echo $(INCLUDE_DIRS)
+
+
+# --------------------------------------------------
+#   Set headers and object files 
+# --------------------------------------------------
+
+HEADERS = pluto.h prototypes.h  definitions.h macros.h  mod_defs.h structs.h
+HEADERS += AMRLevelPlutoFactory.H AMRLevelPluto.H 
+HEADERS += LevelPluto.H PatchPluto.H PatchGrid.H
+
+OBJ = adv_flux.o arrays.o boundary.o check_states.o cmd_line_opt.o \
+      entropy_switch.o findshock.o flag.o flatten.o \
+      get_nghost.o init.o int_bound_reset.o input_data.o   \
+      parse_file.o plm_coeffs.o set_indexes.o set_geometry.o set_grid.o setup.o \
+      show_config.o split_source.o tools.o var_names.o 
+
+OBJ += AMRLevelPluto.o AMRLevelPlutoFactory.o amrPluto.o LevelPluto.o \
+       PatchPluto.o PatchStartup.o PatchTools.o TagCells.o 
+         
+OBJ += update_stage.o
+
+include $(SRC)/Math_Tools/makefile
+
+-include local_make
+
+# ---------------------------------------------------------
+#   Additional_header_files_here   ! dont change this line
+# ---------------------------------------------------------
+
+
+# ---------------------------------------------------------
+#   Additional_object_files_here   ! dont change this line
+# ---------------------------------------------------------
+
+
+# ---------------------------------------------------------
+#    PLUTO target rule
+# ---------------------------------------------------------
+
+pluto: $(OBJ) 
+	$(LD) $(OBJ) $(LDFLAGS) -o $@ 
+
+# ---------------------------------------------------------
+#                    Suffix rule
+# ---------------------------------------------------------
+
+.f.o:
+	$(FF) $(FF_FLAGS) $(INCLUDE_DIRS) $<
+
+.c.o:
+	$(CC) $(CFLAGS) $(INCLUDE_DIRS) $<
+
+.cpp.o: 
+	$(CXX) -c $(CXXFLAGS) $(CPPFLAGS) $(INCLUDE_DIRS) $<
+
+clean:
+	@rm -f	*.o
+	@echo OBJECTS files removed.
+
+
+#
+# DEPENDENCIES FOR OBJECTS FILES
+#
+
+
+$(OBJ):  $(HEADERS)
+
+

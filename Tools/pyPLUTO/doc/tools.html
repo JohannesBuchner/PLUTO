@@ -1,0 +1,298 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Additional tools &mdash; pyPLUTO 4.2 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '4.2',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="pyPLUTO 4.2 documentation" href="index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="additional-tools">
+<h1>Additional tools<a class="headerlink" href="#additional-tools" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="pyPLUTO.Tools">
+<em class="property">class </em><code class="descclassname">pyPLUTO.</code><code class="descname">Tools</code><a class="headerlink" href="#pyPLUTO.Tools" title="Permalink to this definition">¶</a></dt>
+<dd><p>This Class has all the functions doing basic mathematical
+operations to the vector or scalar fields.
+It is called after pyPLUTO.pload object is defined.</p>
+<dl class="method">
+<dt id="pyPLUTO.Tools.Div">
+<code class="descname">Div</code><span class="sig-paren">(</span><em>u1</em>, <em>u2</em>, <em>x1</em>, <em>x2</em>, <em>dx1</em>, <em>dx2</em>, <em>geometry=None</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.Tools.Div" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method calculates the divergence of the 2D vector fields u1 and u2.</p>
+<p><strong>Inputs:</strong></p>
+<blockquote>
+<div><p>u1 &#8211; 2D vector along x1 whose divergence is to be determined.</p>
+<p>u2 &#8211; 2D vector along x2 whose divergence is to be determined.</p>
+<p>x1 &#8211; The &#8216;x&#8217; array</p>
+<p>x2 &#8211; The &#8216;y&#8217; array</p>
+<p>dx1 &#8211; The grid spacing in &#8216;x&#8217; direction.</p>
+<p>dx2 &#8211; The grid spacing in &#8216;y&#8217; direction.</p>
+<p>geometry &#8211; The keyword <em>geometry</em> is by default set to &#8216;cartesian&#8217;. It can be set to either one of the following : <em>cartesian</em>, <em>cylindrical</em>, <em>spherical</em> or <em>polar</em>. To calculate the divergence of the vector fields, respective geometric corrections are taken into account based on the value of this keyword.</p>
+</div></blockquote>
+<p><strong>Outputs:</strong></p>
+<blockquote>
+<div>A 2D array with same shape as u1(or u2) having the values of divergence.</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="pyPLUTO.Tools.Grad">
+<code class="descname">Grad</code><span class="sig-paren">(</span><em>phi</em>, <em>x1</em>, <em>x2</em>, <em>dx1</em>, <em>dx2</em>, <em>polar=False</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.Tools.Grad" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method calculates the gradient of the 2D scalar phi.</p>
+<p><strong>Inputs:</strong></p>
+<blockquote>
+<div><p>phi &#8211; 2D scalar whose gradient is to be determined.</p>
+<p>x1 &#8211; The &#8216;x&#8217; array</p>
+<p>x2 &#8211; The &#8216;y&#8217; array</p>
+<p>dx1 &#8211; The grid spacing in &#8216;x&#8217; direction.</p>
+<p>dx2 &#8211; The grid spacing in &#8216;y&#8217; direction.</p>
+<p>polar &#8211; The keyword should be set to True inorder to estimate the Gradient in polar co-ordinates. By default it is set to False.</p>
+</div></blockquote>
+<p><strong>Outputs:</strong></p>
+<blockquote>
+<div>This routine outputs a 3D array with shape = (len(x1),len(x2),2), such that [:,:,0] element corresponds to the gradient values of phi wrt to x1 and [:,:,1] are the gradient values of phi wrt to x2.</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="pyPLUTO.Tools.RTh2Cyl">
+<code class="descname">RTh2Cyl</code><span class="sig-paren">(</span><em>R</em>, <em>Th</em>, <em>X1</em>, <em>X2</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.Tools.RTh2Cyl" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method does the transformation from spherical coordinates to cylindrical ones.</p>
+<p><strong>Inputs:</strong></p>
+<blockquote>
+<div><p>R - 2D array of spherical radius coordinates.</p>
+<p>Th - 2D array of spherical theta-angle coordinates.</p>
+<p>X1 - 2D array of radial component of given vector</p>
+<p>X2 - 2D array of thetoidal component of given vector</p>
+</div></blockquote>
+<p><strong>Outputs:</strong></p>
+<blockquote>
+<div>This routine outputs two 2D arrays after transformation.</div></blockquote>
+<p><strong>Usage:</strong></p>
+<blockquote>
+<div><p><code class="docutils literal"><span class="pre">import</span> <span class="pre">pyPLUTO</span> <span class="pre">as</span> <span class="pre">pp</span></code></p>
+<p><code class="docutils literal"><span class="pre">import</span> <span class="pre">numpy</span> <span class="pre">as</span> <span class="pre">np</span></code></p>
+<p><code class="docutils literal"><span class="pre">D</span> <span class="pre">=</span> <span class="pre">pp.pload(0)</span></code></p>
+<p><code class="docutils literal"><span class="pre">ppt=pp.Tools()</span></code></p>
+<p><code class="docutils literal"><span class="pre">TH,R=np.meshgrid(D.x2,D.x1)</span></code></p>
+<p><code class="docutils literal"><span class="pre">Br,Bz=ppt.RTh2Cyl(R,TH,D.bx1,D.bx2)</span></code></p>
+</div></blockquote>
+<p>D.bx1 and D.bx2 should be vectors in spherical coordinates. After transformation (Br,Bz) corresponds to vector in cilindrical coordinates.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pyPLUTO.Tools.congrid">
+<code class="descname">congrid</code><span class="sig-paren">(</span><em>a</em>, <em>newdims</em>, <em>method='linear'</em>, <em>centre=False</em>, <em>minusone=False</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.Tools.congrid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Arbitrary resampling of source array to new dimension sizes.
+Currently only supports maintaining the same number of dimensions.
+To use 1-D arrays, first promote them to shape (x,1).</p>
+<p>Uses the same parameters and creates the same co-ordinate lookup points
+as IDL&#8217;&#8217;s congrid routine, which apparently originally came from a VAX/VMS
+routine of the same name.</p>
+<p><strong>Inputs:</strong></p>
+<blockquote>
+<div><p>a &#8211; The 2D array that needs resampling into new dimensions.</p>
+<p>newdims &#8211; A tuple which represents the shape of the resampled data</p>
+<p>method &#8211; This keyword decides the method used for interpolation.</p>
+<blockquote>
+<div><p>neighbour - closest value from original data</p>
+<p>nearest and linear - uses n x 1-D interpolations using scipy.interpolate.interp1d
+(see Numerical Recipes for validity of use of n 1-D interpolations)</p>
+<p>spline - uses ndimage.map_coordinates</p>
+</div></blockquote>
+<p>centre &#8211; This keyword decides the positions of interpolation points.</p>
+<blockquote>
+<div><p>True - interpolation points are at the centres of the bins</p>
+<p>False - points are at the front edge of the bin</p>
+</div></blockquote>
+<p>minusone &#8211; This prevents extrapolation one element beyond bounds of input array</p>
+<blockquote>
+<div><p>For example- inarray.shape = (i,j) &amp; new dimensions = (x,y)</p>
+<p>False - inarray is resampled by factors of (i/x) * (j/y)</p>
+<p>True - inarray is resampled by(i-1)/(x-1) * (j-1)/(y-1)</p>
+</div></blockquote>
+</div></blockquote>
+<p><strong>Outputs:</strong></p>
+<blockquote>
+<div>A 2D array with resampled data having a shape corresponding to newdims.</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="pyPLUTO.Tools.deriv">
+<code class="descname">deriv</code><span class="sig-paren">(</span><em>Y</em>, <em>X=None</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.Tools.deriv" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the derivative of Y with respect to X.</p>
+<p><strong>Inputs:</strong></p>
+<blockquote>
+<div><p>Y : 1-D array to be differentiated.</p>
+<p>X : 1-D array with len(X) = len(Y).</p>
+<p>If X is not specified then by default X is chosen to be an equally spaced array having same number of elements
+as Y.</p>
+</div></blockquote>
+<p><strong>Outputs:</strong></p>
+<blockquote>
+<div>This returns an 1-D array having the same no. of elements as Y (or X) and contains the values of dY/dX.</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="pyPLUTO.Tools.getUniformGrid">
+<code class="descname">getUniformGrid</code><span class="sig-paren">(</span><em>r</em>, <em>th</em>, <em>rho</em>, <em>Nr</em>, <em>Nth</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.Tools.getUniformGrid" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method transforms data with non-uniform grid (stretched) to uniform. Useful for stretched grid calculations.</p>
+<p><strong>Inputs:</strong></p>
+<blockquote>
+<div><p>r  - 1D vector of X1 coordinate (could be any, e.g D.x1).</p>
+<p>th - 1D vector of X2 coordinate (could be any, e.g D.x2).</p>
+<p>rho- 2D array of data.</p>
+<p>Nr - new size of X1 vector.</p>
+<p>Nth- new size of X2 vector.</p>
+</div></blockquote>
+<p><strong>Outputs:</strong></p>
+<blockquote>
+<div>This routine outputs 2D uniform array Nr x Nth dimension</div></blockquote>
+<p><strong>Usage:</strong></p>
+<blockquote>
+<div><p><code class="docutils literal"><span class="pre">import</span> <span class="pre">pyPLUTO</span> <span class="pre">as</span> <span class="pre">pp</span></code></p>
+<p><code class="docutils literal"><span class="pre">import</span> <span class="pre">numpy</span> <span class="pre">as</span> <span class="pre">np</span></code></p>
+<p><code class="docutils literal"><span class="pre">D</span> <span class="pre">=</span> <span class="pre">pp.pload(0)</span></code></p>
+<p><code class="docutils literal"><span class="pre">ppt=pp.Tools()</span></code></p>
+<p><code class="docutils literal"><span class="pre">X1new,</span> <span class="pre">X2new,</span> <span class="pre">res</span> <span class="pre">=</span> <span class="pre">ppt.getUniformGrid(D.x1,D.x2,D.rho,20,30)</span></code></p>
+<p>X1new - X1 interpolated grid len(X1new)=20
+X2new - X2 interpolated grid len(X2new)=30
+res   - 2D array of interpolated variable</p>
+</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="pyPLUTO.Tools.myInterpol">
+<code class="descname">myInterpol</code><span class="sig-paren">(</span><em>RR</em>, <em>N</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.Tools.myInterpol" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method interpolates (linear interpolation) vector 1D vector RR to 1D N-length vector. Useful for stretched grid calculations.</p>
+<p><strong>Inputs:</strong></p>
+<blockquote>
+<div><p>RR - 1D array to interpolate.</p>
+<p>N  - Number of grids to interpolate to.</p>
+</div></blockquote>
+<p><strong>Outputs:</strong></p>
+<blockquote>
+<div>This routine outputs interpolated 1D array to the new grid (len=N).</div></blockquote>
+<p><strong>Usage:</strong></p>
+<blockquote>
+<div><p><code class="docutils literal"><span class="pre">import</span> <span class="pre">pyPLUTO</span> <span class="pre">as</span> <span class="pre">pp</span></code></p>
+<p><code class="docutils literal"><span class="pre">import</span> <span class="pre">numpy</span> <span class="pre">as</span> <span class="pre">np</span></code></p>
+<p><code class="docutils literal"><span class="pre">D</span> <span class="pre">=</span> <span class="pre">pp.pload(0)</span></code></p>
+<p><code class="docutils literal"><span class="pre">ppt=pp.Tools()</span></code></p>
+<p><code class="docutils literal"><span class="pre">x=linspace(0,1,10)</span> <span class="pre">#len(x)=10</span></code></p>
+<p><code class="docutils literal"><span class="pre">y=x*x</span></code></p>
+<p><code class="docutils literal"><span class="pre">Ri,Ni=ppt.myInterpol(y,100)</span> <span class="pre">#len(Ri)=100</span></code></p>
+<p>Ri - interpolated numbers;
+Ni - grid for Ri</p>
+</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="pyPLUTO.Tools.sph2cyl">
+<code class="descname">sph2cyl</code><span class="sig-paren">(</span><em>D</em>, <em>Dx</em>, <em>rphi=None</em>, <em>theta0=None</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.Tools.sph2cyl" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method transforms spherical data into cylindrical applying interpolation. Works for stretched grid as well, transforms poloidal (R-Theta) data by default. Fix theta and set rphi=True to get (R-Phi) transformation.</p>
+<p><strong>Inputs:</strong></p>
+<blockquote>
+<div><p>D  - structure  from &#8216;pload&#8217; method.</p>
+<p>Dx - variable to be transformed (D.rho for example).</p>
+</div></blockquote>
+<p><strong>Outputs:</strong></p>
+<blockquote>
+<div>This routine outputs transformed (sph-&gt;cyl) variable and grid.</div></blockquote>
+<p><strong>Usage:</strong></p>
+<blockquote>
+<div><p><code class="docutils literal"><span class="pre">import</span> <span class="pre">pyPLUTO</span> <span class="pre">as</span> <span class="pre">pp</span></code></p>
+<p><code class="docutils literal"><span class="pre">import</span> <span class="pre">numpy</span> <span class="pre">as</span> <span class="pre">np</span></code></p>
+<p><code class="docutils literal"><span class="pre">D</span> <span class="pre">=</span> <span class="pre">pp.pload(0)</span></code></p>
+<p><code class="docutils literal"><span class="pre">ppt=pp.Tools()</span></code></p>
+<p><code class="docutils literal"><span class="pre">R,Z,res</span> <span class="pre">=</span> <span class="pre">ppt.sph2cyl(D,D.rho.transpose())</span></code></p>
+<p>R - 2D array with cylindrical radius values
+Z - 2D array with cylindrical Z values
+res - 2D array of transformed variable</p>
+</div></blockquote>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/tools.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Bhargav Vaidya.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.6</a>
+      
+      |
+      <a href="_sources/tools.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

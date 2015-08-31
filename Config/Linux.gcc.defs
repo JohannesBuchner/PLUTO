@@ -1,0 +1,35 @@
+########################################################################
+#                                                
+#     Configuration file for gcc (serial)
+#             
+########################################################################
+
+CC       = gcc
+CFLAGS   = -c -O3
+LDFLAGS  = -lm
+
+PARALLEL = FALSE
+USE_HDF5 = FALSE
+USE_PNG  = FALSE
+
+#######################################
+# MPI additional spefications
+#######################################
+
+ifeq ($(strip $(PARALLEL)), TRUE)
+endif
+
+#######################################
+#    HDF5 library options
+#######################################
+
+ifeq ($(strip $(USE_HDF5)), TRUE)
+endif
+
+#######################################
+#     PNG library options
+#######################################
+
+ifeq ($(strip $(USE_PNG)), TRUE)
+ LDFLAGS += -lpng
+endif

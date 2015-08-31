@@ -1,0 +1,399 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Examples &mdash; pyPLUTO 4.2 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '4.2',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="pyPLUTO 4.2 documentation" href="index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="examples">
+<h1>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h1>
+</div>
+<div class="section" id="sod">
+<h1>1. <em>Sod</em><a class="headerlink" href="#sod" title="Permalink to this headline">¶</a></h1>
+<blockquote>
+<div><div class="figure align-center">
+<a class="reference internal image-reference" href="_images/sod_1.png"><img alt="_images/sod_1.png" src="_images/sod_1.png" style="width: 609.0px; height: 459.0px;" /></a>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">pyPLUTO</span> <span class="kn">as</span> <span class="nn">pp</span>
+
+<span class="n">plutodir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;PLUTO_DIR&#39;</span><span class="p">]</span>
+<span class="n">wdir</span> <span class="o">=</span> <span class="n">plutodir</span><span class="o">+</span><span class="s">&#39;/Test_Problems/HD/Sod/&#39;</span>
+<span class="n">nlinf</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">nlast_info</span><span class="p">(</span><span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">)</span>
+
+<span class="n">D</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">pload</span><span class="p">(</span><span class="n">nlinf</span><span class="p">[</span><span class="s">&#39;nlast&#39;</span><span class="p">],</span><span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">)</span> <span class="c"># Loading the data into a pload object D.</span>
+
+<span class="n">f1</span> <span class="o">=</span> <span class="n">figure</span><span class="p">()</span>
+<span class="n">ax1</span> <span class="o">=</span> <span class="n">f1</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">111</span><span class="p">)</span>
+<span class="n">plot</span><span class="p">(</span><span class="n">D</span><span class="o">.</span><span class="n">x1</span><span class="p">,</span><span class="n">D</span><span class="o">.</span><span class="n">rho</span><span class="p">,</span><span class="s">&#39;r&#39;</span><span class="p">,</span><span class="n">D</span><span class="o">.</span><span class="n">x1</span><span class="p">,</span><span class="n">D</span><span class="o">.</span><span class="n">prs</span><span class="p">,</span><span class="s">&#39;k&#39;</span><span class="p">,</span><span class="n">D</span><span class="o">.</span><span class="n">x1</span><span class="p">,</span><span class="n">D</span><span class="o">.</span><span class="n">vx1</span><span class="p">,</span><span class="s">&#39;g&#39;</span><span class="p">)</span>
+<span class="n">xlabel</span><span class="p">(</span><span class="s">r&#39;x&#39;</span><span class="p">)</span>
+<span class="n">ylabel</span><span class="p">(</span><span class="s">r&#39;$\rho$ [red], P [black], $V_{\rm x}$ [green]&#39;</span><span class="p">)</span>
+<span class="n">title</span><span class="p">(</span><span class="s">r&#39;Sod shock Tube test&#39;</span><span class="p">)</span>
+<span class="n">axis</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span><span class="mf">1.0</span><span class="p">,</span><span class="o">-</span><span class="mf">0.2</span><span class="p">,</span><span class="mf">1.2</span><span class="p">])</span>
+<span class="n">savefig</span><span class="p">(</span><span class="s">&#39;sod_1.pdf&#39;</span><span class="p">)</span>
+<span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>(<a class="reference external" href="./../examples/sod.py">Source code</a>)</p>
+</div></blockquote>
+</div>
+<div class="section" id="rayleigh-taylor">
+<h1>2. <em>Rayleigh-Taylor</em><a class="headerlink" href="#rayleigh-taylor" title="Permalink to this headline">¶</a></h1>
+<blockquote>
+<div><div class="figure align-center">
+<a class="reference internal image-reference" href="_images/RayleighTaylor_multi.png"><img alt="_images/RayleighTaylor_multi.png" src="_images/RayleighTaylor_multi.png" style="width: 780.0px; height: 455.0px;" /></a>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">pyPLUTO</span> <span class="kn">as</span> <span class="nn">pp</span>
+
+<span class="n">plutodir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;PLUTO_DIR&#39;</span><span class="p">]</span>
+<span class="n">wdir</span> <span class="o">=</span> <span class="n">plutodir</span><span class="o">+</span><span class="s">&#39;/Test_Problems/HD/Rayleigh_Taylor/&#39;</span>
+
+<span class="n">D0</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">pload</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">)</span>
+<span class="n">D1</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">pload</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">)</span> <span class="c"># Loading the data into a pload object D.</span>
+<span class="n">D2</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">pload</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">)</span>
+
+<span class="c">## SMART WAY##</span>
+<span class="n">I</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">Image</span><span class="p">()</span>
+<span class="n">I</span><span class="o">.</span><span class="n">multi_disp</span><span class="p">(</span><span class="n">D0</span><span class="o">.</span><span class="n">rho</span><span class="p">,</span><span class="n">D1</span><span class="o">.</span><span class="n">rho</span><span class="p">,</span><span class="n">D2</span><span class="o">.</span><span class="n">rho</span><span class="p">,</span><span class="n">x1</span><span class="o">=</span><span class="n">D0</span><span class="o">.</span><span class="n">x1</span><span class="p">,</span><span class="n">x2</span><span class="o">=</span><span class="n">D0</span><span class="o">.</span><span class="n">x2</span><span class="p">,</span><span class="n">Ncols</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span><span class="n">label1</span><span class="o">=</span><span class="mi">3</span><span class="o">*</span><span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">],</span>
+             <span class="n">label2</span><span class="o">=</span><span class="mi">3</span><span class="o">*</span><span class="p">[</span><span class="s">&#39;y&#39;</span><span class="p">],</span><span class="n">title</span><span class="o">=</span><span class="p">[</span><span class="s">r&#39;$\tau=0$&#39;</span><span class="p">,</span><span class="s">r&#39;$\tau=1$&#39;</span><span class="p">,</span><span class="s">r&#39;$\tau=2$&#39;</span><span class="p">],</span>
+             <span class="n">cbar</span><span class="o">=</span><span class="p">(</span><span class="bp">True</span><span class="p">,</span><span class="s">&#39;vertical&#39;</span><span class="p">,</span><span class="s">&#39;each&#39;</span><span class="p">),</span><span class="n">figsize</span><span class="o">=</span><span class="p">[</span><span class="mi">12</span><span class="p">,</span><span class="mi">7</span><span class="p">])</span>
+
+<span class="c">##BRUTE FORCE WAY##</span>
+<span class="c">## f1 = figure(figsize=[12,7])</span>
+<span class="c">## ax1 = f1.add_subplot(131)</span>
+<span class="c">## pcolormesh(D0.x1,D0.x2,D0.rho.T)</span>
+<span class="c">## colorbar()</span>
+<span class="c">## ax1.set_xlabel(r&#39;x&#39;)</span>
+<span class="c">## ax1.set_ylabel(r&#39;y&#39;)</span>
+<span class="c">## ax1.axis([-0.5,0.5,0.0,4.0])</span>
+<span class="c">## ax1.set_aspect(&#39;equal&#39;)</span>
+<span class="c">## ax1.set_title(r&#39;$\tau$ = 0&#39;)</span>
+
+
+<span class="c">## ax2 = f1.add_subplot(132)</span>
+<span class="c">## pcolormesh(D1.x1,D1.x2,D1.rho.T)</span>
+<span class="c">## colorbar()</span>
+<span class="c">## ax2.set_xlabel(r&#39;x&#39;)</span>
+<span class="c">## ax2.set_ylabel(r&#39;y&#39;)</span>
+<span class="c">## ax2.axis([-0.5,0.5,0.0,4.0])</span>
+<span class="c">## ax2.set_aspect(&#39;equal&#39;)</span>
+<span class="c">## ax2.set_title(r&#39;$\tau$ = 1&#39;)</span>
+
+<span class="c">## ax3 = f1.add_subplot(133)</span>
+<span class="c">## pcolormesh(D2.x1,D2.x2,D2.rho.T)</span>
+<span class="c">## colorbar()</span>
+<span class="c">## ax3.set_xlabel(r&#39;x&#39;)</span>
+<span class="c">## ax3.set_ylabel(r&#39;y&#39;)</span>
+<span class="c">## ax3.axis([-0.5,0.5,0.0,4.0])</span>
+<span class="c">## ax3.set_aspect(&#39;equal&#39;)</span>
+<span class="c">## ax3.set_title(r&#39;$\tau$ = 2&#39;)</span>
+
+<span class="n">savefig</span><span class="p">(</span><span class="s">&#39;RayleighTaylor_multi.png&#39;</span><span class="p">)</span>
+<span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>(<a class="reference external" href="./../examples/rayleigh_taylor.py">Source code</a>)</p>
+</div></blockquote>
+</div>
+<div class="section" id="stellar-wind">
+<h1>3. <em>Stellar-Wind</em><a class="headerlink" href="#stellar-wind" title="Permalink to this headline">¶</a></h1>
+<blockquote>
+<div><div class="figure align-center" style="width: 400px">
+<img alt="_images/stellar_wind.png" src="_images/stellar_wind.png" />
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">pyPLUTO</span> <span class="kn">as</span> <span class="nn">pp</span>
+
+<span class="c">#To run this example it is suggested to get data in 2D using pluto_01.ini and set the data in flt datatype instead of dbl.h5</span>
+
+<span class="n">plutodir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;PLUTO_DIR&#39;</span><span class="p">]</span>
+<span class="n">wdir</span> <span class="o">=</span> <span class="n">plutodir</span><span class="o">+</span><span class="s">&#39;/Test_Problems/HD/Stellar_Wind/&#39;</span>
+<span class="n">nlinf</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">nlast_info</span><span class="p">(</span><span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">,</span><span class="n">datatype</span><span class="o">=</span><span class="s">&#39;float&#39;</span><span class="p">)</span>
+
+<span class="n">D</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">pload</span><span class="p">(</span><span class="n">nlinf</span><span class="p">[</span><span class="s">&#39;nlast&#39;</span><span class="p">],</span><span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">,</span><span class="n">datatype</span><span class="o">=</span><span class="s">&#39;float&#39;</span><span class="p">)</span> <span class="c"># Loading the data into a pload object D.</span>
+
+<span class="n">I</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">Image</span><span class="p">()</span>
+<span class="n">I</span><span class="o">.</span><span class="n">pldisplay</span><span class="p">(</span><span class="n">D</span><span class="p">,</span> <span class="n">log10</span><span class="p">(</span><span class="n">D</span><span class="o">.</span><span class="n">rho</span><span class="p">),</span><span class="n">x1</span><span class="o">=</span><span class="n">D</span><span class="o">.</span><span class="n">x1</span><span class="p">,</span><span class="n">x2</span><span class="o">=</span><span class="n">D</span><span class="o">.</span><span class="n">x2</span><span class="p">,</span><span class="n">label1</span><span class="o">=</span><span class="s">&#39;x&#39;</span><span class="p">,</span><span class="n">label2</span><span class="o">=</span><span class="s">&#39;y&#39;</span><span class="p">,</span>
+            <span class="n">title</span><span class="o">=</span><span class="s">r&#39;Log Density $\rho$ [Stellar Wind]&#39;</span><span class="p">,</span><span class="n">cbar</span><span class="o">=</span><span class="p">(</span><span class="bp">True</span><span class="p">,</span><span class="s">&#39;vertical&#39;</span><span class="p">),</span><span class="n">figsize</span><span class="o">=</span><span class="p">[</span><span class="mi">8</span><span class="p">,</span><span class="mi">12</span><span class="p">])</span>
+
+<span class="c"># Code to plot arrows. --&gt; Spacing between the arrow can be adjusted by modifying the newdims tuple of conrid function.</span>
+<span class="n">T</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">Tools</span><span class="p">()</span>
+<span class="n">newdims</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="p">(</span><span class="mi">20</span><span class="p">,)</span>
+<span class="n">Xmesh</span><span class="p">,</span> <span class="n">Ymesh</span> <span class="o">=</span> <span class="n">meshgrid</span><span class="p">(</span><span class="n">D</span><span class="o">.</span><span class="n">x1</span><span class="o">.</span><span class="n">T</span><span class="p">,</span><span class="n">D</span><span class="o">.</span><span class="n">x2</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+<span class="n">xcong</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">congrid</span><span class="p">(</span><span class="n">Xmesh</span><span class="p">,</span><span class="n">newdims</span><span class="p">,</span><span class="n">method</span><span class="o">=</span><span class="s">&#39;linear&#39;</span><span class="p">)</span>
+<span class="n">ycong</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">congrid</span><span class="p">(</span><span class="n">Ymesh</span><span class="p">,</span><span class="n">newdims</span><span class="p">,</span><span class="n">method</span><span class="o">=</span><span class="s">&#39;linear&#39;</span><span class="p">)</span>
+<span class="n">velxcong</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">congrid</span><span class="p">(</span><span class="n">D</span><span class="o">.</span><span class="n">vx1</span><span class="o">.</span><span class="n">T</span><span class="p">,</span><span class="n">newdims</span><span class="p">,</span><span class="n">method</span><span class="o">=</span><span class="s">&#39;linear&#39;</span><span class="p">)</span>
+<span class="n">velycong</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">congrid</span><span class="p">(</span><span class="n">D</span><span class="o">.</span><span class="n">vx2</span><span class="o">.</span><span class="n">T</span><span class="p">,</span><span class="n">newdims</span><span class="p">,</span><span class="n">method</span><span class="o">=</span><span class="s">&#39;linear&#39;</span><span class="p">)</span>
+<span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">quiver</span><span class="p">(</span><span class="n">xcong</span><span class="p">,</span> <span class="n">ycong</span><span class="p">,</span> <span class="n">velxcong</span><span class="p">,</span> <span class="n">velycong</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s">&#39;w&#39;</span><span class="p">)</span>
+
+<span class="n">savefig</span><span class="p">(</span><span class="s">&#39;stellar_wind_1.png&#39;</span><span class="p">)</span>
+<span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>(<a class="reference external" href="./../examples/stellar_wind.py">Source code</a>)</p>
+</div></blockquote>
+</div>
+<div class="section" id="orzag-tang">
+<h1>4. <em>Orzag-Tang</em><a class="headerlink" href="#orzag-tang" title="Permalink to this headline">¶</a></h1>
+<blockquote>
+<div><div class="figure align-center">
+<a class="reference internal image-reference" href="_images/orszag_tang_1.png"><img alt="_images/orszag_tang_1.png" src="_images/orszag_tang_1.png" style="width: 550.0px; height: 550.0px;" /></a>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">pyPLUTO</span> <span class="kn">as</span> <span class="nn">pp</span>
+
+<span class="n">plutodir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;PLUTO_DIR&#39;</span><span class="p">]</span>
+<span class="n">wdir</span> <span class="o">=</span> <span class="n">plutodir</span><span class="o">+</span><span class="s">&#39;/Test_Problems/MHD/Orszag_Tang/&#39;</span>
+<span class="n">nlinf</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">nlast_info</span><span class="p">(</span><span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">)</span>
+
+<span class="n">D</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">pload</span><span class="p">(</span><span class="n">nlinf</span><span class="p">[</span><span class="s">&#39;nlast&#39;</span><span class="p">],</span><span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">)</span> <span class="c"># Loading the data into a pload object D.</span>
+<span class="n">I</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">Image</span><span class="p">()</span>
+<span class="n">I</span><span class="o">.</span><span class="n">pldisplay</span><span class="p">(</span><span class="n">D</span><span class="p">,</span> <span class="n">D</span><span class="o">.</span><span class="n">rho</span><span class="p">,</span><span class="n">x1</span><span class="o">=</span><span class="n">D</span><span class="o">.</span><span class="n">x1</span><span class="p">,</span><span class="n">x2</span><span class="o">=</span><span class="n">D</span><span class="o">.</span><span class="n">x2</span><span class="p">,</span><span class="n">label1</span><span class="o">=</span><span class="s">&#39;x&#39;</span><span class="p">,</span><span class="n">label2</span><span class="o">=</span><span class="s">&#39;y&#39;</span><span class="p">,</span><span class="n">title</span><span class="o">=</span><span class="s">r&#39;Density $\rho$ [Orszag Tang test]&#39;</span><span class="p">,</span><span class="n">cbar</span><span class="o">=</span><span class="p">(</span><span class="bp">True</span><span class="p">,</span><span class="s">&#39;vertical&#39;</span><span class="p">))</span>
+<span class="n">savefig</span><span class="p">(</span><span class="s">&#39;orszag_tang_1.png&#39;</span><span class="p">)</span> <span class="c"># Only to be saved as either .png or .jpg</span>
+<span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>(<a class="reference external" href="./../examples/orszag_tang.py">Source code</a>)</p>
+</div></blockquote>
+</div>
+<div class="section" id="axisymmetric-jet">
+<h1>5. <em>Axisymmetric-Jet</em><a class="headerlink" href="#axisymmetric-jet" title="Permalink to this headline">¶</a></h1>
+<blockquote>
+<div><div class="figure align-center" style="width: 400px">
+<img alt="_images/jet_final.png" src="_images/jet_final.png" />
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">pyPLUTO</span> <span class="kn">as</span> <span class="nn">pp</span>
+
+<span class="n">plutodir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;PLUTO_DIR&#39;</span><span class="p">]</span>
+<span class="n">wdir</span> <span class="o">=</span> <span class="n">plutodir</span><span class="o">+</span><span class="s">&#39;/Test_Problems/MHD/Jet/&#39;</span>
+<span class="n">nlinf</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">nlast_info</span><span class="p">(</span><span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">)</span>
+
+<span class="n">D</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">pload</span><span class="p">(</span><span class="n">nlinf</span><span class="p">[</span><span class="s">&#39;nlast&#39;</span><span class="p">],</span><span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">)</span> <span class="c"># Loading the data into a pload object D.</span>
+<span class="n">I</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">Image</span><span class="p">()</span>
+<span class="n">I</span><span class="o">.</span><span class="n">pldisplay</span><span class="p">(</span><span class="n">D</span><span class="p">,</span> <span class="n">D</span><span class="o">.</span><span class="n">rho</span><span class="p">,</span><span class="n">x1</span><span class="o">=</span><span class="n">D</span><span class="o">.</span><span class="n">x1</span><span class="p">,</span><span class="n">x2</span><span class="o">=</span><span class="n">D</span><span class="o">.</span><span class="n">x2</span><span class="p">,</span><span class="n">label1</span><span class="o">=</span><span class="s">&#39;x&#39;</span><span class="p">,</span><span class="n">label2</span><span class="o">=</span><span class="s">&#39;y&#39;</span><span class="p">,</span>
+            <span class="n">title</span><span class="o">=</span><span class="s">r&#39;Density $\rho$ [MHD jet]&#39;</span><span class="p">,</span><span class="n">cbar</span><span class="o">=</span><span class="p">(</span><span class="bp">True</span><span class="p">,</span><span class="s">&#39;vertical&#39;</span><span class="p">),</span><span class="n">figsize</span><span class="o">=</span><span class="p">[</span><span class="mi">7</span><span class="p">,</span><span class="mi">12</span><span class="p">])</span>
+
+<span class="c"># Code to plot field lines. Requires 2 arrays xarr and yarr as</span>
+<span class="c"># the starting point of integration i.e. x and y co-ordinate of the field point.</span>
+<span class="n">I</span><span class="o">.</span><span class="n">myfieldlines</span><span class="p">(</span><span class="n">D</span><span class="p">,</span><span class="n">linspace</span><span class="p">(</span><span class="n">D</span><span class="o">.</span><span class="n">x1</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span><span class="n">D</span><span class="o">.</span><span class="n">x1</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span><span class="mi">10</span><span class="p">),</span><span class="n">linspace</span><span class="p">(</span><span class="n">D</span><span class="o">.</span><span class="n">x2</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span><span class="n">D</span><span class="o">.</span><span class="n">x2</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span><span class="mi">10</span><span class="p">),</span>
+               <span class="n">colors</span><span class="o">=</span><span class="s">&#39;w&#39;</span><span class="p">,</span><span class="n">ls</span><span class="o">=</span><span class="s">&#39;-&#39;</span><span class="p">,</span><span class="n">lw</span><span class="o">=</span><span class="mf">1.5</span><span class="p">)</span>
+
+<span class="n">savefig</span><span class="p">(</span><span class="s">&#39;jet_final.png&#39;</span><span class="p">)</span> <span class="c"># Only to be saved as either .png or .jpg</span>
+<span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>(<a class="reference external" href="./../examples/jet.py">Source code</a>)</p>
+</div></blockquote>
+</div>
+<div class="section" id="spherical-disc-fargo">
+<h1>6. <em>Spherical-Disc</em> : FARGO.<a class="headerlink" href="#spherical-disc-fargo" title="Permalink to this headline">¶</a></h1>
+<blockquote>
+<div><div class="figure align-center">
+<a class="reference internal image-reference" href="_images/SphDisk_1.png"><img alt="_images/SphDisk_1.png" src="_images/SphDisk_1.png" style="width: 1134.0px; height: 459.0px;" /></a>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">pyPLUTO</span> <span class="kn">as</span> <span class="nn">pp</span>
+
+<span class="n">plutodir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;PLUTO_DIR&#39;</span><span class="p">]</span>
+<span class="n">wdir</span> <span class="o">=</span> <span class="n">plutodir</span><span class="o">+</span><span class="s">&#39;/Test_Problems/MHD/FARGO/Spherical_Disk/&#39;</span>
+<span class="n">nlinf</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">nlast_info</span><span class="p">(</span><span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">,</span><span class="n">datatype</span><span class="o">=</span><span class="s">&#39;vtk&#39;</span><span class="p">)</span>
+
+<span class="n">D</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">pload</span><span class="p">(</span><span class="n">nlinf</span><span class="p">[</span><span class="s">&#39;nlast&#39;</span><span class="p">],</span><span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">,</span><span class="n">datatype</span><span class="o">=</span><span class="s">&#39;vtk&#39;</span><span class="p">)</span> <span class="c"># Loading the data into a pload object D.</span>
+
+<span class="n">I</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">Image</span><span class="p">()</span>
+
+<span class="n">f1</span> <span class="o">=</span> <span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">[</span><span class="mi">15</span><span class="p">,</span><span class="mi">6</span><span class="p">],</span><span class="n">num</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">=</span><span class="n">f1</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">122</span><span class="p">)</span>
+<span class="n">I</span><span class="o">.</span><span class="n">pltSphData</span><span class="p">(</span><span class="n">D</span><span class="p">,</span><span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">,</span><span class="n">datatype</span><span class="o">=</span><span class="s">&#39;vtk&#39;</span><span class="p">,</span><span class="n">plvar</span><span class="o">=</span><span class="s">&#39;bx1&#39;</span><span class="p">,</span><span class="n">logvar</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span><span class="n">rphi</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span><span class="n">x3cut</span><span class="o">=</span><span class="mi">96</span><span class="p">)</span>
+<span class="n">colorbar</span><span class="p">(</span><span class="n">orientation</span><span class="o">=</span><span class="s">&#39;horizontal&#39;</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s">r&#39;Radius&#39;</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s">r&#39;Height&#39;</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">r&#39;Magnetic field $B_{\rm x}$&#39;</span><span class="p">)</span>
+
+<span class="n">ax2</span><span class="o">=</span><span class="n">f1</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">121</span><span class="p">)</span>
+<span class="n">I</span><span class="o">.</span><span class="n">pltSphData</span><span class="p">(</span><span class="n">D</span><span class="p">,</span><span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">,</span><span class="n">datatype</span><span class="o">=</span><span class="s">&#39;vtk&#39;</span><span class="p">,</span><span class="n">plvar</span><span class="o">=</span><span class="s">&#39;rho&#39;</span><span class="p">,</span><span class="n">logvar</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span><span class="n">rphi</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span><span class="n">x2cut</span><span class="o">=</span><span class="mi">24</span><span class="p">)</span>
+<span class="n">colorbar</span><span class="p">(</span><span class="n">orientation</span><span class="o">=</span><span class="s">&#39;vertical&#39;</span><span class="p">)</span>
+<span class="n">ax2</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s">r&#39;x&#39;</span><span class="p">)</span>
+<span class="n">ax2</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s">r&#39;y&#39;</span><span class="p">)</span>
+<span class="n">ax2</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s">r&#39;Log $\rho$&#39;</span><span class="p">)</span>
+
+<span class="c"># Code to plot arrows. --&gt; Spacing between the arrow can be adjusted by</span>
+<span class="c"># modifying the newdims tuple of conrid function.</span>
+
+<span class="n">T</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">Tools</span><span class="p">()</span>
+<span class="n">newdims</span> <span class="o">=</span> <span class="mi">2</span><span class="o">*</span><span class="p">(</span><span class="mi">20</span><span class="p">,)</span>
+<span class="n">R</span><span class="p">,</span><span class="n">Z</span><span class="p">,</span><span class="n">SphData</span> <span class="o">=</span> <span class="n">I</span><span class="o">.</span><span class="n">getSphData</span><span class="p">(</span><span class="n">D</span><span class="p">,</span><span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">,</span><span class="n">datatype</span><span class="o">=</span><span class="s">&#39;vtk&#39;</span><span class="p">,</span><span class="n">rphi</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span><span class="n">x2cut</span><span class="o">=</span><span class="mi">24</span><span class="p">)</span>
+<span class="n">xcong</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">congrid</span><span class="p">(</span><span class="n">R</span><span class="p">,</span><span class="n">newdims</span><span class="p">,</span><span class="n">method</span><span class="o">=</span><span class="s">&#39;linear&#39;</span><span class="p">)</span>
+<span class="n">ycong</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">congrid</span><span class="p">(</span><span class="n">Z</span><span class="p">,</span><span class="n">newdims</span><span class="p">,</span><span class="n">method</span><span class="o">=</span><span class="s">&#39;linear&#39;</span><span class="p">)</span>
+<span class="n">vel1</span> <span class="o">=</span> <span class="n">SphData</span><span class="p">[</span><span class="s">&#39;v1c&#39;</span><span class="p">]</span>
+<span class="n">vel2</span> <span class="o">=</span> <span class="n">SphData</span><span class="p">[</span><span class="s">&#39;v3c&#39;</span><span class="p">]</span>
+
+<span class="n">xveccong</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">congrid</span><span class="p">(</span><span class="n">vel1</span><span class="p">,</span><span class="n">newdims</span><span class="p">,</span><span class="n">method</span><span class="o">=</span><span class="s">&#39;linear&#39;</span><span class="p">)</span>
+<span class="n">yveccong</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">congrid</span><span class="p">(</span><span class="n">vel2</span><span class="p">,</span><span class="n">newdims</span><span class="p">,</span><span class="n">method</span><span class="o">=</span><span class="s">&#39;linear&#39;</span><span class="p">)</span>
+<span class="n">normVp</span> <span class="o">=</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">xveccong</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">yveccong</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">xveccong</span> <span class="o">=</span> <span class="n">xveccong</span><span class="o">/</span><span class="n">normVp</span>
+<span class="n">yveccong</span> <span class="o">=</span> <span class="n">yveccong</span><span class="o">/</span><span class="n">normVp</span>
+<span class="n">ax2</span><span class="o">.</span><span class="n">quiver</span><span class="p">(</span><span class="n">xcong</span><span class="p">,</span> <span class="n">ycong</span><span class="p">,</span> <span class="n">xveccong</span><span class="p">,</span> <span class="n">yveccong</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s">&#39;w&#39;</span><span class="p">)</span>
+
+<span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>(<a class="reference external" href="./../examples/Sph_disk.py">Source code</a>)</p>
+</div></blockquote>
+</div>
+<div class="section" id="flow-past-cylinder-amr">
+<h1>7. <em>Flow Past Cylinder</em> : AMR<a class="headerlink" href="#flow-past-cylinder-amr" title="Permalink to this headline">¶</a></h1>
+<blockquote>
+<div><div class="figure align-center">
+<a class="reference internal image-reference" href="_images/amr_flowcyc.png"><img alt="_images/amr_flowcyc.png" src="_images/amr_flowcyc.png" style="width: 600.0px; height: 600.0px;" /></a>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">pyPLUTO</span> <span class="kn">as</span> <span class="nn">pp</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+
+<span class="n">I</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">Image</span><span class="p">()</span>
+<span class="n">plutodir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;PLUTO_DIR&#39;</span><span class="p">]</span>
+<span class="n">wdir</span> <span class="o">=</span> <span class="n">plutodir</span><span class="o">+</span><span class="s">&#39;/Test_Problems/HD/Viscosity/Flow_Past_Cylinder/&#39;</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">D</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">pload</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="n">datatype</span><span class="o">=</span><span class="s">&#39;hdf5&#39;</span><span class="p">,</span><span class="n">level</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">)</span>
+
+<span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+    <span class="k">print</span> <span class="s">&#39;data.0010.hdf5 not found .. Loading data.0000.hdf5 at level 0&#39;</span>
+    <span class="n">D</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">pload</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">datatype</span><span class="o">=</span><span class="s">&#39;hdf5&#39;</span><span class="p">,</span><span class="n">w_dir</span><span class="o">=</span><span class="n">wdir</span><span class="p">)</span>
+
+<span class="c">#Plot 2D AMR R-Phi Polar Data on Cartesian X-Y Plane.</span>
+<span class="n">I</span><span class="o">.</span><span class="n">pldisplay</span><span class="p">(</span><span class="n">D</span><span class="p">,</span> <span class="n">D</span><span class="o">.</span><span class="n">rho</span><span class="p">,</span> <span class="n">x1</span><span class="o">=</span><span class="n">D</span><span class="o">.</span><span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="o">=</span><span class="n">D</span><span class="o">.</span><span class="n">x2</span><span class="p">,</span>
+            <span class="n">polar</span><span class="o">=</span><span class="p">[</span><span class="bp">True</span><span class="p">,</span> <span class="bp">True</span><span class="p">],</span> <span class="n">fignum</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">cbar</span><span class="o">=</span><span class="p">[</span><span class="bp">True</span><span class="p">,</span> <span class="s">&#39;horizontal&#39;</span><span class="p">],</span><span class="n">figsize</span><span class="o">=</span><span class="p">[</span><span class="mi">8</span><span class="p">,</span><span class="mi">8</span><span class="p">],</span>
+            <span class="n">label1</span><span class="o">=</span><span class="s">&#39;X&#39;</span><span class="p">,</span> <span class="n">label2</span><span class="o">=</span><span class="s">&#39;Y&#39;</span><span class="p">,</span><span class="n">title</span><span class="o">=</span><span class="s">r&#39;Density [$\rho$]&#39;</span><span class="p">)</span>
+<span class="n">ax1</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">axis</span><span class="p">([</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span><span class="o">-</span><span class="mf">20.0</span><span class="p">,</span> <span class="mf">20.0</span><span class="p">])</span>
+
+<span class="c">#Using the OplotBox routine to overplot sublevels.</span>
+<span class="n">I</span><span class="o">.</span><span class="n">oplotbox</span><span class="p">(</span><span class="n">D</span><span class="o">.</span><span class="n">AMRLevel</span><span class="p">,</span><span class="n">lrange</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">],</span><span class="n">geom</span><span class="o">=</span><span class="n">D</span><span class="o">.</span><span class="n">geometry</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s">&#39;amr_flowcyc.png&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>(<a class="reference external" href="./../examples/flow_past_cyc.py">Source code</a>)</p>
+</div></blockquote>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Examples</a></li>
+<li><a class="reference internal" href="#sod">1. <em>Sod</em></a></li>
+<li><a class="reference internal" href="#rayleigh-taylor">2. <em>Rayleigh-Taylor</em></a></li>
+<li><a class="reference internal" href="#stellar-wind">3. <em>Stellar-Wind</em></a></li>
+<li><a class="reference internal" href="#orzag-tang">4. <em>Orzag-Tang</em></a></li>
+<li><a class="reference internal" href="#axisymmetric-jet">5. <em>Axisymmetric-Jet</em></a></li>
+<li><a class="reference internal" href="#spherical-disc-fargo">6. <em>Spherical-Disc</em> : FARGO.</a></li>
+<li><a class="reference internal" href="#flow-past-cylinder-amr">7. <em>Flow Past Cylinder</em> : AMR</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/example.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Bhargav Vaidya.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.6</a>
+      
+      |
+      <a href="_sources/example.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,253 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Loading the Data &mdash; pyPLUTO 4.2 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '4.2',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="pyPLUTO 4.2 documentation" href="index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="loading-the-data">
+<h1>Loading the Data<a class="headerlink" href="#loading-the-data" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="pyPLUTO.pload">
+<em class="property">class </em><code class="descclassname">pyPLUTO.</code><code class="descname">pload</code><span class="sig-paren">(</span><em>ns</em>, <em>w_dir=None</em>, <em>datatype=None</em>, <em>level=0</em>, <em>x1range=None</em>, <em>x2range=None</em>, <em>x3range=None</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.pload" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="method">
+<dt id="pyPLUTO.pload.DataScan">
+<code class="descname">DataScan</code><span class="sig-paren">(</span><em>fp</em>, <em>n1</em>, <em>n2</em>, <em>n3</em>, <em>endian</em>, <em>dtype</em>, <em>off=None</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.pload.DataScan" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scans the data files in all formats.</p>
+<p><strong>Inputs</strong>:</p>
+<blockquote>
+<div><p>fp &#8211; Data file pointer</p>
+<p>n1 &#8211; No. of points in X1 direction</p>
+<p>n2 &#8211; No. of points in X2 direction</p>
+<p>n3 &#8211; No. of points in X3 direction</p>
+<p>endian &#8211; Endianess of the data</p>
+<p>dtype &#8211; datatype, eg : double, float, vtk, hdf5</p>
+<p>off &#8211; offset (for avoiding staggered B fields)</p>
+</div></blockquote>
+<p><strong>Output</strong>:</p>
+<blockquote>
+<div>Dictionary consisting of variable names as keys and its values.</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="pyPLUTO.pload.DataScanHDF5">
+<code class="descname">DataScanHDF5</code><span class="sig-paren">(</span><em>fp</em>, <em>myvars</em>, <em>ilev</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.pload.DataScanHDF5" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scans the Chombo HDF5 data files for AMR in PLUTO.</p>
+<p><strong>Inputs</strong>:</p>
+<blockquote>
+<div><p>fp     &#8211; Data file pointer</p>
+<p>myvars &#8211; Names of the variables to read</p>
+<p>ilev   &#8211; required AMR level</p>
+</div></blockquote>
+<p><strong>Output</strong>:</p>
+<blockquote>
+<div>Dictionary consisting of variable names as keys and its values.</div></blockquote>
+<p><strong>Note</strong>:</p>
+<blockquote>
+<div>Due to the particularity of AMR, the grid arrays loaded in ReadGridFile are overwritten here.</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="pyPLUTO.pload.DataScanVTK">
+<code class="descname">DataScanVTK</code><span class="sig-paren">(</span><em>fp</em>, <em>n1</em>, <em>n2</em>, <em>n3</em>, <em>endian</em>, <em>dtype</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.pload.DataScanVTK" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scans the VTK data files.</p>
+<p><strong>Inputs</strong>:</p>
+<blockquote>
+<div><p>fp &#8211; Data file pointer</p>
+<p>n1 &#8211; No. of points in X1 direction</p>
+<p>n2 &#8211; No. of points in X2 direction</p>
+<p>n3 &#8211; No. of points in X3 direction</p>
+<p>endian &#8211; Endianess of the data</p>
+<p>dtype &#8211; datatype</p>
+</div></blockquote>
+<p><strong>Output</strong>:</p>
+<blockquote>
+<div>Dictionary consisting of variable names as keys and its values.</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="pyPLUTO.pload.ReadDataFile">
+<code class="descname">ReadDataFile</code><span class="sig-paren">(</span><em>num</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.pload.ReadDataFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads the data file generated from PLUTO code.</p>
+<p><strong>Inputs</strong>:</p>
+<blockquote>
+<div>num &#8211; Data file number in form of an Integer.</div></blockquote>
+<p><strong>Outputs</strong>:</p>
+<blockquote>
+<div>Dictionary that contains all information about Grid, Time and 
+variables.</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="pyPLUTO.pload.ReadGridFile">
+<code class="descname">ReadGridFile</code><span class="sig-paren">(</span><em>gridfile</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.pload.ReadGridFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read grid values from the grid.out file.</p>
+<p><strong>Inputs</strong>:</p>
+<blockquote>
+<div>gridfile &#8211; name of the grid.out file which has information about the grid.</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="pyPLUTO.pload.ReadMultipleFiles">
+<code class="descname">ReadMultipleFiles</code><span class="sig-paren">(</span><em>nstr</em>, <em>dataext</em>, <em>myvars</em>, <em>n1</em>, <em>n2</em>, <em>n3</em>, <em>endian</em>, <em>dtype</em>, <em>ddict</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.pload.ReadMultipleFiles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads a  multiple data files, varname.****.dataext.</p>
+<p><strong>Inputs</strong>:</p>
+<blockquote>
+<div><p>nstr &#8211; File number in form of a string</p>
+<p>dataext &#8211; Data type of the file, e.g., &#8216;dbl&#8217;, &#8216;flt&#8217; or &#8216;vtk&#8217;</p>
+<p>myvars &#8211; List of variable names to be read</p>
+<p>n1 &#8211; No. of points in X1 direction</p>
+<p>n2 &#8211; No. of points in X2 direction</p>
+<p>n3 &#8211; No. of points in X3 direction</p>
+<p>endian &#8211; Endianess of the data</p>
+<p>dtype &#8211; datatype</p>
+<p>ddict &#8211; Dictionary containing Grid and Time Information
+which is updated.</p>
+</div></blockquote>
+<p><strong>Output</strong>:</p>
+<blockquote>
+<div>Updated Dictionary consisting of variable names as keys and its values.</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="pyPLUTO.pload.ReadSingleFile">
+<code class="descname">ReadSingleFile</code><span class="sig-paren">(</span><em>datafilename</em>, <em>myvars</em>, <em>n1</em>, <em>n2</em>, <em>n3</em>, <em>endian</em>, <em>dtype</em>, <em>ddict</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.pload.ReadSingleFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads a single data file, data.****.dtype.</p>
+<p><strong>Inputs</strong>:</p>
+<blockquote>
+<div><p>datafilename &#8211; Data file name</p>
+<p>myvars &#8211; List of variable names to be read</p>
+<p>n1 &#8211; No. of points in X1 direction</p>
+<p>n2 &#8211; No. of points in X2 direction</p>
+<p>n3 &#8211; No. of points in X3 direction</p>
+<p>endian &#8211; Endianess of the data</p>
+<p>dtype &#8211; datatype</p>
+<p>ddict &#8211; Dictionary containing Grid and Time Information
+which is updated</p>
+</div></blockquote>
+<p><strong>Output</strong>:</p>
+<blockquote>
+<div>Updated Dictionary consisting of variable names as keys and its values.</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="pyPLUTO.pload.ReadTimeInfo">
+<code class="descname">ReadTimeInfo</code><span class="sig-paren">(</span><em>timefile</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.pload.ReadTimeInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read time info from the outfiles.</p>
+<p><strong>Inputs</strong>:</p>
+<blockquote>
+<div>timefile &#8211; name of the out file which has timing information.</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="pyPLUTO.pload.ReadVarFile">
+<code class="descname">ReadVarFile</code><span class="sig-paren">(</span><em>varfile</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.pload.ReadVarFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read variable names from the outfiles.</p>
+<p><strong>Inputs</strong>:</p>
+<blockquote>
+<div>varfile &#8211; name of the out file which has variable information.</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="pyPLUTO.pload.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>ns</em>, <em>w_dir=None</em>, <em>datatype=None</em>, <em>level=0</em>, <em>x1range=None</em>, <em>x2range=None</em>, <em>x3range=None</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.pload.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads the data.</p>
+<p><strong>Inputs</strong>:</p>
+<blockquote>
+<div><p>ns &#8211; Step Number of the data file</p>
+<p>w_dir &#8211; path to the directory which has the data files</p>
+<p>datatype &#8211; Datatype (default = &#8216;double&#8217;)</p>
+</div></blockquote>
+<p><strong>Outputs</strong>:</p>
+<blockquote>
+<div>pyPLUTO pload object whose keys are arrays of data values.</div></blockquote>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/pload.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Bhargav Vaidya.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.6</a>
+      
+      |
+      <a href="_sources/pload.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

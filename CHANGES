@@ -1,0 +1,419 @@
+CURRENT RELEASE: 4.2 (August 2015)
+
+**********************************************************
+*           CHANGES from 4.1
+**********************************************************
+
+Version 4.2 contains some small addition and a whole lot of bug fixes.
+
+Structural Changes:
+===================
+
+- User defined constants have been removed from the python script and
+  can now be added manually by editing a dedicated section in definitions.h.
+
+- The old array indexing style using a two-letter index (e.g. DN, PR, VX,...)
+  is no longer supported. Use RHO, PRS, VX1, ... instead.
+
+- The macro STS_nu has been changed to STS_NU, it has been removed from the
+  python script and it can be inserted manually in the user-defined
+  constant section of definitions.h
+
+- ENTROPY_SWITCH does not take the value YES/NO anymore but it has more
+  options, see the documentation.
+
+- The Shearing Box module has been changed:
+  o It works with FARGO+IDEAL EoS.
+  o The functions BodyForceVector() and BodyForcePotential() are slightly
+    different from before (check Test_Problems/MHD/Shearing_Box/init.c).
+  o The shear parameter and orbital frequency are no longer assigned by the
+    global variables sb_q and qb_Omega but using the macros SB_Q and SB_OMEGA
+    which, by default, take the values 1.5 and 1.0.
+    
+- Userguide has been re-organized.
+
+- Added the MeanMolecularWeight() function and gas composition, see userguide.
+
+- The global variable g_stepNumber now works with PLUTO-Chombo.
+
+- Chombo HDF5 files can be written by specifying the output interval in
+  clock time (hours/minutes/seconds) as well as the output directory. 
+
+- Added GLM_ALPHA to the list of user-defined constants;
+
+- Runtime structure renamed to Restart;
+
+- Input structure renamed to Runtime  and setup.c renamed to runtime_setup.c;
+
+- Suppressed / replaced constant names:
+  
+  o ARTIFICIAL_VISCOSITY --> ARTIFICIAL_VISC (see appendix in the userguide) 
+  o CHOMBO_EN_SWITCH      (suppressed, replaced by the new ENTROPY_SWITCH)
+  o CH_TRACING_REF_STATE --> CHTR_REF_STATE
+  o DN, PR  are no longer supported --> use RHO and PRS instead
+  o EGLM                 --> GLM_EXTENDED
+  o INTERPOLATION        --> RECONSTRUCTION
+  o MHD_FORMULATION      --> DIVB_CONTROL
+  o RESISTIVE_MHD        --> RESISTIVITY
+  o STS_nu               --> STS_NU
+  o USE_FOUR_VELOCITY    --> RECONSTRUCT_4VEL (works for both RHD and RMHD)
+
+- RHD primitive variables always contain the 3 velocity although 4-vel can
+  be reconstructed by enabling the RECONSTRUCT_4VEL switch.
+
+- Src/Cooling/Tab changed to  Src/Cooling/TABULATED
+
+- The HD/ and MHD/ modules share the same RightHandSide() function inside
+  MHD/rhs.c. Likewise, source terms have been separately implemented in
+  MHD/rhs_source.c
+
+- Runtime information can now be accessed from anywhere in the code
+  using the RuntimeGet() function which gives access to a copy of
+  the runtime structure, e.g., RuntimeGet()->cfl.
+
+- RMHD module allows faster computation of eigenvalues using approximate
+  expressions (RMHD_FAST_EIGENVALUES).
+
+- Added the macro RECONSTRUCT_4VEL (YES/NO) which allows to reconstruct
+  the 4-velocity rather than the 3-velocity. It works for for RHD and RMHD.
+
+Fixed Bugs:
+===========
+
+- IDL pload function with var=".." now works also for multiple files;
+- Fixed a number of minor bugs in H2_COOL module and improved
+  CompEquil() function;
+- PPM method works correctly for non-uniform grid in any coordinate system;
+- FlagShock now called when using chombo (MULTID shock flattening and
+  ENTROPY_SWITCH)
+- PLUTO-Chombo now writes plotfiles correctly when restarting from a
+  checkpoint file (changed AMR.cpp in library) 
+- GLM complained with Background field splitting: print removed;
+- Resistivity + background can be used (removed QUIT statement from
+  MHD/bckgrnd_file.c);
+- PathCTU.1D has been removed and all 1D AMR computations are done
+  with PatchCTU.cpp or PatchEuler.cpp;
+- VTK files can now be visualized with PARAVIEW;
+- PVTE_LAW now uses cubic spline interpolation rather than linear 
+  along the temperature axis;
+- Chombo "LevelPluto::step: alpha < 0" crash has been partially solved.
+- Tabulated cooling takes into account the mean molecular weight.
+
+
+
+
+
+**********************************************************
+*           CHANGES from 4.0
+**********************************************************
+
+Version 4.1 contains several bug fixes as well several additions:
+
+Structural Changes:
+==================
+
+- Changed naming convention for ions in cooling modules, e.g. FNEUT -> X_HI.
+- changed convention for global grid indices:
+  (*g_i) -> g_i, (*g_j) -> g_j, (*g_k) -> g_k.
+- Diffusion coefficient name of functions:
+  o   --> Resistive_eta()
+  o   --> TC_kappa()
+  o   --> Viscous_nu()
+- some global variables have been replaced by constants:
+  o UNIT_DENSITY, UNIT_LENGTH, UNIT_VELOCITY
+
+Fixed Bugs:
+==========
+
+- compilation error with ASYNC_IO
+- Vector components in VTK + spherical coordinates
+- Shearing box, flux symmetrization
+- Background field bugs
+
+Additions:
+==========
+
+- Added a general purpose PVTE_LAW equation of state
+
+- Background field splitting has been extended to more Riemann solvers 
+  as well as to GLM
+  
+- Added a new OSPRE limiter
+
+- Added the "little" or "big" endian keyword to InputData()
+
+- Additional features in I/O and visualization:
+  o set output directory name from pluto.ini
+  o VTK_LOAD procedure for IDL
+  o VTK format now support time information 
+  o writing of .vtk and .flt in cgs units 
+  o New gnuplot scripts
+  o HDF5 support writing of supplementary variables
+  o pyPLUTO capabilities extended to VTK and Chombo HDF5 
+  o enabled writing of .flt and .vtk files in CGS units
+ 
+- Completely re-designed treatment of parabolic (diffusion) terms and added
+  more support for entropy 
+  o improved treatment of resistivity in constrained-transport 
+    MHD. Now it also works with STS 
+  o Entropy equation now compatible with viscosity, TC and resistivity and also
+    works with STS
+
+- New: math tools: small internal library of numerical/mathematical routines for 
+  various purposes:
+  o Numerical quadrature of simple functions
+  o ODE solvers
+  o Root finders
+  o Lookup table routines
+  o Miscellaneous
+
+- Python setup:
+  o added user-def constants in definitions.h
+  o automatic python update with ./python setup --auto-update
+  o pluto.ini allows commend to be added (starting with #)
+
+- New H2_COOL cooling module including molecular and atomic cooling
+
+- AMR: 
+  o Added support for polar and spherical coordinates with Chombo.
+    (Chombo 3.2 required)
+  
+
+**********************************************************
+*           CHANGES from 3.1.1
+**********************************************************
+
+   PLUTO 4.0 contains several major improvements over previous releases:
+
+1. Structural Changes
+
+     * The naming syntax of the code has been slightly changed in order to
+       make it more standard and to avoid confusion between MACROS and
+       Functions. While macro names conserve the traditional
+       "ALL_UPPER_CASE" syntax, function names have been replaced by using
+       "CamelCase" letter, where compound words are joined without spaces
+       or underscore and have initial capital letter, e.g. MAKE_GEOMETRY()
+       –> MakeGeometry(). See section 0.6 of the User's Guide.
+
+     * Doxygen is now used as standard documentation system for PLUTO and,
+       although far from being complete, it is meant to replace the old
+       Developer's guide. Please refer to Doc/Doxygen/html/index.hml.
+
+     * ArrayLib is no longer necessary and has been replaced by a compact,
+       largely debugged subset of functions directly incorporated into the
+       code. Parallel executables are compiled by choosing an appropriate
+       makefile from the Config/ directory. Several bugs have been fixed
+       in porting PLUTO to several thousand processor architectures.
+
+     * PLUTO 4 is now compatible with Chombo 3.1 for AMR applications.
+
+     * Staggered arrays now contain one more point in the direction of
+       staggering and span from -1...NX_TOT-1 in the staggered dir.
+
+     * Limiter names have been changed to upper case:
+          + minmod_lim –> MINMOD_LIM
+          + vanleer_lin –> VANLEER_LIM
+
+     * Makefile build has changed to a more flexible structure.
+
+2. I/O Changes
+
+     * VTK files are now correctly written using node-centered rather than
+       cell-centered coordinates. This will produce more accurate
+       visualization with VisIt or Paraview.
+
+     * Asynchrounous binary I/O of single-precision files.
+
+     * HDF5 output format is now available also with the static grid
+       version of the code using single- or double-precision datafiles
+       (*.dbl.h5, *flt.h5). Double precision HDF5 can also be used for
+       restart.
+
+     * Output interval may be given in wallclock time.
+
+3. AMR
+
+     * RK2 time-stepping is now supported with Chombo;
+     * Bug fix: support for entropy switch;
+     * Bug fix: Internal boundary + AMR.
+
+4. (Major) Physics Addition
+
+     * New FARGO-MHD module is available for Cartesian/polar and spherical
+       geometries and it is completely parallel in all 3 directions.
+
+     * New INCLUDE_ROTATION flag allows to solve the HD/MHD equations in a
+       rotating frame of reference using a fully conservative formulation.
+
+     * Isothermal EoS has been added to the HD module. The implementation
+       has been further extended to support a spatially-varying sound
+       speed.
+
+     * ShearingBox module extended to adiabatic EoS and fully parallel in
+       all 3 directions.
+
+     * Body forces have been re-implemented using simpler functions that
+       prescribe either the vector components or the gravitational
+       potential.
+
+     * Entropy Switch for RHD/RMHD modules
+
+5. Extras
+
+     * A new more flexible algorithm to assign initial conditions by
+       interpolating (external) input data files is available.
+
+     * Parallel decomposition may be used-defined using the -dec n1 [n2]
+       [n3] command line argument.
+
+     * Improved handling of "internal boundary" regions inside the
+       computational domain.
+
+6. Visualization
+
+     * New pyPLUTO visualization tool for quick visualization of PLUTO
+       binary files.
+     * IDL: improved getT() function to compute the temperature;
+     * IDL: new ptools() functions for computing averages in 3D datasets;
+     * IDL: improved pload procedure to read also HDF5 files from
+       thestatic grid version of the code.
+     * GNUPLOT: support for reading single or multiple data files
+     * VisIt/Paraview: can now read HDF5 Chombo data files and .h5 PLUTO
+       new format files.
+
+**********************************************************
+*           CHANGES from 3.1.0
+**********************************************************
+
+Version 3.1.1 contains some new improvements and a number
+of minor bug fixes.
+Here's a list of the most important changes:
+
+- time step computation has been revised carefully (in a 
+  genuine multi-D way) for UNSPLIT Runge-Kutta schemes and 
+  when including parabolic terms (both explicit and Super 
+  Time Stepping).
+  The resulting formulation yields time steps that are 
+  larger than before for a given CFL number. 
+  See the UserGuide for a more technical explanation.
+  This should also fix some unstable behavior seen with 
+  STS at large CFL numbers.
+- dissipative processes can now be incorporated, at the 
+  explicit level, with Chombo-AMR;
+- FARGO scheme has been extended to spherical geometry
+- introduced the -no-write runtime switch for Chombo;
+- Bug fix: Viscosity/Thermal Conduction (HD module)
+- Bug fix: multiple calling of diffusion terms with 
+  STS should now work properly.
+
+
+**********************************************************
+*           CHANGES from 3.0.1
+**********************************************************
+
+Version 3.1.0 provides several improvements/optimizations
+together with a few bug fixes.
+Briefly:
+
+- Improved AMR support and compatibility with the latest
+  Chombo release (Chombo 3.0):
+
+  * added support for 1D AMR (replacing the obsolete amr-1D module);
+  * HDF5 files now contains primitive variables (instead of conservative ones);
+  * improved GLM-MHD / CTU integration;
+  * explicit integration of parabolic terms 
+    (conduction, viscosity, resisistivity);
+  * improved reading and visualization routines with IDL
+    (see pload, hdf5load and oplotbox);
+
+- ArrayLib should be recompiled in order to allow large number 
+  of processors (> 16,000); 
+- introduced the -xres command flag;
+- introduced the x1jet, x2jet, x3jet for jet propagating
+  in any direction and dimension (replacing the old -jet switch);
+- introduced the new SHEARINGBOX module;
+- introduced the new FINITE_DIFFERENCE module;
+- improved IDL DISPLAY routine with lft,rgt, bot and top;
+- improved IDL PLOAD routine for reading large datasets;
+- FLUX_CT has been changed to "CONSTRAINED_TRANSPORT".
+  This is automatically corrected by running python setup.py.
+- improved GLM_MHD/CTU and finite difference (FD) implementation.
+- Cooling: cooling function names have been changed 
+  from RAYMOND, NEQ  to   SNEq, MINEq;
+- VECTOR potential: CT_VEC_POT_INIT changed into USE_VECTOR_POTENTIAL
+  and also generalized to cell-centered MHD;
+- time step computation has been modified by replacing
+  min(dx)/max(lambda) --> min(dx/lambda). This yields
+  larger time step on curvilinear grids;
+- Improved Gnuplot visualization capabilities;
+- introduced new reconstruction schemes (LimO3 and WENO3) in 
+  the finite volume formulation (FV);
+- Bug fixes and optimizations in the Thermal Conduction module;
+- Viscosity is now compatible with STS integration.
+- improved portability when restarting from .dbl files.
+  WARNING: restarting from files written with previous versions
+           of PLUTO will no longer work due to a change in the size 
+           of the INPUT and RUNTIME structures. 
+
+**********************************************************
+*           CHANGES from 3.0
+**********************************************************
+
+Version 3.01 contains a number of minor improvements
+and a few bug fixes:
+
+- 1-D AMR extended to cylindrical and spherical coordinates;
+- Entropy switch is available again for the MHD module;
+- improved efficiency and accuracy of the GLM-MHD module;
+- improved characteristic interpolation;
+- CTU integrator is less memory consuming;
+- Improved pload function (for IDL users) for large data sets.
+- Bug fix in 3-D polar coordinates: 
+  the centrifugal term is now correctly included.
+- Bug fix in 3-D Cartesian/MHD/FLUX_CT + UCT_CONTACT:
+  the dEy_dxm derivative was added to Ez instead of Ey.
+- Bug fix in time step computation for viscous term: a division 
+  by density was missing.
+- Bug fix in the vector potential in 2D Cylindrical coordinates:
+  the \phi component of the EMF must flip sign before updating A_\phi.
+
+
+**********************************************************
+*           CHANGES from 2.07.7                          *
+**********************************************************
+
+It contains major changes and several improvements 
+with respect to previous 2.xx.x versions.
+See also the Quickstart chapter in the userguide.pdf:
+
+- 2 and 3D adaptive mesh refinement via the Chombo 
+  library, please consult PLUTO/Doc/userguide.pdf, Chapt 7.
+- New syntax for ANALYSIS, USERDEF_BOUNDARY, GRAVITY;
+- New syntax for pluto.ini;
+- New syntax for gravity and/or body forces;
+- Completely redesigned I/O interface with new output 
+  formats (dbl/flt/vtk/png/ppm/tab);
+- output is the same for both parallel/serial mode;
+- New ArrayLib (please recompile !!!!);
+- thermal conduction module;
+- viscosity module; 
+- computations are promoted to double precision (always);
+- new cooling modules;
+- possibility to assign initial conditions from external files;
+- new Upwind Constrained transport for MHD / RMHD;
+- hyperbolic/parabolic divergence cleaning for MHD and RMHD;
+- improved Super-Time-Stepping module;
+- advanced Non-Equilibrium Cooling function;
+- new command line arguments;
+- several Bug fixes;
+- simpler and more efficient IDL routines;
+
+
+
+
+
+
+
+
+
+

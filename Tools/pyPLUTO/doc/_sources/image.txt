@@ -1,0 +1,7 @@
+Viewing the Data
+--------------------------------
+
+.. currentmodule:: pyPLUTO
+
+.. autoclass:: Image
+    :members:

@@ -1,0 +1,86 @@
+Examples
+---------------------------
+
+1. *Sod* 
+------------------------------------------------------------------------- 
+  
+ .. figure:: sod_1.png
+  :align: center
+  :scale: 75%
+
+ .. plot:: /home/plutouser/Vaidya/pyPLUTO-4.1/examples/sod.py
+  :include-source:
+  :nofigs:
+  
+
+2. *Rayleigh-Taylor* 
+------------------------------------------------------------------------- 
+
+ .. figure:: RayleighTaylor_multi.png
+   :align: center
+   :scale: 65%
+
+ .. plot:: /home/plutouser/Vaidya/pyPLUTO-4.1/examples/rayleigh_taylor.py
+  :include-source:
+  :nofigs:
+  
+  
+3. *Stellar-Wind* 
+------------------------------------------------------------------------- 
+
+ .. figure:: stellar_wind.png
+   :align: center
+   :figwidth: 400px
+
+ .. plot:: /home/plutouser/Vaidya/pyPLUTO-4.1/examples/stellar_wind.py
+  :include-source:
+  :nofigs:
+  
+ 
+4. *Orzag-Tang* 
+------------------------------------------------------------------------- 
+
+ .. figure:: orszag_tang_1.png
+   :align: center
+   :scale: 55%
+
+ .. plot:: /home/plutouser/Vaidya/pyPLUTO-4.1/examples/orszag_tang.py
+  :include-source:
+  :nofigs:
+
+ 
+5. *Axisymmetric-Jet*
+------------------------------------------------------------------------- 
+
+ .. figure:: jet_final.png
+   :align: center
+   :figwidth: 400px
+
+ .. plot:: /home/plutouser/Vaidya/pyPLUTO-4.1/examples/jet.py
+  :include-source:
+  :nofigs:
+ 
+ 
+6. *Spherical-Disc* : FARGO.
+------------------------------------------------------------------------- 
+
+ .. figure:: SphDisk_1.png
+   :align: center
+   :scale: 75%
+
+ .. plot:: /home/plutouser/Vaidya/pyPLUTO-4.1/examples/Sph_disk.py
+  :include-source:
+  :nofigs:
+
+
+7. *Flow Past Cylinder* : AMR
+------------------------------------------------------------------------- 
+
+ .. figure:: amr_flowcyc.png
+   :align: center
+   :scale: 75%
+
+ .. plot:: /home/plutouser/Vaidya/pyPLUTO-4.1/examples/flow_past_cyc.py
+  :include-source:
+  :nofigs:
+

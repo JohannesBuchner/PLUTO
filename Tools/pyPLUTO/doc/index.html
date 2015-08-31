@@ -1,0 +1,240 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Welcome to pyPLUTO’s documentation! &mdash; pyPLUTO 4.2 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '4.2',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="pyPLUTO 4.2 documentation" href="index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="welcome-to-pypluto-s-documentation">
+<h1>Welcome to pyPLUTO&#8217;s documentation!<a class="headerlink" href="#welcome-to-pypluto-s-documentation" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="information">
+<h2>Information<a class="headerlink" href="#information" title="Permalink to this headline">¶</a></h2>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Author:</th><td class="field-body">Bhargav Vaidya (bvaidya at unito dot it)</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Contributors:</th><td class="field-body">Antoine Strugarek (HDF5 Reader), Denis Stepanov (Polar plotting)</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Version:</th><td class="field-body">4.2</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Date:</th><td class="field-body">August 31, 2015</td>
+</tr>
+</tbody>
+</table>
+<p><strong>TASK :</strong>  Quick Tool for Visualization of PLUTO 4 data (<a class="reference external" href="http://adsabs.harvard.edu/abs/2007ApJS..170..228M">Mignone2007</a>)</p>
+<p><strong>DESCRIPTION :</strong>
+The code is completely written using the Python Language.
+Further the GUI is developed with the Tkinter Interface.</p>
+<p><strong>FEATURES :</strong></p>
+<p>1. Completely based on Python and easy to work without need of any
+licenses like in IDL.</p>
+<p>2. The GUI environment provides a tool for quick-check of data during
+the simulations runs.</p>
+<p>3. The code is user friendly and allows the user to even do further
+plotting of contours, velocity vectors on the surface plot. Also the code can read user-defined variables.</p>
+<p><strong>CHANGES from 4-1.0 :</strong></p>
+<p>1. The Data reader is made 10x faster by replacing the previously
+used <em>struct.unpack</em> module with the <em>array.fromstring</em> module.</p>
+<p>2. The reader can also read VTK data files generated using PLUTO code.
+Python/VTK wrapping library is <strong>NOT</strong> required for the same.</p>
+<p>3. HDF5 files generated from <em>Chombo</em> for the PLUTO AMR runs can also be read.
+This requires to install <em>h5py</em> (Python&#8217;s HDF5 Reader).</p>
+</div>
+<div class="section" id="getting-started">
+<h2>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pload.html">Loading Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="image.html">Viewing Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tools.html">Additional Tools</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gui.html">Graphical User Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="example.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="example.html#sod">1. <em>Sod</em></a></li>
+<li class="toctree-l1"><a class="reference internal" href="example.html#rayleigh-taylor">2. <em>Rayleigh-Taylor</em></a></li>
+<li class="toctree-l1"><a class="reference internal" href="example.html#stellar-wind">3. <em>Stellar-Wind</em></a></li>
+<li class="toctree-l1"><a class="reference internal" href="example.html#orzag-tang">4. <em>Orzag-Tang</em></a></li>
+<li class="toctree-l1"><a class="reference internal" href="example.html#axisymmetric-jet">5. <em>Axisymmetric-Jet</em></a></li>
+<li class="toctree-l1"><a class="reference internal" href="example.html#spherical-disc-fargo">6. <em>Spherical-Disc</em> : FARGO.</a></li>
+<li class="toctree-l1"><a class="reference internal" href="example.html#flow-past-cylinder-amr">7. <em>Flow Past Cylinder</em> : AMR</a></li>
+</ul>
+</div>
+</div>
+<div class="section" id="pypluto-module">
+<h2>pyPLUTO Module.<a class="headerlink" href="#pypluto-module" title="Permalink to this headline">¶</a></h2>
+<p>The pyPLUTO module can be loaded as follows.</p>
+<p><code class="docutils literal"><span class="pre">import</span> <span class="pre">pyPLUTO</span> <span class="pre">as</span> <span class="pre">pp</span></code></p>
+<p><strong>QUICK START</strong>:</p>
+<blockquote>
+<div><div class="line-block">
+<div class="line"><code class="docutils literal"><span class="pre">import</span> <span class="pre">pyPLUTO</span> <span class="pre">as</span> <span class="pre">pp</span></code></div>
+<div class="line"><code class="docutils literal"><span class="pre">wdir</span> <span class="pre">=</span> <span class="pre">/path/to/datafiles</span> <span class="pre">#Default</span> <span class="pre">is</span> <span class="pre">current</span> <span class="pre">directory.</span></code></div>
+</div>
+<div class="line-block">
+<div class="line">To read the data file # 1, say <em>data.0001.dbl</em></div>
+<div class="line"><code class="docutils literal"><span class="pre">D</span> <span class="pre">=</span> <span class="pre">pp.pload(1,</span> <span class="pre">w_dir=wdir)</span></code></div>
+</div>
+<div class="line-block">
+<div class="line">To read data file in <em>float</em> format, say <em>data.0010.flt</em></div>
+<div class="line"><code class="docutils literal"><span class="pre">D</span> <span class="pre">=</span> <span class="pre">pp.pload(10,</span> <span class="pre">datatype='float')</span></code></div>
+</div>
+<div class="line-block">
+<div class="line">To read data file in <em>vtk</em> format, say <em>data.0005.vtk</em></div>
+<div class="line"><code class="docutils literal"><span class="pre">D</span> <span class="pre">=</span> <span class="pre">pp.pload(5,</span> <span class="pre">datatype='vtk')</span></code></div>
+</div>
+<div class="line-block">
+<div class="line">To read data file in <em>hdf5</em> format, say <em>data.0005.hdf5</em> at AMR level 3</div>
+<div class="line"><code class="docutils literal"><span class="pre">D</span> <span class="pre">=</span> <span class="pre">pp.pload(5,</span> <span class="pre">datatype='hdf5',</span> <span class="pre">level=3)</span></code></div>
+</div>
+<div class="line-block">
+<div class="line">Then array of density will be in <em>D.rho</em> and that of X1 velocity</div>
+<div class="line">will be in <em>D.vx1</em> and so on.</div>
+</div>
+</div></blockquote>
+<p>The functions associated with this module are listed below :</p>
+<span class="target" id="module-pyPLUTO"></span><dl class="function">
+<dt id="pyPLUTO.get_nstepstr">
+<code class="descclassname">pyPLUTO.</code><code class="descname">get_nstepstr</code><span class="sig-paren">(</span><em>ns</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.get_nstepstr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert the float input <em>ns</em> into a string that would match the data file name.</p>
+<p><strong>Inputs</strong>:</p>
+<blockquote>
+<div>ns &#8211; Integer number that represents the time step number. E.g., The ns for data.0001.dbl is 1.</div></blockquote>
+<p><strong>Outputs</strong>:</p>
+<blockquote>
+<div>Returns the string that would be used to complete the data file name. E.g., for data.0001.dbl, ns = 1 and pyPLUTO.get_nstepstr(1) returns &#8216;0001&#8217;</div></blockquote>
+</dd></dl>
+
+<dl class="function">
+<dt id="pyPLUTO.nlast_info">
+<code class="descclassname">pyPLUTO.</code><code class="descname">nlast_info</code><span class="sig-paren">(</span><em>w_dir=None</em>, <em>datatype=None</em><span class="sig-paren">)</span><a class="headerlink" href="#pyPLUTO.nlast_info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prints the information of the last step of the simulation as obtained from out files</p>
+<p><strong>Inputs</strong>:</p>
+<blockquote>
+<div><p>w_dir &#8211; path to the directory which has the dbl.out(or flt.out) and the data</p>
+<p>datatype &#8211; If the data is of &#8216;float&#8217; type then datatype = &#8216;float&#8217; else by default the datatype is set to &#8216;double&#8217;.</p>
+</div></blockquote>
+<p><strong>Outputs</strong>:</p>
+<blockquote>
+<div><p>This function returns a dictionary with following keywords -</p>
+<p>nlast &#8211; The ns for the last file saved.</p>
+<p>time &#8211; The simulation time for the last file saved.</p>
+<p>dt &#8211; The time step dt for the last file.</p>
+<p>Nstep &#8211; The Nstep value for the last file saved.</p>
+</div></blockquote>
+<p><strong>Usage</strong>:</p>
+<blockquote>
+<div><p>In case the data is &#8216;float&#8217;.</p>
+<p><code class="docutils literal"><span class="pre">wdir</span> <span class="pre">=</span> <span class="pre">/path/to/data/directory</span></code></p>
+<p><code class="docutils literal"><span class="pre">import</span> <span class="pre">pyPLUTO</span> <span class="pre">as</span> <span class="pre">pp</span></code></p>
+<p><code class="docutils literal"><span class="pre">A</span> <span class="pre">=</span> <span class="pre">pp.nlast_info(w_dir=wdir,datatype='float')</span></code></p>
+</div></blockquote>
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><span>Index</span></a></li>
+<li><a class="reference internal" href="py-modindex.html"><span>Module Index</span></a></li>
+<li><a class="reference internal" href="search.html"><span>Search Page</span></a></li>
+</ul>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Welcome to pyPLUTO&#8217;s documentation!</a><ul>
+<li><a class="reference internal" href="#information">Information</a></li>
+<li><a class="reference internal" href="#getting-started">Getting Started</a></li>
+<li><a class="reference internal" href="#pypluto-module">pyPLUTO Module.</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/index_old.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Bhargav Vaidya.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.6</a>
+      
+      |
+      <a href="_sources/index_old.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

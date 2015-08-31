@@ -1,0 +1,102 @@
+.. pyPLUTO documentation master file, created by
+   sphinx-quickstart on Mon Sep 15 10:43:18 2014.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
+
+Welcome to pyPLUTO's documentation!
+===================================
+
+Information 
+--------------------------------
+
+:Author: Bhargav Vaidya (bvaidya at unito dot it)
+:Contributors: Antoine Strugarek (HDF5 Reader), Denis Stepanov (Polar plotting)
+:Version: |version|
+:Date: |today|
+
+**TASK :**  Quick Tool for Visualization of PLUTO 4 data (Mignone2007_)
+
+**DESCRIPTION :**
+The code is completely written using the Python Language.
+Further the GUI is developed with the Tkinter Interface.
+
+**FEATURES :**
+
+1. Completely based on Python and easy to work without need of any
+licenses like in IDL.
+
+2. The GUI environment provides a tool for quick-check of data during
+the simulations runs.
+
+3. The code is user friendly and allows the user to even do further
+plotting of contours, velocity vectors on the surface plot. Also the code can read user-defined variables.
+
+**CHANGES from 4-1.0 :**
+
+1. The Data reader is made 10x faster by replacing the previously 
+used *struct.unpack* module with the *array.fromstring* module.
+
+2. The reader can also read VTK data files generated using PLUTO code.
+Python/VTK wrapping library is **NOT** required for the same.
+
+3. HDF5 files generated from *Chombo* for the PLUTO AMR runs can also be read. 
+This requires to install *h5py* (Python's HDF5 Reader). 
+
+.. _Mignone2007: http://adsabs.harvard.edu/abs/2007ApJS..170..228M 
+
+
+Getting Started
+----------------------------
+
+.. toctree::
+   :maxdepth: 2
+
+   Installation <install>   
+   Loading Data <pload>
+   Viewing Data <image>
+   Additional Tools <tools>
+   Graphical User Interface <gui>
+   Examples <example>
+
+
+
+pyPLUTO Module.
+------------------------------
+
+The pyPLUTO module can be loaded as follows.
+
+``import pyPLUTO as pp``
+
+**QUICK START**:
+
+   | ``import pyPLUTO as pp`` 
+   | ``wdir = /path/to/datafiles #Default is current directory.``
+   
+   | To read the data file # 1, say *data.0001.dbl*
+   | ``D = pp.pload(1, w_dir=wdir)``
+	  
+   | To read data file in *float* format, say *data.0010.flt*
+   | ``D = pp.pload(10, datatype='float')``
+
+   | To read data file in *vtk* format, say *data.0005.vtk*
+   | ``D = pp.pload(5, datatype='vtk')``
+
+   | To read data file in *hdf5* format, say *data.0005.hdf5* at AMR level 3
+   | ``D = pp.pload(5, datatype='hdf5', level=3)``
+   
+   | Then array of density will be in *D.rho* and that of X1 velocity
+   | will be in *D.vx1* and so on. 
+
+The functions associated with this module are listed below : 
+
+.. automodule:: pyPLUTO 
+  :members: get_nstepstr, nlast_info
+
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
+

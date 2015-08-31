@@ -1,0 +1,60 @@
+########################################################################
+# Template configuration file for architecture-dependent
+# makefile variables.
+#
+# Required fields working for static/AMR grid versions are:
+#
+#  CC      = name of your C compiler, e.g., cc, gcc, mpicc...
+#  CFLAGS  = compilation flags to be passed to CC
+#  LDFLAGS = flag options to be passed to the linker
+#
+# Optional fields, working only with static grid version, are:
+#
+#  PARALLEL = TRUE/FALSE to set parallel/serial mode (default = FALSE);
+#  USE_HDF5 = TRUE/FALSE to enable/disable HDF5 library support 
+#             (default = FALSE);
+#  USE_PNG  = TRUE/FALSE to enable/disable PNG library support 
+#             (default = FALSE);
+#  
+#  USE_ASYNC_IO = TRUE/FALSE to enable/disable Asynchronous binary I/O.
+#                 This only works if PARALLEL = TRUE.
+#  HDF5_LIB     = when USE_HDF5 is set to TRUE, should contain the full
+#                 path name to the HDF5 library. 
+#                 Use parallel HDF5 library path when PARALLEL is set to 
+#                 TRUE or serial HDF5 library otherwise.
+#
+########################################################################
+
+CC      = cc
+CFLAGS  = -c -O
+LDFLAGS = -lm
+
+PARALLEL = 
+USE_HDF5 = 
+USE_PNG  = 
+
+#######################################
+# MPI additional spefications
+#######################################
+
+ifeq ($(strip $(PARALLEL)), TRUE)
+ USE_ASYNC_IO = 
+endif
+
+#######################################
+#    HDF5 library options
+#######################################
+
+ifeq ($(strip $(USE_HDF5)), TRUE)
+ HDF5_LIB      =  
+ INCLUDE_DIRS += -I$(HDF5_LIB)/include
+ LDFLAGS      += -L$(HDF5_LIB)/lib -lhdf5 -lz
+endif
+
+#######################################
+#     PNG library options
+#######################################
+
+ifeq ($(strip $(USE_PNG)), TRUE)
+ LDFLAGS += -lpng
+endif

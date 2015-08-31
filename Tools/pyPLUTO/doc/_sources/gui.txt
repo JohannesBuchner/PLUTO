@@ -1,0 +1,211 @@
+Graphic User Interface 
+------------------------------------
+
+.. include:: <isogrk1.txt>
+
+The Graphic User Interface for the pyPLUTO code. 
+
+.. figure:: GetStarted.png
+   :align: center
+   :scale: 75%
+
+The Graphic User Interface of the pyPLUTO code for a typical
+three dimensional Hydrodynamical example. 
+
+**Usage :**
+
+On installing the pyPLUTO source code via local install process, 
+the executable for the GUI version of the code will be present in ``<path to MyPython_Modules>/bin``.
+In order to use directly from the command line append the ``$PATH``
+variable as follows:
+
+``export PATH=<path to MyPython_Modules>/bin:$PATH``, after which data can be
+visualized using following commands in the directory which has the
+relevant data -  
+ 
+``GUI_pyPLUTO.py`` - This will work in case the data is in double format. 
+
+``GUI_pyPLUTO.py --float`` -- For data in float format one has to use the flag *--float* 
+
+``GUI_pyPLUTO.py --vtk`` -- For data in VTK format one has to use the flag *--vtk* 
+
+The various functionalities in the Graphic User Interface (GUI) of the
+pyPLUTO code are marked with numbers as shown in the figure and explained in details below:
+
+1. **Save As** : The drop down menu allows the user to save the figure
+displayed in various 
+formats viz. 'eps', 'pdf', 'jpg', 'png'. **NOTE** - In case of surface
+images, it is recommended to save as 'png' and/or  'jpg' and then
+convert as the way the code plots surface is using pcolormesh (to
+account for non-uniform grid) and its been a known fact that rendering
+of pcolormesh images in eps takes loads of time.   
+
+2. **Quit** : The user can close the GUI using this
+button.
+
+3. **Loading the Data** :  This allows the user to load 
+data.
+ 
+ a. **Nstep** : The number of the data file should be inputted in the
+ blank panel provided. By default initial data file i.e. Nstep = 0 is
+ loaded. The input number should be a valid positive number and the
+ corresponding data file should exists in the working directory.
+
+ b. **Load Data** : The user can click on this button to load the
+ appropriate data file whose number is inputted in the Nstep
+ panel. Each time the user modifies the value in the Nstep field, this
+ button needs to be clicked to load the corresponding file.
+
+4. **Axis cuts** : The user can choose the appropriate values in these
+panels to plot/image a particular cut/slice. 
+No default value is set so error will occur if invalid entry is inputted.
+
+ a. **x1** : The field to input the x1 cut value. This field should not be
+ blank if the user either chooses *Along x2* or *Along x3* or *Along
+ x2-x3* in (6). This field is disabled if the problem considered is
+ 1-D.
+
+ b. **x2** : The field to input the x2 cut value. This field should not
+ be blank if the user either chooses *Along x1* or *Along x3* or
+ *Along x3-x1* in (6). This field is disabled if the
+ problem considered is 1-D.
+
+ c. **x3** : The field to input the x3 cut value. This field should not
+ be blank if the user either chooses *Along x1* or *Along x2* or
+ *Along x1-x2* in (6).  This field is disabled if the
+ problem considered is either 1-D or 2-D.
+
+5. **Choose Variables** : The user can choose the variable to plot from the list. This list also includes any additional variable stored using the *userdef_output.c*. So basically all the variables
+listed in the *dbl.out* (or *flt.out*)  are enlisted in this column. The code will
+have a disabled *Plot* and  *Surface*, until a variable is chosen in
+this column. **NOTE** - If the user wish to plot a userdef variable
+and also saves the vector potential then it is recommended to save
+data as multiple_files instead of single_file in pluto.ini.
+
+6. **Choose Slices** : The code provides the user to either plot a 1D *Plot* of any of the chosen variable along any axis. Alternatively, the code also allows the user to make a 2D  *Surface* image along
+any combination of two axes. This column is redundant in case the
+numerical problem under consideration is a 1D problem. With the choice
+of the slice, the user should also have appropriate axis cuts
+specified as mentioned above else the code will result into an error. 
+
+7. **Additional Processing** : The GUI interface allows the user to
+carry some additional processing on the variable chosen. They are the
+following -
+
+ a. **Log** : The user can plot logarithmic values using this 
+ option.
+
+ b. **Polar** : The user can use this option to project the data from
+ Spherical coordinates to Cylindrical coordinates. In the present
+ version, the code handles the projection in the r-|thgr| plane
+ (*Along x1-x2*) and the r-|phgr| plane (*Along x3-x1*).
+ 
+ c. **Aspect** : Choosing this option allows the user to ensure that the
+ image (only the Surface) produced has proper aspect ratio. By default
+ the aspect ratio is set to 'auto'. 
+
+ d. **Contour** : The user can choose this option to overplot the
+ surface 
+ plot with contours [see (10 a,b)].
+    
+ e. **Arrow** : The user can choose this option to overplot the surface
+ plot with vector arrows [see (11 a,b)].
+
+8. **Information Panel** : The user can view the basic information
+regarding the problem under consideration. In this panel, the user
+can get information of the current working directory, along with the
+domain of the numerical problem and finally also the final time
+step of that problem.
+
+9. **Figure Window** : In this panel the corresponding *Plot* or the *Surface* (image with colorbar) will be displayed. In
+order that the GUI fits into the whole screen, the user can play with
+the size of the figure by modifying the code and specifying the size
+of the figure window. The default value is : figsize=(7,7).
+
+10. **Contours** : The user can activate this option by choosing the
+*Contour* tab [7(d)]. 
+
+ a. **Contour Variable** : The 2D contours of listed variables can be plotted on
+ the surface plot. The user can choose among all the variables
+ that are available for plotting along with additional provision
+ [only for the MHD problem] of plotting the *Current*
+ [x1*b3] and *Magnetic field lines* [x1*A3]. The Magnetic
+ field lines contour will only work if the code data consists
+ information on the vector potential 'A3'.  
+ The list by default is set to 'None' and thus
+ will give error is the user tries to plot contours without
+ choosing the appropriate variable from the drop down list.
+ 
+ b. **Contour Levels** : The user can provide the contours levels which is required separated by ','. If the user does not
+ wish to provide the levels then by default a total of 5 contours of automatically chosen levels will be displayed. Further, the
+ user can also choose to display logarithmic contours by having the
+ first entry in this panels as *log*. For example,
+   
+   - log,-1.5,-1.8,-2.0 : This plots the logarithmic contours for the chosen Contour variable at levels marked by 10^{-1.5}, 10^{-1.8} and 10^{-2.0}
+   
+   - 1.0,2.0,3.0 : This will display normal contours for the chosen Contour variable at levels marked by 1.0, 2.0, and 3.0
+   
+   - Blank [Default]: 5 contours of automatically chosen  levels will be displayed
+ 
+ There is no limit to the number of levels that can be inputed in this
+ field. By convention all negative contours will be shown as
+ *dashes*. In case of logarithmic contours, the *dashes* would
+ represent contours for levels less than unity. 
+
+11. **Arrows** : The user can activate this option by choosing the
+'Arrows' tab [7(e)].
+
+ a. **Arrow Variable** : The vector arrows of velocity field [Vp and
+ Vp_norm] and the magnetic field [Bp and Bp_norm] (only in
+ MHD) can be displayed. The options of . The variables with '_norm' indicate that the
+ arrows are normalized, i.e. each arrow will have unit length.   
+ The list by default is set to 'None' and thus
+ will give error is the user tries to plot arrows without
+ choosing the appropriate variable from the drop down list. 
+
+ b. **Arrow Spacing** : The user can provide the spacing
+ value which indicates the size of the congrid matrix used to
+ create the vector plots. Higher values will produce a more
+ "dense" plot. Default is set to 20. 
+
+12. **Plot** : This button is by default deactivated and it will be active only when the user has fulfilled the conditions of valid
+loading of data [(3) a,b], choosing the variable [(5)] and choosing to
+plot either Along x1 or Along x2 or Along x3 [(6)].  Only in case of
+1-D numerical problems this button will be activated by default.
+
+13. **Surface** : This button is by default deactivated and it will be
+active only when the user has fulfilled the conditions of valid
+loading of data [(3) a,b], choosing the variable [(5)] and choosing to
+plot either *Along x1-x2* or *Along x2-x3* or *Along x3-x1*
+[(6)]. Consecutively pressing this button will clear the existing
+image and create a new one.
+
+14. **Clear** : This button allows the user to 
+clear the plot. 
+
+15. **Labels** : The user can choose the x and y labels for
+their plots/images. The user can also use standard TeX symbols within
+the '\$' sign. By default they are set to 'xlabel' and 'ylabel' respectively.
+
+16. **Ranges** : The user can choose range of values to be displayed
+from these panels.
+
+ a. **Xrange** : To set the minimum (left entry) and maximum (right
+ entry) range of the X axis. A 'blank' entry would mean that by
+ default the minimum and the maximum of the X vector will be shown (i.e. the full range).
+   
+ b. **Yrange** : To set the minimum (left entry) and maximum (right
+ entry) range of the Y axis. A 'blank' entry would mean that by default the minimum and the maximum of the Y
+ vector will be shown (i.e. the full range). This becomes
+ ineffective in case if the user wants to plots a line. To set the
+ range for the Y axis in case of 'Plot', the user should use the
+ VarRange option.
+
+ c. **VarRange** : To set the minimum (left entry) and maximum
+ (right entry) range of the Variable. A 'blank' entry
+ would mean that by default the minimum and the maximum of the Variable
+ will be shown (i.e. the full range). In case the user wants a
+ 'Surface' image then with this option the user can choose the
+ maximum and the minimum of the image. In case of 'Plot', this
+ becomes the Y axis range.  
+

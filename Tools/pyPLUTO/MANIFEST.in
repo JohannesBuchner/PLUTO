@@ -1,0 +1,8 @@
+include README.txt
+include setup.py
+include MANIFEST.in
+include doc/_images/*.png
+include doc/_sources/*.txt
+include doc/_static/*.*
+include doc/*.html
+include examples/*.py

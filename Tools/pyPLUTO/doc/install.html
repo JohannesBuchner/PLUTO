@@ -1,0 +1,133 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Installation &mdash; pyPLUTO 4.2 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '4.2',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="pyPLUTO 4.2 documentation" href="index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
+<p>The latest version (<em>4-2.0</em>) of the <em>pyPLUTO</em> code is officially distributed with the
+latest version of the <em>PLUTO</em> code. This can be downloaded from <a class="reference external" href="http://plutocode.ph.unito.it/Download.html">PlutoDownload</a>.</p>
+<ol class="arabic simple">
+<li><strong>Global Install</strong></li>
+</ol>
+<blockquote>
+<div><p>The Python version from the EPD version by default creates a PYTHONPATH. If no option is chosen for preferred path
+then in that case the code will be installed in that default path.  This may require the user to have access to the r  oot password:</p>
+<ul class="simple">
+<li>Enter into the directory : <code class="docutils literal"><span class="pre">cd</span> <span class="pre">$PLUTO_DIR/Tools/pyPLUTO</span></code></li>
+<li>Install the code in the default path : <code class="docutils literal"><span class="pre">python</span> <span class="pre">setup.py</span> <span class="pre">install</span></code></li>
+</ul>
+</div></blockquote>
+<ol class="arabic simple" start="2">
+<li><strong>Local Install (Recommended)</strong></li>
+</ol>
+<blockquote>
+<div><p>The best practice is to create your own PYTHONPATH and do a local install in the following way:</p>
+<ul>
+<li><p class="first">Create a directory where to store this module : <code class="docutils literal"><span class="pre">mkdir</span> <span class="pre">MyPython_Modules</span></code></p>
+</li>
+<li><p class="first">Enter into the directory : <code class="docutils literal"><span class="pre">cd</span> <span class="pre">$PLUTO_DIR/Tools/pyPLUTO</span></code></p>
+</li>
+<li><p class="first">Install the code in the directory created : <code class="docutils literal"><span class="pre">python</span> <span class="pre">setup.py</span> <span class="pre">install</span> <span class="pre">--prefix=&lt;path</span> <span class="pre">to</span> <span class="pre">MyPython_Modules&gt;</span></code></p>
+</li>
+<li><dl class="first docutils">
+<dt>Then append the following in your .bashrc :</dt>
+<dd><p class="first"><code class="docutils literal"><span class="pre">export</span> <span class="pre">PYTHONPATH</span> <span class="pre">=&lt;path</span> <span class="pre">to</span> <span class="pre">MyPython_Modules&gt;/lib/python&lt;ver&gt;/site-packages</span></code></p>
+<p class="last"><code class="docutils literal"><span class="pre">export</span> <span class="pre">PATH</span> <span class="pre">=&lt;path</span> <span class="pre">to</span> <span class="pre">MyPython_Modules&gt;/bin:$PATH</span></code></p>
+</dd>
+</dl>
+</li>
+</ul>
+<p>where &lt;ver&gt; is the python version which the user have used to install the package.</p>
+<p>After the successful installation, the user can start using GUI application which will be installed in
+<code class="docutils literal"><span class="pre">&lt;path</span> <span class="pre">to</span> <span class="pre">MyPython_Modules&gt;/bin</span></code> for local install and alternatively in <em>bin</em> folder of your
+<em>global</em> PYTHONPATH.</p>
+</div></blockquote>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/install.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Bhargav Vaidya.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.6</a>
+      
+      |
+      <a href="_sources/install.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
