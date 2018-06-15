@@ -1,0 +1,180 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+
+        subroutine NORMALPREDF(
+     &    CHF_FRA[WMinus],
+     &    CHF_FRA[WPlus],
+     &    CHF_CONST_FRA[W],
+     &    CHF_CONST_FRA[dW],
+     &    CHF_CONST_FRA[cellVel],
+     &    CHF_CONST_REAL[dtbydx],
+     &    CHF_CONST_INT[normdir],
+     &    CHF_BOX[box])
+
+        integer CHF_DDECL[inorm;itan1;itan2]
+        integer CHF_DDECL[i;j;k]
+        integer CHF_DDECL[ii;jj;kk]
+        integer CHF_DDECL[ioff;joff;koff]
+        real_t s,ds
+        real_t betam, betap
+        integer spacedim, n
+        real_t CHF_DDECL[un;ut1;ut2]
+
+        spacedim = CH_SPACEDIM
+
+c       predictor step.
+
+        CHF_DTERM[
+        ioff = CHF_ID(0,normdir);
+        joff = CHF_ID(1,normdir);
+        koff = CHF_ID(2,normdir)]
+
+        CHF_DTERM[
+        inorm =   normdir              ;
+        itan1 =  mod(normdir + 1,spacedim);
+        itan2 =  mod(normdir + 2,spacedim)]
+
+        CHF_DTERM[
+        ii = CHF_ID(normdir,0);
+        jj = CHF_ID(normdir,1);
+        kk = CHF_ID(normdir,2)]
+
+c  loop over variables
+        do n=0, CHF_NCOMP[W]-1
+
+          CHF_MULTIDO[box;i;j;k]
+            s = W(CHF_IX[i;j;k],n)
+
+            CHF_DTERM[
+            un  = cellVel(CHF_IX[i;j;k],inorm);
+            ut1 = cellVel(CHF_IX[i;j;k],itan1);
+            ut2 = cellVel(CHF_IX[i;j;k],itan2)]
+
+            ds = dW(CHF_IX[i;j;k],n)
+
+c         Extrapolate to the low side.
+
+          betam = -half*(one + min(un,zero)*dtbydx)
+
+          WMinus(CHF_IX[i;j;k],n) = W(CHF_IX[i;j;k],n) + betam*ds
+
+
+
+c         Extrapolate to the high side.
+          betap = half*(one - max(un,zero)*dtbydx)
+
+
+          WPlus(CHF_IX[i;j;k],n) = W(CHF_IX[i;j;k],n) + betap*ds
+
+        CHF_ENDDO
+
+c  end loop over components
+        end do
+
+        return
+        end
+
+        subroutine RIEMANNF(
+     &    CHF_FRA[Wgdnv],
+     &    CHF_CONST_FRA[WLeft],
+     &    CHF_CONST_FRA[WRight],
+     &    CHF_CONST_FRA1[advVel],
+     &    CHF_CONST_INT[idir],
+     &    CHF_BOX[box])
+
+        integer CHF_DDECL[i; j; k]
+        integer n
+        real_t sl,sr
+        real_t so
+c        real_t sgnm
+c        real_t sstar,cstar,spout,spin,ushock,frac
+        real_t ustar
+
+        integer spacedim
+
+
+        spacedim = CH_SPACEDIM
+
+c       Constant gamma predictor step.
+
+        do n=0, CHF_NCOMP[WLeft]-1
+
+           CHF_MULTIDO[box;i;j;k]
+c     don't need floors in this simple problem
+c         sl = max(smallr,WLeft(CHF_IX[i;j;k],n))
+          sl =  WLeft(CHF_IX[i;j;k],n)
+
+
+c     don't need floors in this simple problem
+c         sr = max(smallr,WRight(CHF_IX[i;j;k],n) )
+          sr = WRight(CHF_IX[i;j;k],n)
+
+
+
+c assumption for this function is that advection velocity is a
+c single-component face-centered FAB containing the normal advection
+c velocity
+          ustar = advVel(CHF_IX[i;j;k])
+
+          if (ustar .gt. zero) then
+             so = sl
+
+c             sgnm = one
+          else
+             so = sr
+
+c             sgnm = -one
+          endif
+
+
+          Wgdnv(CHF_IX[i;j;k],n)  = so
+
+c don't need floor for this simple problem
+c          Wgdnv(CHF_IX[i;j;k],n)  = max(Wgdnv(CHF_IX[i;j;k],n) ,smallr)
+
+          CHF_ENDDO
+       end do
+
+       return
+       end
+c
+c  this updates using the advective form of the equation
+c
+      subroutine UPDATECONSADF(
+     &     CHF_FRA[U],
+     &     CHF_CONST_FRA[F],
+     &     CHF_CONST_FRA[vel],
+     &     CHF_CONST_REAL[dtbydx],
+     &     CHF_CONST_INT[idir],
+     &     CHF_BOX[box])
+
+        integer CHF_DDECL[i;j;k]
+        integer CHF_DDECL[ioff;joff;koff]
+
+        integer iv
+
+        CHF_DTERM[
+        ioff = CHF_ID(0,idir);
+        joff = CHF_ID(1,idir);
+        koff = CHF_ID(2,idir)]
+
+        do iv = 0,CHF_NCOMP[F] - 1
+           CHF_MULTIDO[box;i;j;k]
+
+           U(CHF_IX[i;j;k],iv) = U(CHF_IX[i;j;k],iv)
+     &          - dtbydx * vel(CHF_IX[i;j;k],idir)*
+     &                          (F(CHF_IX[i+ioff;j+joff;k+koff],iv)
+     &                            - F(CHF_IX[i     ;j     ;k     ],iv))
+           CHF_ENDDO
+        enddo
+
+        return
+        end
+
+

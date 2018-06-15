@@ -5,7 +5,7 @@ import shutil
 try:
   os.environ['PLUTO_DIR']
 except KeyError:
-  print 'PLUTO_DIR not defined. Setting it to the Current Directory'
+  print('PLUTO_DIR not defined. Setting it to the Current Directory')
   pluto_directory = os.getcwd()
   pass
 else:
@@ -54,12 +54,12 @@ def PlutoInterFace(pluto_dir, do_auto_update = False):
       sys.exit()
 
   if (menu.CursesIsActive()): menu.RestoreScreen()
-  print "\n> Done."
+  print("\n> Done.")
   sys.exit()
 
 if __name__ == "__main__":   # starts from here
   auto_update = 0
-  print "\n> Checking system architecture\n"
+  print("\n> Checking system architecture\n")
   configure.check(pluto_directory, 1)
   for x in sys.argv[1:]:     # check argument list
     if (x == "--get-arch"):
@@ -67,48 +67,48 @@ if __name__ == "__main__":   # starts from here
       break
 
     if (x == "--with-chombo" or x == "--with-chombo:"): 
-      print "Enabling Chombo support for AMR"
+      print("Enabling Chombo support for AMR")
       cmset = set(['--with-fd','--with-sb','--with-fargo']) & set(sys.argv)
       if len(cmset) != 0:
-        print '! Incompatible modules, ',x,' + '.join(y for y in cmset) 
+        print('! Incompatible modules, ',x,' + '.join(y for y in cmset)) 
         sys.exit(1)
       break
 
     elif (x == "--with-sb"): 
-      print "Enabling support for shearing box module"
+      print("Enabling support for shearing box module")
       if '--with-fd' in sys.argv:
-        print '! Incompatible modules, ',x,' +  --with-fd'
+        print('! Incompatible modules, ',x,' +  --with-fd')
         sys.exit(1)
   
     elif (x == "--with-fd"): 
-      print "Enabling support for finite difference module"
+      print("Enabling support for finite difference module")
 
     elif (x == "--with-fargo"): 
-      print "Enabling support for FARGO scheme"
+      print("Enabling support for FARGO scheme")
 
     elif (x == "--no-curses"):
-      print ""
+      print("")
 
     elif (x == "--auto-update"):
       auto_update = 1	
 
     elif (x == "--help" or x == "-help"):
-      print "Usage: python $PLUTO_DIR/setup.py [options]\n" 
-      print "Here [options] can be:\n"
-      print " --with-sb       enable the shearing box module."
-      print " --with-fd       enable the finite difference module."
-      print " --with-fargo    enable the FARGO-MHD module"
-      print " --with-chombo   enable support for adaptive mesh refinement."
-      print "                 (AMR) module using the Chombo library."
-      print " --no-curses     disable ncurses library and use a"
-      print "                 simpler text-based menu."
+      print("Usage: python $PLUTO_DIR/setup.py [options]\n") 
+      print("Here [options] can be:\n")
+      print(" --with-sb       enable the shearing box module.")
+      print(" --with-fd       enable the finite difference module.")
+      print(" --with-fargo    enable the FARGO-MHD module")
+      print(" --with-chombo   enable support for adaptive mesh refinement.")
+      print("                 (AMR) module using the Chombo library.")
+      print(" --no-curses     disable ncurses library and use a")
+      print("                 simpler text-based menu.")
       sys.exit(1)
 
     else:
-      print "! Unrecognized option '",x,"'"
+      print("! Unrecognized option '",x,"'")
       sys.exit(1)
 
-  print '\n> Loading PLUTO Interface...'
+  print('\n> Loading PLUTO Interface...')
   
   if auto_update == 1:
     PlutoInterFace(pluto_directory,do_auto_update=True)

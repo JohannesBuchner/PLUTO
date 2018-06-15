@@ -1,0 +1,129 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+c --------------------------------------------------------------
+c  this subroutine averages edge-centered fine grid data onto
+c  underlying coarse-grid faces in direction dir
+c
+c  INPUTS/OUTPUTS:
+c  fine      => fine-grid data
+c  coarse   <=  coarse data
+c  crseBox   => face-centered coarse box over which to average
+c  dir       => direction of face-centered data (0 = x-faces)
+c  nRef      => refinement ratio
+c  refFactor => determines scaling factor
+c  refBox    => utility box, goes from (0,nref-1) in all directions
+c --------------------------------------------------------------
+      subroutine AVERAGEFACE(CHF_FRA[coarse], CHF_CONST_FRA[fine],
+     &                       CHF_BOX[crseBox], CHF_CONST_INT[dir],
+     &                       CHF_CONST_INT[nRef],
+     &                       CHF_CONST_INT[refFactor],
+     &                       CHF_BOX[refBox])
+
+
+c ::: local variables
+      integer CHF_AUTODECL[ic]
+      integer CHF_AUTODECL[ifine]
+      integer var
+      integer CHF_AUTODECL[ii]
+      REAL_T crseSum, ref_scale
+
+      ref_scale = (one/refFactor)**(CH_SPACEDIM-1)
+
+      do var=0, CHF_NCOMP[coarse]-1
+
+         CHF_AUTOMULTIDO[crseBox;ic]
+         crseSum = 0
+
+c ::: now loop over fine grid faces
+         CHF_AUTOMULTIDO[refBox;ii]
+
+         CHF_DTERM[
+         ifine0=ic0*nRef+ii0;
+         ifine1=ic1*nRef+ii1;
+         ifine2=ic2*nRef+ii2;
+         ifine3=ic3*nRef+ii3;
+         ifine4=ic4*nRef+ii4;
+         ifine5=ic5*nRef+ii5]
+
+
+            crseSum = crseSum + fine(CHF_AUTOIX[ifine],var)
+
+            CHF_ENDDO
+            coarse(CHF_AUTOIX[ic],var) = ref_scale*crseSum
+
+          CHF_ENDDO
+       enddo
+
+       return
+       end
+
+
+
+
+c --------------------------------------------------------------
+c  this subroutine averages face-centered fine grid data onto
+c  underlying coarse-grid faces in direction dir using harmonic
+c  averaging
+
+c
+c  INPUTS/OUTPUTS:
+c  fine      => fine-grid data
+c  coarse   <=  coarse data
+c  crseBox   => face-centered coarse box over which to average
+c  dir       => direction of face-centered data (0 = x-faces)
+c  nRef      => refinement ratio
+c  refFactor => determines scaling factor
+c  refBox    => utility box, goes from (0,nref-1) in all directions
+c --------------------------------------------------------------
+      subroutine AVERAGEFACEHARMONIC(CHF_FRA[coarse],
+     &                               CHF_CONST_FRA[fine],
+     &                               CHF_BOX[crseBox],
+     &                               CHF_CONST_INT[dir],
+     &                               CHF_CONST_INT[nRef],
+     &                               CHF_CONST_INT[refFactor],
+     &                               CHF_BOX[refBox])
+
+
+c ::: local variables
+      integer CHF_AUTODECL[ic]
+      integer CHF_AUTODECL[ifine]
+      integer var
+      integer CHF_AUTODECL[ii]
+      REAL_T crseSum, ref_scale
+
+      ref_scale = (one/refFactor)**(CH_SPACEDIM-1)
+
+      do var=0, CHF_NCOMP[coarse]-1
+
+         CHF_AUTOMULTIDO[crseBox;ic]
+         crseSum = 0
+
+c ::: now loop over fine grid faces
+         CHF_AUTOMULTIDO[refBox;ii]
+
+         CHF_DTERM[
+         ifine0=ic0*nRef+ii0;
+         ifine1=ic1*nRef+ii1;
+         ifine2=ic2*nRef+ii2;
+         ifine3=ic3*nRef+ii3;
+         ifine4=ic4*nRef+ii4;
+         ifine5=ic5*nRef+ii5]
+
+
+            crseSum = crseSum + one/fine(CHF_AUTOIX[ifine],var)
+
+            CHF_ENDDO
+            coarse(CHF_AUTOIX[ic],var) = one/(ref_scale*crseSum)
+
+          CHF_ENDDO
+       enddo
+
+       return
+       end
+

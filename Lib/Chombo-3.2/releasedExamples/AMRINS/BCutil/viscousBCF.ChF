@@ -1,0 +1,58 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+c ---------------------------------------------------------
+c sets boundary conditions on viscous terms (nu*Laplacian(vel))
+c at the moment, this is just 0th order extrapolation from
+c the interior, so it's real simple
+c
+c INPUTS/OUTPUTS:
+c viscous <=> viscous term
+c gridBox  => interior of grid
+c loBox    => box of ghost cells to fill at lo end in direction dir
+c hiBox    => box of ghost cells to fill at hi end in direction dir
+c dir      => direction in which we're working
+c nComp    => number of components
+c ----------------------------------------------------------
+      subroutine VISCOUSBC(CHF_FRA[viscous], CHF_BOX[gridBox],
+     &                     CHF_BOX[loBox], CHF_BOX[hiBox],
+     &                     CHF_INT[dir], CHF_INT[nComp])
+
+c ::: local variables
+      integer CHF_DDECL[i;j;k]
+      integer CHF_DDECL[ii;jj;kk], n
+
+c ::: loop over components
+      do n=0,nComp-1
+
+c ::: do low box
+         CHF_MULTIDO[loBox;i;j;k]
+         CHF_DTERM[
+         ii = i+CHF_ID(0,dir)*(CHF_LBOUND[gridBox;0]-i);
+         jj = j+CHF_ID(1,dir)*(CHF_LBOUND[gridBox;1]-j);
+         kk = k+CHF_ID(2,dir)*(CHF_LBOUND[gridBox;2]-k)]
+
+         viscous(CHF_IX[i;j;k],n) = viscous(CHF_IX[ii;jj;kk],n)
+
+         CHF_ENDDO
+
+c ::: now do high box
+         CHF_MULTIDO[hiBox;i;j;k]
+         CHF_DTERM[
+         ii = i+CHF_ID(0,dir)*(CHF_UBOUND[gridBox;0]-i);
+         jj = j+CHF_ID(1,dir)*(CHF_UBOUND[gridBox;1]-j);
+         kk = k+CHF_ID(2,dir)*(CHF_UBOUND[gridBox;2]-k)]
+
+         viscous(CHF_IX[i;j;k],n) = viscous(CHF_IX[ii;jj;kk],n)
+
+         CHF_ENDDO
+
+      enddo
+
+      return
+      end

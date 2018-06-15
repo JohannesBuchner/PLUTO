@@ -1,0 +1,11 @@
+This code reads in a Chombo hdf5 file and outputs a similar file.
+The output file has zero ghost-cells.
+This code was written so we can use the VisIt visualization tool (which currently does not support Chombo ghost cells).
+
+Example Usage:
+
+> ls *.hdf5
+foo.hdf5
+> removeGhosts2d.Linux.g++.g77.DEBUG.ex foo.hdf5
+> ls *.hdf5
+foo.hdf5  ng.foo.hdf5

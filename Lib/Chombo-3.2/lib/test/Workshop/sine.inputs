@@ -1,0 +1,13 @@
+###
+n_cell = 8 8 8
+maxboxsize    = 4
+## domain params
+## prob_lo is the origin of the  coord system
+prob_lo       = 0.0 0.0 0.0 
+## prob_hi is the high point of the box in the 0 direction
+## dx=dy=dz
+prob_hi       = 1.0 
+up_dir   = 1
+indep_var = 0
+start_pt = 0.25
+ramp_slope = 0.5

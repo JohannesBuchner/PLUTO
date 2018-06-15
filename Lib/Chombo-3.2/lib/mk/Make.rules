@@ -1,0 +1,690 @@
+# -*- Mode: Makefile; -*-
+
+################################################################
+###
+### This makefile defines all the default rules for Chombo.
+### It should be `include'd in all other makefiles as the last line of the file.
+###
+### The file `$(CHOMBO_HOME)/mk/Make.defs' should have been `include'd before this one.
+###
+### By convention, UPPERcase variables are user-visible, lowercase are not.
+###
+### This file expects certain variables to be defined before it is `include'd.
+### The library- or application-specific makefile should set either $(lbase) or $(ebase).
+### The `Make.defs.defaults' file or the user should set:
+###    DIM DEBUG OPT PRECISION PROFILE NAMESPACE CXX FC MPICXX MPI PROF USE_SETVAL OBJMODEL XTRACONFIG MULTIDIM
+### The user may also set:
+###        CXXFLAGS     CPPFLAGS     FFLAGS     LDFLAGS     LIBFLAGS
+###    XTRACXXFLAGS XTRACPPFLAGS XTRAFFLAGS XTRAF90FLAGS XTRALDFLAGS
+###    XTRALIBFLAGS
+###
+### There are several user variables that control the behavior of the rules
+###  defined here.  They are:
+###    USE_64      if TRUE, use 64bit pointers on systems where 32bits is the default
+###    USE_COMPLEX if TRUE, enable the 'Complex' type
+###                 (default is TRUE, disable only if compiler doesn't allow it)
+###    USE_EB      if TRUE, build Chombo Embedded Boundary code
+###    USE_CCSE    if TRUE, build CCSE mglib and supporting code into one lib
+###    USE_HDF     if TRUE, use the HDF5 library
+###    USE_MF      if TRUE, build Chombo MultiFluid code (requires USE_EB=TRUE)
+###    USE_MT      if TRUE, enable Chombo memory tracking
+###    USE_SETVAL  if TRUE, initialize all FABs to special values
+###    USE_TIMER   if TRUE, enable Chombo Timer class
+###    ECHO   controls verbosity; default is "@", change to "" (null string)
+###           to echo commands that _aren't_ echoed by default
+###    QUIET  controls verbosity; default is "", change to "@" to disable
+###           echo of commands that _are_ echoed by default
+###    NODEPENDS controls building dependency files; default is unset, change
+###              to anything to skip building the .d files [NOTE: this is
+###              dangerous and should probably only be used when doing
+###              'clean' or 'realclean' targets.]
+###
+### There are several other variables that control how programs are executed
+### by the various "run*" targets.  They are:
+###    RUN       prepended to the filename of the program to initiate execution
+###              (default for serial is "./", default for parallel is "mpirun -np 2 ./")
+###    RUNFLAGS  options specified after the program filename to initiate execution
+###              (default for serial is null, default for parallel is null;
+###               used for parallel execution when the "-np" option (or its equivalent)
+###               must come after the program name)
+###    VERBOSE   to control the amount of output produced by the program
+###              (Chombo programs canonically use "-q" to run quietly and "-v"
+###               to run verbosely.  default is "-q".)
+###    INPUT     arguments to the program (default is <program-basename>.inputs)
+###
+### Compiling for parallel execution using MPI is determined by the $MPI
+### logical variable (==TRUE or FALSE) and $MPICXX, which specifies the name
+### of the parallel compiler.  In this case, the CXX variable specifies the
+### serial compiler that is used by the parallel compiler. The $CXXFLAGS
+### variable is used to get the compiler options in either case.
+### The actual compiles are done with a local variable, $cxxc, which
+### is set depending on whether MPI is TRUE or not.
+###
+### Some of the variable set C-preprocessor macro variables when the code is
+### compiled.  Chombo cpp macro variables have the form "CH_USE_FEATURE"
+### except for CH_SPACEDIM, CH_MPI, NDEBUG and CH_<system> (where <system>
+### is the OS type) Only CH_SPACEDIM has a value that is meaningful.  For
+### all others it matters only if they are defined or not.
+### See the definition of CPPFLAGS below to find the names of the Chombo macro
+### variables and which make variables control them.
+###
+#################################################################
+# In several place sh invokes a csh to get error returns handled correctly
+# when pipes are used (sigh)...
+#################################################################
+
+makefiles+=Make.rules
+
+# export these so that sub-makes inherit them even if they're set in a
+# GNUmakefile
+
+export DIM
+export DEBUG
+export OPT
+export PRECISION
+export PROFILE
+export NAMESPACE
+export CXX
+export FC
+export MPICXX
+export MPI
+export ROSE
+export GPU
+export PROF
+export USE_SETVAL
+export OBJMODEL
+export MULTIDIM
+export MINDIM
+export MAXDIM
+export CXXFLAGS
+export CPPFLAGS
+export FFLAGS
+export LDFLAGS
+export LIBFLAGS
+export ECHO
+export QUIET
+
+export XTRACONFIG
+#export XTRACPPFLAGS
+export XTRACXXFLAGS
+export XTRAFFLAGS
+export XTRAF90FLAGS
+export XTRALDFLAGS
+export XTRALIBFLAGS
+
+export USE_1D
+export USE_2D
+export USE_3D
+export USE_4D
+export USE_5D
+export USE_6D
+export USE_64
+export USE_CCSE
+export USE_COMPLEX
+export USE_EB
+export USE_EXTNAME
+export USE_FEATURE
+export USE_FFTW
+export USE_HDF
+export USE_MF
+export USE_MT
+export USE_SETVAL
+export USE_TIMER
+export USE_PYTHON
+
+export USE_PETSC
+export PETSC_DIR
+export PETSC_ARCH
+export OPENMPCC
+export OPENMPFC
+
+## First, set some local variables
+##  config       is the configuration identification string used in filenames
+
+##  objects      is the list of object files to build
+##  depends      is the list of dependency files corresponding to the objects to compile
+##  _lib_config  is the config-dependent filename for the current target library
+##  _app_configs is the list of config-dependent filenames for the 
+##               executable targets
+##  _other_app_objects is the list of object files needed to build an executable in addition
+##               to the file with the same name as the executable
+##               (Note: Make.example disables this by setting AUTONAME=FALSE)
+##  _lib_names   is the list of generic library names which the target 
+##               (library or executable) depends on, derived from $(LibNames) 
+##               but translated to all lower-case
+##  _libs        is the list of configuration-dependent library filenames 
+##               which the executable depends on, derived from _lib_names.
+##
+## NOTE: only one of _lib_config, _app_configs will be meaningful depending 
+##       on $lbase,$ebase.
+
+# compute the configuration string, $(config), based on the user-level config variables
+include $(CHOMBO_HOME)/mk/Make.defs.config
+
+# Command to execute the string following it in the C shell - used anywhere a
+# pipe is used to get error status if any command in the pipe fails.  In the
+# Bourne shell only the status from the final command in the pipe seems to be
+# reported/used.  A better solution would be great!
+CSHELLCMD=/bin/csh -f -c
+
+# wildcard patterns for source files that Chombo can build.
+# The .BL_F prefix is for CCSE .F files.
+src_wildcard := *.cpp *.F90 *.f90 *.ChF *.F *.f *.BL_F 
+
+# names of libraries and executables depend on the configuration string
+# only one of these will be defined for any particular GNUmakefile
+_lib_config  := $(CHOMBO_HOME)/lib$(lbase)$(config).a#  #library to build
+# the patsubst here has the nice benefit of removing any trailing spaces 
+# which may have crept into ebase (which prevents a class of _really_ hard
+# to find make problems
+_app_configs := $(patsubst %,%$(config).ex,$(ebase))#   #one or more apps to build
+
+# These variables list the object and dependency files. 
+# The AUTONAME=FALSE case is only when $ebase is set by Make.examples.
+ifeq ($(AUTONAME),FALSE)
+  # examples make their own dependencies and objects
+  _other_app_objects = $(objects)
+else
+  # libs,tests only use code in the current directory:
+  # if there is one executable, it uses all the other code files,
+  # else each executable uses only its main file
+  _srcs   := $(wildcard $(src_wildcard))
+  objects := $(patsubst %,%.o,$(basename $(_srcs)))
+  depends := $(patsubst %,d/$(config)/%.d,$(basename $(objects)))
+  ifeq ($(words $(ebase)),1)
+    _other_app_objects := $(addprefix o/$(config)/,$(filter-out $(ebase).o,$(objects)))
+  endif
+endif
+
+# Chombo library filenames are lower case, regardless of the src
+# subdirectory name.  Also note that we automatically add BaseTools to LibNames,
+# unless we're either building the BaseTools library itself, or BaseTools already 
+# appears in LibNames
+ifeq  ($(findstring basetools,$(lbase)), )
+ifeq  ($(findstring BaseTools,$(LibNames)), )
+LibNames +=  BaseTools
+endif
+endif
+
+_lib_names := $(shell echo $(LibNames) | tr 'A-Z' 'a-z') 
+# the full pathnames to the library files
+_libs := $(patsubst %,$(CHOMBO_HOME)/lib%$(config).a,$(_lib_names))
+
+##
+## Set the compiler and linker flags to use in the rules
+##
+cxxc := $(subst FALSE,$(CXX),$(subst TRUE,$(MPICXX),$(MPI)))
+
+libincludes = $(foreach i,$(LibNames),-I$(CHOMBO_HOME)/src/$i) 
+
+##
+## Finally, set the variables that are user-visible.
+## User definitions will override these.
+##
+openintcc = 0
+ifeq ($(OPENMPCC),TRUE)
+openintcc = 1
+endif
+
+openmpflag = 
+ifeq ($(OPENMPFC),TRUE)
+openmpflag = -P
+endif
+
+CPPFLAGS := -DCH_SPACEDIM=$(DIM)\
+-DCH_$(system)\
+$(subst FALSE,,$(subst TRUE,$(cppdbgflags),$(DEBUG)))\
+$(subst FALSE,,$(subst TRUE,$(cppoptflags),$(subst HIGH,$(cppoptflags) -DNDEBUG,$(OPT))))\
+$(cppcomflags)\
+$(subst FALSE,,$(subst TRUE,-DCH_MPI $(mpicppflags),$(MPI)))\
+$(subst FALSE,,$(subst TRUE,-DCH_ROSE,$(ROSE)))\
+$(subst FALSE,,$(subst TRUE,-DCH_GPU,$(GPU)))\
+$(subst cubin,,$(subst fatbin,-DCH_FATBIN,$(CUBIN)))\
+$(subst FALSE,,$(subst TRUE,-DCH_USE_SETVAL,$(USE_SETVAL)))\
+$(subst FALSE,,$(subst TRUE,-DCH_USE_COMPLEX,$(USE_COMPLEX)))\
+$(subst FALSE,,$(subst TRUE,-DCH_NAMESPACE,$(NAMESPACE)))\
+$(subst FALSE,,$(subst TRUE,-DCH_MULTIDIM,$(MULTIDIM)))\
+$(subst FALSE,,$(subst TRUE,-DCH_USE_MEMORY_TRACKING,$(USE_MT)))\
+$(subst FALSE,-DCH_NTIMER,$(subst TRUE,,$(USE_TIMER)))\
+$(subst FALSE,,$(subst TRUE,-DCH_USE_64,$(USE_64)))\
+$(subst DOUBLE,-DCH_USE_DOUBLE,$(subst FLOAT,-DCH_USE_FLOAT,$(PRECISION)))\
+$(subst FALSE,,$(subst TRUE,-DCH_USE_HDF5 $(subst FALSE,$(HDFINCFLAGS),$(subst TRUE,$(HDFMPIINCFLAGS),$(MPI))),$(USE_HDF)))\
+$(cxxcppflags) $(fcppflags) $(appcppflags)\
+$(subst FALSE,,$(subst TRUE,$(fftincflags),$(USE_FFTW)))\
+$(subst FALSE,,$(subst TRUE, -DCH_USE_PETSC $(petscincflags),$(USE_PETSC)))\
+$(subst FALSE,,$(subst TRUE, -DCH_USE_PYTHON ,$(USE_PYTHON)))\
+$(cppcallsfort) $(libincludes) 
+
+CXXFLAGS := \
+$(subst FALSE,,$(subst TRUE,$(cxxdbgflags),$(DEBUG)))\
+$(subst FALSE,,$(subst TRUE,$(cxxoptflags),$(subst HIGH,$(cxxoptflags),$(OPT))))\
+$(cxxcomflags)\
+$(subst FALSE,,$(subst TRUE,$(cxxprofflags),$(PROFILE)))
+
+
+CHFFLAGS := \
+$(subst FALSE,,$(subst TRUE,-m,$(MULTIDIM)))
+
+FFLAGS := \
+$(subst FALSE,,$(subst TRUE,$(fdbgflags),$(DEBUG)))\
+$(subst FALSE,,$(subst TRUE,$(foptflags),$(subst HIGH,$(foptflags),$(OPT))))\
+$(fcomflags)\
+$(subst FALSE,,$(subst TRUE,$(fprofflags),$(PROFILE)))
+
+LDFLAGS := \
+$(subst FALSE,,$(subst TRUE,$(lddbgflags),$(DEBUG)))\
+$(subst FALSE,,$(subst TRUE,$(ldoptflags),$(subst HIGH,$(ldoptflags),$(OPT))))\
+$(ldcomflags)\
+$(subst FALSE,,$(subst TRUE,$(ldprofflags),$(PROFILE)))
+
+LIBFLAGS := -L$(CHOMBO_HOME) $(patsubst %,-l%$(config),$(_lib_names))\
+$(subst FALSE,,$(subst TRUE,$(mpilibflags),$(MPI)))\
+$(subst FALSE,,$(subst TRUE,$(subst FALSE,$(HDFLIBFLAGS),$(subst TRUE,$(HDFMPILIBFLAGS),$(MPI))),$(USE_HDF)))\
+$(subst FALSE,,$(subst TRUE,$(fftlibflags),$(USE_FFTW)))\
+$(subst FALSE,,$(subst TRUE,$(petsclibflags),$(USE_PETSC)))\
+$(flibflags) $(syslibflags)
+
+##
+## Define the targets that can be used on the command line
+##
+SUFFIXES =
+.SUFFIXES:
+
+.PHONY: all-lib all-example all-test all-run lib-only example-only test-only run-only \
+	include clean realclean tags $(LibNames) $(_lib_names) $(ebase)
+
+#[NOTE: the dependency on the directories are here instead of in the
+#       $(_lib_config) rule because the library directory is _always_
+#       newer than the library file so gmake would always think the
+#       library was out-of-date and would run the RANLIB command, which
+#       isn't necessary unless one of the objects is recompiled.
+#       So put the dirs here so they get created but otherwise don't
+#       affect the up-to-date-ness of the library.]
+
+all-lib: $(CHOMBO_HOME)/mk/.check.$(config) $(shell $(CHOMBO_HOME)/mk/reverse $(LibNames)) lib-only
+
+lib-only: $(CHOMBO_HOME)/mk/.check.$(config) $(_lib_config)
+
+# all-example: $(shell $(CHOMBO_HOME)/mk/reverse $(LibNames)) example-only
+
+all-example: $(CHOMBO_HOME)/mk/.check.$(config) $(shell $(CHOMBO_HOME)/mk/reverse $(LibNames))
+	+$(ECHO)$(MAKE) --no-print-directory $(_app_configs)
+
+# all-test:    $(shell $(CHOMBO_HOME)/mk/reverse $(LibNames)) test-only
+
+all-test:  $(CHOMBO_HOME)/mk/.check.$(config)  $(shell $(CHOMBO_HOME)/mk/reverse $(LibNames))
+	+$(ECHO)$(MAKE) --no-print-directory $(_app_configs)
+
+example-only test-only: $(CHOMBO_HOME)/mk/.check.$(config) $(_app_configs)
+	@echo done building $(ebase)
+
+all-run: $(CHOMBO_HOME)/mk/.check.$(config) all-test run-only
+
+ifndef INPUT
+  INPUT = $i.inputs
+endif
+run-only: 
+ifeq ($(PROFILE),TRUE)
+	$(ECHO)err=0;$(foreach i,$(ebase),echo "Running $i for configuration $(config) ...";$(RUN)$i$(config).ex $(RUNFLAGS) $(VERBOSE) $(INPUT);stat=$$?;$(PROF) ./$i$(config).ex > $i$(config).prof; echo "   profile written to $i$(config).prof" ; echo "... $i finished with status $$stat";echo "";if [ $$stat -ne 0 ]; then err=$$stat ; fi ; ) ; exit $err
+else
+	$(ECHO)err=0;$(foreach i,$(ebase),echo "Running $i for configuration $(config) ...";$(RUN)$i$(config).ex $(RUNFLAGS) $(VERBOSE) $(INPUT);stat=$$?;echo "... $i finished with status $$stat";echo "";if [ $$stat -ne 0 ]; then err=$$stat ; fi ; ) exit $$err
+endif
+
+clean::
+	-$(RM) -r [odftp]/$(config) $(_lib_config) *$(config).ex core *.tmp[12]
+
+realclean:
+	-$(RM) -r [odftp] cubin rose *.exe *.o SunWS_cache *.stb *.ii cxx_repository *_F.H *_CUX.H $(addsuffix /*_CUX.H, $(src_dirs)) *.mod core.* .\#* *.h5 *.hdf5 pout.* leak.out* .dummy time.table* .check.* *.a
+ifdef ebase
+	-$(RM) *.ex
+endif
+ifdef lbase
+	-$(RM) $(CHOMBO_HOME)/lib$(lbase)*.a
+endif
+
+##
+## Rule to install the header files in the $CHOMBO_HOME/include directory
+## [NOTE: this target also appears in $CHOMBO_HOME/GNUmakefile.]
+
+ifeq ($(MULTIDIM),TRUE) 
+MULTIDIM_INCLUDE_DIR = $(CHOMBO_HOME)/include/multidim
+endif
+
+include: $(CHOMBO_HOME)/include $(MULTIDIM_INCLUDE_DIR)
+ifneq ($(wildcard $(CHOMBO_HOME)/include/*.H),)
+	$(QUIET)chmod -R a+w $(CHOMBO_HOME)/include
+endif
+	$(QUIET)cp -p $(CHOMBO_HOME)/src/*/*.H $(CHOMBO_HOME)/include
+#build multidim headers if necessary -- build DIM=1->6
+ifeq ($(MULTIDIM),TRUE)
+	$(QUIET)cat $(CHOMBO_HOME)/src/*/multidim/dim-independent-headers.txt > $(CHOMBO_HOME)/include/multidim/dim-independent-headers.txt
+	$(QUIET)$(CHOMBO_HOME)/util/multidim/make_headers.sh $(CHOMBO_HOME)/include $(CHOMBO_HOME)/include 1 6
+	$(QUIET)cp -p $(CHOMBO_HOME)/src/MultiDim/*.H.transdim $(CHOMBO_HOME)/include/multidim
+	$(QUIET)find $(CHOMBO_HOME)/include/multidim -name '*.H*' -exec chmod u-w {} \;
+endif
+	$(QUIET)find $(CHOMBO_HOME)/include -name '*.H' -exec chmod u-w {} \;
+
+
+$(CHOMBO_HOME)/include:
+	$(QUIET)mkdir -p $@
+
+$(MULTIDIM_INCLUDE_DIR) : $(CHOMBO_HOME)/include
+	$(QUIET)mkdir -p $@
+
+
+
+##
+## Rules to build executable programs
+##
+
+# Given a generic executable name, build the specific name using
+# only the object file that matches the generic name.  This target is intended to
+# be used only from the command line.
+ifdef ebase
+$(ebase): $(CHOMBO_HOME)/mk/.check.$(config)
+	+$(ECHO)$(MAKE) $@$(config).ex
+endif
+
+# Executables are dependent on libraries and objects.  If the library doesn't exist
+# it will be built.  If the executable is older than the library, it will be
+# rebuilt.  If the library source is newer than the library, it is not rebuilt.
+# Caveat usor.
+#[NOTE: reverse the order of the libraries so they get built in the opposite order
+#       the linker searches them.]
+#[NOTE: the .o for the main has to go first so the $< in the link command will have the right value.]
+# also make executable dependent on check, just in case...
+%$(config).ex: .check.$(config)
+%$(config).ex:  o/$(config)/%.o $(shell $(CHOMBO_HOME)/mk/reverse $(_libs)) $(_other_app_objects)
+	$(QUIET)$(CSHELLCMD) "$(LD) $(CXXFLAGS) $(XTRACXXFLAGS) $(LDFLAGS) $(XTRALDFLAGS) $< $(_other_app_objects) $(XTRALIBFLAGS) $(LIBFLAGS) $(cxxexeflag)$@ |&  awk -f $(CHOMBO_HOME)/mk/tempnam.awk"
+
+##
+## Rules to build libraries
+##
+
+# given a generic library name, build the specific name
+ifdef lbase
+$(lbase): $(CHOMBO_HOME)/mk/.check.$(config)
+	+$(ECHO)$(MAKE) --no-print-directory $(CHOMBO_HOME)/lib$(lbase)$(config).a
+endif
+
+ifdef LibNames
+
+# rules to build a Chombo library in another directory
+$(LibNames): 
+	+$(ECHO)$(MAKE) --no-print-directory --directory=$(CHOMBO_HOME) $@
+
+$(_lib_names): 
+	+$(ECHO)$(MAKE) --no-print-directory --directory=$(CHOMBO_HOME) $(patsubst lib%$(config).a,%,$@)
+
+$(_libs): 
+	+$(ECHO)$(MAKE) --no-print-directory --directory=$(CHOMBO_HOME) $(patsubst $(CHOMBO_HOME)/lib%$(config).a,%,$@)
+
+endif
+
+# this rule makes the whole library dependent on all its object files,
+# NOTE: this used to rely on the compile rules to put the object files in the
+#       library and delete them afterwards, but 'ar' does not always work in
+#       parallel, so its safer (albeit slower) to do it all at once.  The
+#       drawback of this approach is that we have to save the object files
+#       instead of deleting them after they are put in the library. Sigh.
+# ALSO: XTRALIBS now has a meaning for libraries! If you specify one 
+#				static (.a) library in XTRALIBS, the object files are 
+#				extracted from the library and dumped into the target archive.
+#			  -JNJ
+$(_lib_config): $(XTRALIBS) $(addprefix o/$(config)/,$(objects))
+	$(QUIET)$(CH_AR) $@ $?
+	$(QUIET)$(RANLIB) $@
+	$(ECHO)if [ ! "$(XTRALIBS)" = "" ]; then \
+	$(QUIET)$(CHOMBO_HOME)/util/extract-objs $(XTRALIBS) xtraobjs; \
+	$(QUIET)$(CH_AR) $@ xtraobjs/*; \
+	$(QUIET)rm -rf xtraobjs; \
+	$(QUIET)$(RANLIB) $@; \
+	$(QUIET)fi
+
+##
+## The next group of rules compile code
+##
+
+# rules to build objects for executable programs and libraries
+
+.PRECIOUS: $(CHOMBO_HOME)/mk/.check.$(config) o/$(config)/%.o d/$(config)/.dummy
+
+ifeq ($(ROSE),TRUE)
+# Preprocess with Rose
+o/$(config)/%.o : %.cpp   d/$(config)/%.d
+	$(QUIET)$(ROSECC) $(CPPFLAGS) $(XTRACPPFLAGS) -DCH_LANG_CC $(cxxcompflag) -rose:o rose/$(config)/rose_$(notdir $<) $<
+	$(QUIET)$(cxxc) $(CXXFLAGS) $(XTRACXXFLAGS) $(pic) $(CPPFLAGS) $(XTRACPPFLAGS) -I./ -DCH_LANG_CC $(openmpflag) $(cxxcompflag) rose/$(config)/rose_$(notdir $<) $(cxxobjflag)$@
+else
+# Direct Vendor compilation
+o/$(config)/%.o : %.cpp   d/$(config)/%.d
+	$(QUIET)$(cxxc) $(CXXFLAGS) $(XTRACXXFLAGS) $(pic) $(CPPFLAGS) $(XTRACPPFLAGS) -DCH_LANG_CC $(cxxcompflag) $< $(cxxobjflag)$@
+endif
+
+o/$(config)/%.o : %.f90  d/$(config)/%.d
+	$(QUIET)$(FC) $(FFLAGS) $(XTRAF90FLAGS) $(fcompflag) $< $(fobjflag)$@
+
+o/$(config)/%.o : %.ChF  d/$(config)/%.d
+	$(QUIET)$(chfpp_src) -f $< $(CHFFLAGS) -p p/$(config)/$(notdir $*.C) -c /dev/null -D $(DIM)
+	$(QUIET)$(CSHELLCMD) "$(CH_CPP) $(CPPFLAGS) -I. $(XTRACPPFLAGS) $(fcppflags) -DCH_LANG_FORT p/$(config)/$(notdir $*.C) | awk 'NF>0' > p/$(config)/$(notdir $*.cpre)"
+	$(QUIET)$(CSHELLCMD) "cat p/$(config)/$(notdir $*.cpre) | $(stripsharp_src)  | $(fortpost)  > f/$(config)/$*.f"
+	$(QUIET)$(FC) $(FFLAGS) $(XTRAFFLAGS) $(fcompflag) f/$(config)/$*.f $(fobjflag)$@
+
+o/$(config)/%.o : %.F  d/$(config)/%.d
+	$(QUIET)$(CSHELLCMD) "$(CH_CPP) $(CPPFLAGS) $(XTRACPPFLAGS) $(fcppflags) -DCH_LANG_FORT $< | $(fortpost) | awk 'NF>0' > f/$(config)/$*.f"
+	$(QUIET)$(FC) $(FFLAGS) $(XTRAFFLAGS) $(fcompflag) f/$(config)/$*.f $(fobjflag)$@
+
+o/$(config)/%.o : %.F90  d/$(config)/%.d
+	$(QUIET)$(CSHELLCMD) "$(CH_CPP) $(CPPFLAGS) $(XTRACPPFLAGS) $(fcppflags) -DCH_LANG_FORT $< | $(fortpost) | awk 'NF>0' > f/$(config)/$*.f90"
+	$(QUIET)$(FC) $(FFLAGS) $(XTRAF90FLAGS) $(fcompflag) f/$(config)/$*.f90 $(fobjflag)$@
+
+o/$(config)/%.o : %.f  d/$(config)/%.d
+	$(QUIET)$(FC) $(FFLAGS) $(XTRAFFLAGS) $(fcompflag) $< $(fobjflag)$@
+
+%.$(CUBIN) : %.cu
+	$(QUIET)$(NVCC) $(NVCCFLAGS) -o $@ -$(CUBIN) $< $(PTXASFLAGS)
+
+##
+## Rules to build ChomboFortran header files
+##
+%_F.H: %.ChF
+	@if [ x"$(QUIET)" != x"@" ]; then echo Creating $*_F.H ...; fi
+	$(chfpp_src) -f $< $(CHFFLAGS) -p /dev/null -c $*_F.H -D $(DIM)
+
+##
+## Rules to build Cuda cubin or fatbinary embedded in header files
+##
+.SECONDARY: %.$(CUBIN)
+%_CUX.H: %.$(CUBIN)
+	@if [ x"$(QUIET)" != x"@" ]; then echo Creating $*_CUX.H ...; fi
+	$(ECHO)$(cupp_src) $< $*
+	mv $< cubin/$(config)
+
+#
+
+%.1D.ChF : %.ChF
+	cp $< $@
+%.2D.ChF : %.ChF
+	cp $< $@
+%.3D.ChF : %.ChF
+	cp $< $@
+
+##
+## Rules to make dependency files.
+## The dependency file is modified always to include the dependency file itself as a dependent.
+## The dependency file is also modified to change the name of the object file:
+##  when building a library, the dependent is the library member;
+##  when building an executable, the dependent is the object file in the o/ subdirectory.
+## All dependency files depend on the file ".dummy" to guarantee that the d/$config subdir
+##  is created before doing anything else.  This only matters when running make in parallel.
+
+vpath %.d d/$(config) .
+
+d/$(config)/%.d : %.cpp d/$(config)/.dummy
+	@if [ x"$(QUIET)" != x"@" ]; then echo Depending $< ...; fi
+ifdef lbase
+	$(ECHO)$(CSHELLCMD) "$(mkdep) $(CPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%$(_lib_config)(\1.o) $@ : %g' > $@"
+else
+	$(ECHO)$(CSHELLCMD) "$(mkdep) $(CPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%o/$(config)/\1.o $@ : %g' > $@"
+endif
+#	# if $(mkdep) failed, sed will still make the output file so delete it if it is empty
+	$(ECHO)if [ ! -s $@ ]; then $(RM) $@; fi
+
+d/$(config)/%.d : %.ChF d/$(config)/.dummy
+	@if [ x"$(QUIET)" != x"@" ]; then echo Depending $< ...; fi
+ifdef lbase
+	$(ECHO)$(CSHELLCMD) "$(mkdep) $(CPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%$(_lib_config)(\1.o) $@ : %g' > $@"
+else
+	$(ECHO)$(CSHELLCMD) "$(mkdep) $(CPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%o/$(config)/\1.o $@ : %g' > $@"
+endif
+#	# if $(mkdep) failed, sed will still make the output file so delete it if it is empty
+	$(ECHO)if [ ! -s $@ ]; then $(RM) $@; fi
+
+d/$(config)/%.d : %.F d/$(config)/.dummy
+	@if [ x"$(QUIET)" != x"@" ]; then echo Depending $< ...; fi
+ifdef lbase
+	$(ECHO)$(CSHELLCMD) "$(mkdep) $(CPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%$(_lib_config)(\1.o) $@ : %g' > $@"
+else
+	$(ECHO)$(CSHELLCMD) "$(mkdep) $(CPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%o/$(config)/\1.o $@ : %g' > $@"
+endif
+#	# if $(mkdep) failed, sed will still make the output file so delete it if it is empty
+	$(ECHO)if [ ! -s $@ ]; then $(RM) $@; fi
+
+d/$(config)/%.d : %.f d/$(config)/.dummy
+	@if [ x"$(QUIET)" != x"@" ]; then echo Depending $< ...; fi
+ifdef lbase
+	$(ECHO)$(CSHELLCMD) "$(mkdep) $(CPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%$(_lib_config)(\1.o) $@ : %g' > $@"
+else
+	$(ECHO)$(CSHELLCMD) "$(mkdep) $(CPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%o/$(config)/\1.o $@ : %g' > $@"
+endif
+#	# if $(mkdep) failed, sed will still make the output file so delete it if it is empty
+	$(ECHO)if [ ! -s $@ ]; then $(RM) $@; fi
+
+d/$(config)/%.d : %.F90 d/$(config)/.dummy
+	@if [ x"$(QUIET)" != x"@" ]; then echo Depending $< ...; fi
+ifdef lbase
+	$(ECHO)$(CSHELLCMD) "$(mkdep) $(CPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%$(_lib_config)(\1.o) $@ : %g' > $@"
+else
+	$(ECHO)$(CSHELLCMD) "$(mkdep) $(CPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%o/$(config)/\1.o $@ : %g' > $@"
+endif
+#	# if $(mkdep) failed, sed will still make the output file so delete it if it is empty
+	$(ECHO)if [ ! -s $@ ]; then $(RM) $@; fi
+
+d/$(config)/%.d : %.f90 d/$(config)/.dummy
+	@if [ x"$(QUIET)" != x"@" ]; then echo Depending $< ...; fi
+ifdef lbase
+	$(ECHO)$(CSHELLCMD) "$(mkdep) $(CPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%$(_lib_config)(\1.o) $@ : %g' > $@"
+else
+	$(ECHO)$(CSHELLCMD) "$(mkdep) $(CPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%o/$(config)/\1.o $@ : %g' > $@"
+endif
+#	# if $(mkdep) failed, sed will still make the output file so delete it if it is empty
+	$(ECHO)if [ ! -s $@ ]; then $(RM) $@; fi
+
+# .cu are named to .cu.d in case the base conflicts with a .cpp somewhere
+d/$(config)/%.cu.d : %.cu d/$(config)/.dummy
+	@if [ x"$(QUIET)" != x"@" ]; then echo Depending $< ...; fi
+ifdef lbase
+#       # FIXME: Not quite sure what to do with cubins in the lib yet
+	$(ECHO)$(CSHELLCMD) "$(mkdep) $< | sed 's%\($*\)\.o[ :]*%$(_lib_config)(\1.$(CUBIN)) $@ : %g' > $@"
+else
+#       # NOTE: Change '$(mkdep) $(NVCCFLAGS) $(CPPFLAGS) $(XTRACPPFLAGS)' to
+#       # '$(NVCC) -M' to get all system dependencies
+	$(ECHO)$(CSHELLCMD) "$(mkdep) $(NVCCFLAGS) $(CPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%cubin/$(config)/\1.$(CUBIN) $@ : %g' > $@"
+endif
+#	# if $(mkdep) failed, sed will still make the output file so delete it if it is empty
+	$(ECHO)if [ ! -s $@ ]; then $(RM) $@; fi
+
+#################################################################################
+
+# This file exists solely to force creation of the subdirectories that
+# hold the dependency, object and preprocessor files.
+# NOTE: we cant use a dependency for this because .dummy will always
+#       be out-of-date with respect to the subdirs because they are
+#       modified after .dummy is created.  But since there are no
+#       dependencies, this rule only runs when the file doesn't exist.
+%/$(config)/.dummy:
+	$(ECHO)mkdir -p o/$(config) f/$(config) d/$(config) p/$(config) $(subst FALSE,,$(subst TRUE,rose/$(config),$(ROSE))) $(subst FALSE,,$(subst TRUE,cubin/$(config),$(GPU)))
+	$(ECHO)touch $@
+
+# Rule to build subdirectories.
+#XXX# [NOTE: I think this is unnecessary now. <dbs>]
+#XXXo/$(config) f/$(config) d/$(config) p/$(config):
+#XXX	mkdir -p $@
+
+# Special target to run some basic checks that the customization variables are correct.
+# The '.check.$(config)' file is a real file, not a phony target.
+# It depends on the Make.defs.local customization file so the checks will be rerun
+# whenever the customizations change.
+##[NOTE: it would be better if it depended on the Make.defs.local.<hostname> file too,
+##       but that doesn't have to exist, so it can't depend on it. <dbs>]
+check: $(CHOMBO_HOME)/mk/.check.$(config)
+
+$(CHOMBO_HOME)/mk/.check.$(config): $(CHOMBO_HOME)/mk/Make.defs.local
+ifeq ($(USE_HDF),TRUE)
+	@$(CHOMBO_HOME)/mk/check $(VERBOSE) HDFINCFLAGS $(HDFINCFLAGS)
+	@$(CHOMBO_HOME)/mk/check $(VERBOSE) HDFLIBFLAGS $(HDFLIBFLAGS)
+ifdef MPI
+	@$(CHOMBO_HOME)/mk/check $(VERBOSE) HDFMPIINCFLAGS $(HDFMPIINCFLAGS)
+	@$(CHOMBO_HOME)/mk/check $(VERBOSE) HDFMPILIBFLAGS $(HDFMPILIBFLAGS)
+endif
+endif
+	@$(CHOMBO_HOME)/mk/check $(VERBOSE) PERL $(PERL)
+	@$(CHOMBO_HOME)/mk/check $(VERBOSE) CXX $(CXX) $(cxxdbgflags) $(cxxcompflag)
+	@$(CHOMBO_HOME)/mk/check $(VERBOSE) CXX $(CXX) $(cxxoptflags) $(cxxcompflag)
+	@$(CHOMBO_HOME)/mk/check $(VERBOSE) FC $(FC) $(fdbgflags) $(fcompflag)
+	@$(CHOMBO_HOME)/mk/check $(VERBOSE) FC $(FC) $(foptflags) $(fcompflag)
+
+	@touch $(CHOMBO_HOME)/mk/.check.$(config)
+
+
+##
+## Rule to build the installation-dependent make definitions file.
+## If it doesn't exist, print a helpful error message and exit.
+##
+$(CHOMBO_HOME)/mk/Make.defs.local:
+	@echo ""
+	@echo "You do not appear to have a 'Make.defs.local' file in lib/mk"
+	@echo "This is where the Chombo build system looks for configuration"
+	@echo "information specific to your system. See the documentation in"
+	@echo "doc/chomboDesign.pdf."
+	@echo ""
+	@echo "There is a 'Make.defs.local.template' file available in lib/mk"
+	@echo "which can be used as starting point for customization, and there"
+	@echo "are tested configurations specific to various commonly used"
+	@echo "machines (hopper, jaguar, etc) in lib/mk/local"
+	@echo ""
+	@exit 1
+
+##
+## A default rule that prints some helpful information.  It should only
+## execute if something is wrong with a makefile or the target on the
+## command line is bogus.
+##
+%:
+	@echo "Last chance .ex rule for target $@"
+	@echo "pwd is $(PWD)"
+	@echo "ebase var is $(ebase)"
+	@echo "config var is $(config)"
+	@echo "depends var is $(depends)"
+	@echo "makefiles var is $(makefiles)"
+	@echo "objects var is $(objects)"
+	@echo "src_wildcard var is $(src_wildcard)"
+	@echo "_app_configs var is $(_app_configs)"
+	@echo "_other_app_objects var is $(_other_app_objects)"
+	@echo "_libs var is $(_libs)"
+	@echo "_lib_names var is $(_lib_names)"
+	@echo "_srcs var is $(_srcs)"
+
+##
+## Finally, use the include mechanism to create the *.d dependency
+## files This causes them to be created if they don't already
+## exist.  The NODEPENDS variable can be set on the command line
+## or in make files that recursively invoke this one in order to
+## prevent making the files.  Otherwise, the .d files will always
+## be created, even if the `-n' option is used.  The `*clean'
+## targets usually set this var because there is no point making
+## the files if you're only going to delete them.  All the *.d
+## files depend on the .dummy file so that the d/$config
+## subdirectory is created before any mkdepend commands are run.
+ifndef NODEPENDS
+-include $(depends)
+endif

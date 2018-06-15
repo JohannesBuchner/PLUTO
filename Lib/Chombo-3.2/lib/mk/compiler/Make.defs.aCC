@@ -1,0 +1,36 @@
+## This file contains compiler variables for the HP C++ compiler "aCC".
+
+## It sets values for the defaults variables ($def*), which will be used
+## if the calling makefile doesn't set the corresponding variables.
+## The corresponding variables are the ones without the "def" prefix.
+
+## Compiler defaults variables:
+##  defcxxdbgflags : for C++ compiling and linking when DEBUG=TRUE
+##  defcxxoptflags : for C++ compiling and linking when OPT=TRUE or HIGH
+##  defcxxprofflags: for C++ compiling and linking when PROFILE=TRUE
+##  deffdbgflag    : for Fortran compiling when DEBUG=TRUE
+##  deffoptflag    : for Fortran compiling when OPT=TRUE or HIGH
+##  deffprofflags  : for Fortran compiling when PROFILE=TRUE
+##  defflibflags   : library options needed to link the Fortran code
+##  defldflags     : options for linking
+##  cppcallsfort: preprocessor macro as used in FORT_PROTO.H to specify
+##                    how the C++ code should construct names for calling Fortran
+##
+## Notes:
+##  The HP C-preprocessor sets the macros:
+##    __hpux
+##    __HP_aCC
+##    __ia64    (on Intel Itanium systems)
+
+makefiles+=local/Make.defs.aCC
+
+## -AA turns on namespaces, for-loop scoping; -ext for long long;
+## +W disable warning msg about template inheritance
+defcxxdbgflags = -g -AA -Aa -ext +W641
+defcxxoptflags = -fast -AA -Aa -ext +W641
+
+# aCC has a built-in preprocessor that strips leading blanks
+# and messes up the Fortran code.  This works fine.
+#[NOTE: the aCC manpage mentions this program path, so it is
+#       hopefully good for any HP-UX system. <dbs>]
+CH_CPP = /opt/langtools/lbin/cpp.ansi -P

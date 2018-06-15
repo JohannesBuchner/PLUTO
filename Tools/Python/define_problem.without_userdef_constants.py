@@ -60,7 +60,7 @@ class DefineProblem(object):
         self.GenerateOptionsList()
         
         #Updates Options, default based on FLAGS.
-        if True in self.flag_dict.values():
+        if True in list(self.flag_dict.values()):
             self.AfterFlagLists() 
 
         #Read the exsisting definition.h file or Browse the menu for Setting up problem.
@@ -323,7 +323,7 @@ class DefineProblem(object):
             scrh_end = pf.LocateString('User_Constants_End')
             k_end   = scrh_end[0][0]-1
             const_lines = pf.ReadLines(k_beg, k_end)
-            print const_lines
+            print(const_lines)
             for n in range(len(const_lines)):
                 x = const_lines[n].split()
                 try:                
@@ -504,7 +504,7 @@ class DefineProblem(object):
         try:
             scrh[0]
         except IndexError:
-            print "Parameters keyword not found in pluto.ini"
+            print("Parameters keyword not found in pluto.ini")
             sys.exit()
         else:
             pass
@@ -528,7 +528,7 @@ class DefineProblem(object):
                     cmms.append('')
 
         for x in self.udef_params:
-            if x in paradict.keys():
+            if x in list(paradict.keys()):
                 pf.InsertLine(x.ljust(21) + paradict[x] +'  '+cmms[self.udef_params.index(x)]+'\n', ipos)
             else:
                 try:

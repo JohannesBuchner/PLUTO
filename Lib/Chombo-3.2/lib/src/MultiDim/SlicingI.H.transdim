@@ -1,0 +1,395 @@
+#ifndef _SLICINGI_H_TRANSDIM_
+#define _SLICINGI_H_TRANSDIM_
+
+#ifdef CH_USE1D
+template<typename T> std::ostream&
+operator<<( std::ostream& a_out, const D1::BaseFab<T>& a_fab)
+{
+    a_out << a_fab.box() << "; ";
+    int I = 1 + a_fab.box().hiVect()[0] - a_fab.box().loVect()[0];
+    for( int ii=0; ii<I; ++ii ) a_out << a_fab.dataPtr()[ii] << " ";
+    return a_out;
+}
+#endif
+
+#ifdef CH_USE2D
+template<typename T> std::ostream&
+operator<<( std::ostream& a_out, const D2::BaseFab<T>& a_fab)
+{
+    a_out << a_fab.box() << "; ";
+    int I = 1 + a_fab.box().hiVect()[0] - a_fab.box().loVect()[0];
+    int J = 1 + a_fab.box().hiVect()[1] - a_fab.box().loVect()[1];
+    for( int ii=0; ii<I*J; ++ii ) a_out << a_fab.dataPtr()[ii] << " ";
+    return a_out;
+}
+#endif
+
+#ifdef CH_USE3D
+template<typename T> std::ostream&
+operator<<( std::ostream& a_out, const D3::BaseFab<T>& a_fab)
+{
+    a_out << a_fab.box() << "; ";
+    int I = 1 + a_fab.box().hiVect()[0] - a_fab.box().loVect()[0];
+    int J = 1 + a_fab.box().hiVect()[1] - a_fab.box().loVect()[1];
+    int K = 1 + a_fab.box().hiVect()[2] - a_fab.box().loVect()[2];
+    for( int ii=0; ii<I*J*K; ++ii ) a_out << a_fab.dataPtr()[ii] << " ";
+    return a_out;
+}
+#endif
+
+
+#ifdef CH_USE4D
+template<typename T> std::ostream&
+operator<<( std::ostream& a_out, const D4::BaseFab<T>& a_fab)
+{
+    a_out << a_fab.box() << "; ";
+    int I = 1 + a_fab.box().hiVect()[0] - a_fab.box().loVect()[0];
+    int J = 1 + a_fab.box().hiVect()[1] - a_fab.box().loVect()[1];
+    int K = 1 + a_fab.box().hiVect()[2] - a_fab.box().loVect()[2];
+    int L = 1 + a_fab.box().hiVect()[3] - a_fab.box().loVect()[3];
+    for( int ii=0; ii<I*J*K*L; ++ii ) a_out << a_fab.dataPtr()[ii] << " ";
+    return a_out;
+}
+#endif
+
+#ifdef CH_USE5D
+template<typename T> std::ostream&
+operator<<( std::ostream& a_out, const D5::BaseFab<T>& a_fab)
+{
+    a_out << a_fab.box() << "; ";
+    int I = 1 + a_fab.box().hiVect()[0] - a_fab.box().loVect()[0];
+    int J = 1 + a_fab.box().hiVect()[1] - a_fab.box().loVect()[1];
+    int K = 1 + a_fab.box().hiVect()[2] - a_fab.box().loVect()[2];
+    int L = 1 + a_fab.box().hiVect()[3] - a_fab.box().loVect()[3];
+    int M = 1 + a_fab.box().hiVect()[4] - a_fab.box().loVect()[4];
+    for( int ii=0; ii<I*J*K*L*M; ++ii ) a_out << a_fab.dataPtr()[ii] << " ";
+    return a_out;
+}
+#endif
+
+
+#ifdef CH_USE6D
+template<typename T> std::ostream&
+operator<<( std::ostream& a_out, const D6::BaseFab<T>& a_fab)
+{
+    a_out << a_fab.box() << "; ";
+    int I = 1 + a_fab.box().hiVect()[0] - a_fab.box().loVect()[0];
+    int J = 1 + a_fab.box().hiVect()[1] - a_fab.box().loVect()[1];
+    int K = 1 + a_fab.box().hiVect()[2] - a_fab.box().loVect()[2];
+    int L = 1 + a_fab.box().hiVect()[3] - a_fab.box().loVect()[3];
+    int M = 1 + a_fab.box().hiVect()[4] - a_fab.box().loVect()[4];
+    int N = 1 + a_fab.box().hiVect()[5] - a_fab.box().loVect()[5];
+    for( int ii=0; ii<I*J*K*L*M*N; ++ii ) a_out << a_fab.dataPtr()[ii] << " ";
+    return a_out;
+}
+#endif
+
+
+namespace CH_MultiDim {
+
+
+template<typename IntVectT>
+void sliceIntVect(
+  typename ObjTraits< DimTraits<IntVectT>::dim - 1 >::IntVect& a_to,
+  const IntVectT&    a_from,
+  const typename ObjTraits< DimTraits<IntVectT>::dim >::SliceSpec& a_spec )
+{
+    enum {DIM=DimTraits<IntVectT>::dim};
+    int ii=0;
+    for( int i=0;i<DIM;++i )
+    {
+        if( i != a_spec.direction )
+        {
+            a_to[ii] = a_from[i];
+            ++ii;
+        }
+    }
+}
+
+
+template<typename BoxT> void
+sliceBox( typename ObjTraits< DimTraits<BoxT>::dim - 1 >::Box& a_to,
+          const BoxT&  a_from,
+          const typename ObjTraits< DimTraits<BoxT>::dim >::SliceSpec& a_slicespec,
+          bool* a_outofbounds )
+{
+    enum {DIM=DimTraits<BoxT>::dim};
+    typename ObjTraits<DIM-1>::IntVect smTo, bgTo;
+
+    sliceIntVect( smTo, a_from.smallEnd(), a_slicespec );
+    sliceIntVect( bgTo, a_from.bigEnd(), a_slicespec );
+    a_to.define( smTo, bgTo );
+
+    if( a_outofbounds )
+    {    
+        if( (a_slicespec.position < a_from.smallEnd()[a_slicespec.direction])
+        ||  (a_slicespec.position > a_from.bigEnd()[a_slicespec.direction]) )
+        {
+          *a_outofbounds = true;
+        }
+        else
+        {
+          *a_outofbounds = false;
+        }
+    }
+}
+
+
+/** Unlike the other slice* functions, this one returns its result.  By doing so
+    we economize on the amount of typedef'ing necessary in sliceDisjointBoxLayout
+    and in any case this function is of interest only through its use there.
+    (In keeping with the desire to economize on typedef'ing and traits, notice
+    the template argument here is a DisjointBoxLayout.)
+*/
+template<typename Domain_T>
+typename ObjTraits< DimTraits<Domain_T>::dim - 1 >::ProblemDomain
+sliceDomain(
+  const Domain_T& a_from,
+  const typename ObjTraits< DimTraits<Domain_T>::dim >::SliceSpec& a_slicespec,
+  bool* a_outofbounds )
+{
+  enum {DIM=DimTraits<Domain_T>::dim};
+  typename ObjTraits<DIM-1>::IntVect smTo, bgTo;
+  sliceIntVect( smTo, a_from.domainBox().smallEnd(), a_slicespec );
+  sliceIntVect( bgTo, a_from.domainBox().bigEnd(), a_slicespec );
+
+  typename ObjTraits<DIM-1>::ProblemDomain result;
+  
+  // Only define domain if there is a avalid box here.  Otherwise,
+  // simply pass out default-defined ProblemDomain.
+  if( smTo <= bgTo )
+  {
+    result.define( smTo, bgTo );   
+    // now set periodicity
+    if (a_from.isPeriodic())
+    {
+      int ii = 0;
+      for (int i=0; i<DimTraits<Domain_T>::dim; ++i)
+      {
+        if (i != a_slicespec.direction)
+        {
+          result.setPeriodic(ii, a_from.isPeriodic(i));
+          ++ii;
+        }
+      }
+    }
+  }
+  
+  if( a_outofbounds )
+  {    
+    if( (a_slicespec.position < a_from.domainBox().smallEnd()[a_slicespec.direction])
+        ||  (a_slicespec.position > a_from.domainBox().bigEnd()[a_slicespec.direction]) )
+    {
+      *a_outofbounds = true;
+    }
+    else
+    {
+      *a_outofbounds = false;
+    }
+  }
+  return result;
+}
+
+
+template<typename BaseFabT> void
+sliceBaseFab( typename BaseFabTraits<BaseFabT>::OneDimLessBaseFab& a_to,
+              const BaseFabT& a_from,
+              const typename ObjTraits< DimTraits<BaseFabT>::dim >::SliceSpec& a_slicespec )
+{
+    enum {DIM=DimTraits<BaseFabT>::dim};
+    typename ObjTraits<DIM-1>::Box toBox;
+    bool outofbounds;
+    
+    toBox = a_to.box();
+    if (toBox.isEmpty())
+      {
+        sliceBox( toBox, a_from.box(), a_slicespec, &outofbounds );
+        if( outofbounds )
+          {
+            // this is a bit silly, but need to find a dimension
+            // which is actually being used!
+#ifdef CH_USE1D
+            D1::MayDay::Error( "Tried to slice out-of-bounds." );
+#elif defined CH_USE2D
+            D2::MayDay::Error( "Tried to slice out-of-bounds." );
+#elif defined CH_USE3D
+            D3::MayDay::Error( "Tried to slice out-of-bounds." );
+#elif defined CH_USE4D
+            D4::MayDay::Error( "Tried to slice out-of-bounds." );
+#elif defined CH_USE5D
+            D5::MayDay::Error( "Tried to slice out-of-bounds." );
+#else  
+            D6::MayDay::Error( "Tried to slice out-of-bounds." );
+#endif
+
+          }
+        a_to.define( toBox, a_from.nComp() );
+      }
+    
+    BaseFabT degenerateBaseFab;
+    a_from.degenerate( degenerateBaseFab, a_slicespec );
+
+    memcpy( a_to.dataPtr(), degenerateBaseFab.dataPtr(),
+            toBox.numPts()*degenerateBaseFab.nComp()*
+            sizeof(typename BaseFabTraits<BaseFabT>::ElementT) );
+}
+
+
+/** Convenience class, for use in this file only. */  
+template<typename DBL_T> class DBLChild : public DBL_T
+{
+  public:
+    const typename ObjTraits< DimTraits<DBL_T>::dim >::ProblemDomain& getDomain() const
+    {
+      return DBL_T::physDomain();
+    }
+};
+
+
+template<typename DBL_T> void
+sliceDisjointBoxLayout(
+  typename ObjTraits< DimTraits<DBL_T>::dim - 1 >::DisjointBoxLayout& a_to,
+  const DBL_T& a_from,
+  const typename ObjTraits< DimTraits<DBL_T>::dim >::SliceSpec& a_slicespec )
+{
+    enum {DIM=DimTraits<DBL_T>::dim};
+    typedef typename ObjTraits<DIM-1>::DisjointBoxLayout toDBL_T;
+    typedef typename ObjTraits<DIM-1>::Box toBoxT;
+    typedef typename ObjTraits<DIM>::LayoutIterator LayoutIt_T;
+    typedef typename ObjTraits<DIM-1>::VectorOfBox VectorOfBoxT;
+
+    VectorOfBoxT boxes;
+    for( LayoutIt_T it(a_from.layoutIterator()); it.ok(); ++it )
+    {
+        toBoxT tobox;
+        bool isValid;
+        sliceBox( tobox, a_from[it()], a_slicespec,&isValid );
+        if(isValid)
+        {
+          boxes.push_back( tobox );
+        }
+    }
+
+    // What happens now if boxes.size()==0?
+    typename ObjTraits<DIM>::ProblemDomain fromDomain(
+        ((const DBLChild<DBL_T>*)&a_from)->getDomain());
+    a_to.defineAndLoadBalance( boxes,
+                               (typename ObjTraits<DIM-1>::VectorOfInt*)0,
+                               sliceDomain( fromDomain,  a_slicespec) );
+    a_to.close(); // Do we really need this?
+}
+
+
+template<typename LD_T> void
+sliceLevelData( typename ObjTraits< DimTraits<LD_T>::dim - 1 >::LevelData& a_to,
+                const LD_T& a_from,
+                const typename ObjTraits< DimTraits<LD_T>::dim >::SliceSpec& a_slicespec )
+{
+    enum {DIM=DimTraits<LD_T>::dim};
+    typename ObjTraits<DIM-1>::DisjointBoxLayout toDBL;
+
+    typename ObjTraits<DIM>::LevelData degenerateLD;
+    a_from.degenerate( degenerateLD, a_slicespec ); // does a copyTo()
+
+    if (!a_to.isDefined())
+    {
+        typename ObjTraits<DIM-1>::VectorOfInt procIDs;
+        typename ObjTraits<DIM-1>::VectorOfBox toBoxes;
+        typename ObjTraits<DIM>::LayoutIterator it
+            = degenerateLD.disjointBoxLayout().layoutIterator();
+        for( ; it.ok(); ++it )
+        {
+            procIDs.push_back( degenerateLD.disjointBoxLayout().procID( it() ) );
+            typename ObjTraits<DIM-1>::Box toBox;
+            sliceBox( toBox, degenerateLD.disjointBoxLayout()[it()], a_slicespec );
+            toBoxes.push_back( toBox );
+        }
+
+        // Make toDBL, with procIDs the same as degenerateLD's:
+        typename ObjTraits<DIM>::ProblemDomain fromDomain;
+
+        fromDomain =  static_cast<const DBLChild< typename ObjTraits<DIM>::DisjointBoxLayout>* >(&(a_from.getBoxes()))->getDomain();
+        
+        toDBL.define( toBoxes, procIDs,
+                      sliceDomain(fromDomain, a_slicespec) );
+
+        typename ObjTraits<DIM-1>::IntVect toGhost;
+        sliceIntVect( toGhost, a_from.ghostVect(), a_slicespec );
+
+        a_to.define( toDBL, a_from.nComp(), toGhost );
+    }
+
+    // Copy the FAB data.
+    typename ObjTraits<DIM>::DataIterator degenIt = degenerateLD.dataIterator();
+    typename ObjTraits<DIM-1>::DataIterator toIt = a_to.dataIterator();
+    for( ; degenIt.ok(); ++degenIt, ++toIt )
+    {
+        CH_assert( toIt.ok() );
+        memcpy( a_to[toIt].dataPtr(), degenerateLD[degenIt].dataPtr(),
+                a_to[toIt].box().numPts() * a_from.nComp() * sizeof(Real) );
+    }
+}
+
+
+template<typename LD_T> void
+sliceLevelFlux( typename ObjTraits< DimTraits<LD_T>::dim - 1 >::LevelFlux& a_to,
+                const LD_T& a_from,
+                const typename ObjTraits< DimTraits<LD_T>::dim >::SliceSpec& a_slicespec )
+{
+    enum {DIM=DimTraits<LD_T>::dim};
+    typename ObjTraits<DIM-1>::DisjointBoxLayout toDBL;
+
+    typename ObjTraits<DIM>::LevelFlux degenerateLD;
+    a_from.degenerate( degenerateLD, a_slicespec ); // does a copyTo()
+
+    if (!a_to.isDefined())
+    {
+        typename ObjTraits<DIM-1>::VectorOfInt procIDs;
+        typename ObjTraits<DIM-1>::VectorOfBox toBoxes;
+        typename ObjTraits<DIM>::LayoutIterator it
+            = degenerateLD.disjointBoxLayout().layoutIterator();
+        for( ; it.ok(); ++it )
+        {
+            procIDs.push_back( degenerateLD.disjointBoxLayout().procID( it() ) );
+            typename ObjTraits<DIM-1>::Box toBox;
+            sliceBox( toBox, degenerateLD.disjointBoxLayout()[it()], a_slicespec );
+            toBoxes.push_back( toBox );
+        }
+
+        // Make toDBL, with procIDs the same as degenerateLD's:
+        typename ObjTraits<DIM>::ProblemDomain fromDomain;
+
+        fromDomain =  static_cast<const DBLChild< typename ObjTraits<DIM>::DisjointBoxLayout>* >(&(a_from.getBoxes()))->getDomain();
+        
+        toDBL.define( toBoxes, procIDs,
+                      sliceDomain(fromDomain, a_slicespec) );
+
+        typename ObjTraits<DIM-1>::IntVect toGhost;
+        sliceIntVect( toGhost, a_from.ghostVect(), a_slicespec );
+
+        a_to.define( toDBL, a_from.nComp(), toGhost );
+    }
+
+    // Copy the FAB data.
+    typename ObjTraits<DIM>::DataIterator degenIt = degenerateLD.dataIterator();
+    typename ObjTraits<DIM-1>::DataIterator toIt = a_to.dataIterator();
+    for( ; degenIt.ok(); ++degenIt, ++toIt )
+    {
+        CH_assert( toIt.ok() );
+        int destDir = 0;
+        for (int dir=0; dir<DIM; dir++)
+          {
+            if (dir != a_slicespec.direction)
+              {
+                memcpy(a_to[toIt][destDir].dataPtr(), 
+                       degenerateLD[degenIt][dir].dataPtr(),
+                       a_to[toIt][destDir].box().numPts() * a_from.nComp() * sizeof(Real) );
+                destDir++;
+              } 
+          }
+    }
+}
+
+} // namespace CH_MultiDim
+
+#endif // _SLICINGI_H_TRANSDIM_

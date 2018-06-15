@@ -1,0 +1,11 @@
+This example is a basic variable-coefficient AMR Poisson solver using the VCAMRPoissonOp2 linear operator encapsulated in the MultilevelLinearOp class; solution is via Multigrid-preconditioned BiCGStab. 
+Building and running with the supplied inputs will do a Poisson solve in which the RHS and the coefficients are sinusoudals. Refinement is based on mag(grad(rhs) ).
+
+To build the example:
+make all DIM=<1,2,3> DEBUG=<TRUE,FALSE> OPT=<TRUE,FALSE,HIGH> MPI=<TRUE,FALSE>
+
+To run the example:
+vcPoissonSolve<config>.ex inputs
+
+if compiled with HDF5, vcPoissonOut.<DIM>d.hdf5 will be written containing the RHS and the solution.
+

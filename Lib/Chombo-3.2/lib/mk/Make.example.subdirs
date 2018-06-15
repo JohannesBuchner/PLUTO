@@ -1,0 +1,87 @@
+### This makefile requires GNU make.
+### It controls building in subdirectories.
+###
+### Usage: Any makefile that includes this one must define these variables:
+###   makefiles    : append local directory name to this
+###   CHOMBO_HOME  : relative path to Chombo/lib
+###   exec_dirs    : names of subdirectories to build
+###
+### User-definable variables are in UPPER case.
+### Internal variables are in lower case.
+###
+### Usage:
+###   target:    purpose:
+###   -------    ----------
+###   all        builds all the executables, including the libraries they depend on
+###   example    same as "all"
+###   example-only builds all the executables, but doesn't rebuild the libraries
+###   run        runs all the executables
+###   clean      deletes files for this configuration
+###   realclean  deletes files for all configurations that weren't in the original distribution
+###
+### Method:
+###   The way this makefile works is the target specified by the user
+###   on the command line is treated as the `action' to perform on all
+###   the subdirectories in $dirs.  In the rules, the subdirectories are
+###   treated like targets and the action is specified by a variable.
+###   The makefile builds each directory target by invoking make
+###   recursively on the directory with the action as the recursive target.
+###   This assumes that the makefiles in the subdirectories implement all
+###   the actions in the $(_all_actions) variable.
+###
+### Notes:
+###
+##################################################################################
+
+export makefiles += Make.example.subdirs
+
+##
+## These are the actions (targets for the recursive make) supported by this
+## makefile.  It assumes the makefiles in the subdirectories support them too.
+##
+_all_actions = all all-lib example example-only lib run clean
+
+.PHONY: $(_all_actions) $(exec_dirs) realclean usage vars
+
+##
+## Default target
+##
+usage:
+	@echo "This makefile supports targets:"
+	@echo "     $(_all_actions) $(exec_dirs) realclean usage vars"
+
+##
+## For each action, set the action variable to tell the recursive
+## makefile what to do.  There should be a separate dependency for
+## every value in $(_all_actions).
+##[NOTE: the `NODEPENDS=TRUE' variable disables automatic
+##       dependency analysis in the recursive makefile, which is only
+##       needed for actions that compile or link code.]
+##
+_action = all
+all          : _action = all
+example      : _action = all
+example-only : _action = example-only
+lib          : _action = lib       NODEPENDS=TRUE
+run          : _action = run       NODEPENDS=TRUE
+clean        : _action = clean     NODEPENDS=TRUE
+
+# this dependency ensures the action is done for every directory.
+$(_all_actions) : $(exec_dirs)
+
+# this rule performs the action
+$(exec_dirs):
+	$(MAKE) --no-print-directory --directory $@ $(_action)
+
+realclean:
+	-find . -type d \( -name d -o -name p -o -name f -o -name o \) -depth -exec $(RM) -r {} \;
+	-find . \( -name \*.ex -o -name \*.a -o -name \*_F.H -o -name core \) -exec $(RM) {} \;
+	-find . \( -name \*.hdf5 -o -name \*.h5 -o -name \*~ -o -name work.pc\* -o -name gmon.out -o -name pout.\[0-9-\]\* -o -name leak.out\* -o -name .\#\* \) -exec $(RM) {} \;
+
+
+# this rule prints out various 'make' variables to the screen for debugging
+vars:
+	@echo "makefiles=$(makefiles)"
+	@echo "LibNames=$(LibNames)"
+	@echo "exec_dirs=$(exec_dirs)"
+	@$(MAKE) --no-print-directory -f $(CHOMBO_HOME)/mk/Make.printVariables CHOMBO_HOME=$(CHOMBO_HOME) $@

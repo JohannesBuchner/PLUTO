@@ -1,0 +1,959 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+      real_t  function getphirzfunc(radius)
+      implicit none
+      real_t radius
+
+      getphirzfunc = radius*radius
+
+      return
+      end
+
+
+      real_t  function getgradphirzfunc(radius)
+
+      implicit none
+      real_t radius
+
+      getgradphirzfunc = two*radius
+
+      return
+      end
+
+      real_t  function getlaplphirzfunc(radius)
+
+      implicit none
+      real_t radius
+
+      getlaplphirzfunc = four
+
+      return
+      end
+
+
+        subroutine getphi(
+     &    chf_fra1[phi],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[dx],
+     &    chf_const_realvect[problo],
+     &    chf_const_realvect[probhi],
+     &    chf_box[box])
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+c
+c       set phi to a trig function at the spatial coordinates
+c
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getphipoint(phi(chf_ix[i;j;k]),freq,x)
+        chf_enddo
+
+        return
+        end
+
+        subroutine getmagresist(
+     &     chf_fra1[mag],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[dx],
+     &     chf_const_realvect[problo],
+     &     chf_box[box],
+     $     chf_int[icomp],
+     $     chf_int[whichmag]
+     $     )
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getmagpointresist(mag(chf_ix[i;j;k]),freq,x,
+     $         icomp, whichmag)
+
+        chf_enddo
+
+        return
+        end
+
+cccccccccccccccccccccccccccccccc
+        subroutine getmagpointresist(
+     &     chf_real[mag],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[xval],
+     $     chf_int[icomp],
+     $     chf_int[whichmag]
+     $     )
+
+        REAL_T  CHF_DDECL[x;y;z]
+        integer CHF_DDECL[i;j;k]
+#if CH_SPACEDIM==2
+        if(icomp.eq.2) then
+           mag = zero
+           return
+        endif
+#endif
+        CHF_DTERM[
+        i = icomp;
+        j = max(1-icomp, 0);
+        k = 3-icomp-j]
+
+
+c        frequency already multiplied by pi
+        if(whichmag.eq. 2) then
+           CHF_DTERM[
+           x = freq(i)*xval(i);
+           y = freq(j)*xval(j);
+           z = freq(k)*xval(k)]
+
+#if CH_SPACEDIM==2
+           mag = sin(y)
+#elif CH_SPACEDIM==3
+           mag = sin(y) + sin(z)
+#else
+           mag = x
+#endif
+        elseif(whichmag.eq. 1) then
+           x = freq(icomp)*xval(icomp)
+           mag = sin(x)
+        elseif(whichmag.eq.0) then
+           x = xval(icomp)
+           mag = x*x
+        elseif(whichmag.eq.4) then
+           x = xval(icomp)
+           if(icomp .eq. 0) then
+              mag = x
+           else
+              mag = zero
+           endif
+        else
+           call MayDay_Error()
+        endif
+
+        return
+        end
+cccccccccccccccccccc
+        subroutine getetaresist(
+     &     chf_fra1[eta],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[dx],
+     &     chf_const_realvect[problo],
+     &     chf_box[box],
+     $     chf_int[idir],
+     $     chf_real[eps],
+     $     chf_int[whicheta]
+     $     )
+
+        integer chf_ddecl[i;j;k],jdir
+
+        real_t x(0:CH_SPACEDIM-1)
+        integer iv(0:CH_SPACEDIM-1)
+
+        chf_multido[box;i;j;k]
+           CHF_DTERM[
+           iv(0) = i;
+           iv(1) = j;
+           iv(2) = k]
+
+           do jdir = 0, CH_SPACEDIM-1
+              if(idir .eq. jdir) then
+                 x(jdir) = iv(jdir)*dx(jdir) + problo(jdir)
+              else
+                 x(jdir) = (iv(jdir)+half)*dx(jdir) + problo(jdir)
+              endif
+           enddo
+
+          call getetapointresist(eta(chf_ix[i;j;k]),freq,x,
+     $         idir, eps, whicheta)
+
+        chf_enddo
+
+        return
+        end
+
+cccccccccccccccccccccccccccccccc
+        subroutine getetapointresist(
+     &     chf_real[eta],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[xval],
+     $     chf_int[idir],
+     $     chf_real[eps],
+     $     chf_int[whicheta]
+     $     )
+
+        REAL_T CHF_DDECL[x; y; z]
+
+
+        if(whicheta.eq. 1) then
+
+           CHF_DTERM[
+           x = freq(0)*xval(0);
+           y = freq(1)*xval(1);
+           z = freq(2)*xval(2)]
+
+           eta  = one + eps*(CHF_DTERM[sin(x); + sin(y); +sin(z)])
+c           eta  = one
+
+        elseif(whicheta.eq.0) then
+
+           eta = one
+c           eta = 0.01
+
+        elseif(whicheta.eq.3) then
+
+           eta = half
+c           eta = 0.01
+
+        else
+           call MayDay_Error()
+        endif
+
+        return
+        end
+
+
+        subroutine getbetaviscous(
+     &     chf_fra1[beta],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[dx],
+     &     chf_const_realvect[problo],
+     $     chf_real[eps],
+     &     chf_box[box],
+     $     chf_int[whichbeta]
+     $     )
+
+        integer chf_ddecl[i;j;k],jdir
+
+        real_t x(0:CH_SPACEDIM-1)
+        integer iv(0:CH_SPACEDIM-1)
+
+        chf_multido[box;i;j;k]
+           CHF_DTERM[
+           iv(0) = i;
+           iv(1) = j;
+           iv(2) = k]
+
+           do jdir = 0, CH_SPACEDIM-1
+              x(jdir) = (iv(jdir)+half)*dx(jdir) + problo(jdir)
+           enddo
+
+          call getbetapointviscous(beta(chf_ix[i;j;k]),freq,x, eps, whichbeta)
+        chf_enddo
+
+        return
+        end
+
+cccccccccccccccccccccccccccccccc
+        subroutine getbetapointviscous(
+     &     chf_real[beta],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[xval],
+     $     chf_real[eps],
+     $     chf_int[whichbeta]
+     $     )
+
+        REAL_T CHF_DDECL[x; y; z]
+
+
+        if(whichbeta.eq. 1) then
+
+           CHF_DTERM[
+           x = freq(0)*xval(0);
+           y = freq(1)*xval(1);
+           z = freq(2)*xval(2)]
+
+           beta  = one + eps*(CHF_DTERM[sin(x); + sin(y); +sin(z)])
+c           eta  = one
+
+        elseif(whichbeta.eq.0) then
+
+           beta = one
+c           eta = 0.01
+
+        else
+           call MayDay_Error()
+        endif
+
+        return
+        end
+
+
+ccccccccccccccccccccccccccccc
+        subroutine getklbresist(
+     &     chf_fra1[klb],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[dx],
+     &     chf_const_realvect[problo],
+     $     chf_const_real[alpha],
+     $     chf_const_real[beta],
+     &     chf_box[box],
+     $     chf_int[icomp],
+     $     chf_real[eps],
+     $     chf_int[whichmag],
+     $     chf_int[whicheta]
+     $     )
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getklbpointresist(klb(chf_ix[i;j;k]),freq,x,
+     $         alpha, beta, icomp, eps, whichmag, whicheta)
+
+        chf_enddo
+
+        return
+        end
+
+cccccccccccccccccccccccccccccccc
+        subroutine getklbpointresist(
+     &     chf_real[klb],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[xvec],
+     $     chf_const_real[alpha],
+     $     chf_const_real[beta],
+     $     chf_int[icomp],
+     $     chf_real[eps],
+     $     chf_int[whichmag],
+     $     chf_int[whicheta]
+     $     )
+
+        REAL_T  CHF_DDECL[fx;fy;fz]
+        REAL_T  CHF_DDECL[x;y;z],  termone
+        REAL_T  CHF_DDECL[freqx;freqy;freqz], mag, divf, eta
+        integer CHF_DDECL[i;j;k]
+#if CH_SPACEDIM==2
+        if(icomp.eq.2) then
+           klb = zero
+           return
+        endif
+#endif
+        CHF_DTERM[
+        i = icomp;
+        j = max(1-icomp, 0);
+        k = 3-icomp-j]
+
+        call getetapointresist(eta,freq,xvec, icomp, eps, whicheta)
+        call getmagpointresist(mag,freq,xvec, icomp, whichmag)
+
+c        frequency already multiplied by pi
+        CHF_DTERM[
+        freqx = freq(i);
+        freqy = freq(j);
+        freqz = freq(k)]
+
+        CHF_DTERM[
+        x = xvec(i);
+        y = xvec(j);
+        z = xvec(k)]
+
+
+        if((whichmag.eq. 2).and.(whicheta.eq.0)) then
+
+#if(CH_SPACEDIM==1)
+           divf = one
+
+#else
+           divf = -(freqy*freqy*sin(freqy*y))
+
+#if CH_SPACEDIM==3
+           divf = divf - (freqz*freqz*sin(freqz*z))
+#endif
+#endif
+
+        elseif((whichmag.eq. 3).and.(whicheta.eq.0)) then
+
+           call getlofphipoint(klb, freq, xvec, alpha, beta)
+           goto  123
+
+        elseif((whichmag.eq. 2).and.(whicheta.eq.1)) then
+
+           CHF_DTERM[
+           fx = freqx*x;
+           fy = freqy*y;
+           fz = freqz*z]
+
+#if(CH_SPACEDIM==1)
+           divf = one
+
+#else
+           divf = (freqy*cos(fy) - freqx*cos(fx))*(eps*freqy*cos(fy)) - freqy*freqy*eta*sin(fy)
+#if CH_SPACEDIM==3
+           divf = eps*freqy*cos(fy)*(freqy*cos(fy) - freqx*cos(fx))  - eta*freqy*freqy*sin(fy)
+     $          + eps*freqz*cos(fz)*(freqz*cos(fz) - freqx*cos(fx))  - eta*freqz*freqz*sin(fz)
+#endif
+#endif
+
+
+        elseif((whichmag.eq. 1).and.(whicheta.eq.1)) then
+
+           termone =  CHF_DTERM[
+     $          freqx*cos(freqx*x); +
+     $          freqy*cos(freqy*y); +
+     $          freqz*cos(freqz*z)]
+
+          divf = eps*freqx*cos(freqx*x)*termone
+     $         -freqx*freqx*sin(freqx*x)*eta
+
+        elseif((whichmag.eq.0).and.(whicheta.eq.0)) then
+
+           divf = two
+
+        elseif((whichmag.eq.4).and.(whicheta.eq.0)) then
+
+           divf = zero
+
+        elseif((whichmag.eq.1).and.(whicheta.eq.0)) then
+
+           divf = -freqx*freqx*sin(freqx*x)
+
+        else
+c     some whichmag, whicheta combination called which i did not account for
+           call MayDay_Error()
+        endif
+        klb = alpha*mag  + beta*divf
+
+ 123    continue
+
+        return
+        end
+
+ccccccccccccccccccccccccccccc
+        subroutine getklvviscous(
+     &     chf_fra1[klb],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[dx],
+     &     chf_const_realvect[problo],
+     $     chf_const_real[alpha],
+     $     chf_const_real[beta],
+     &     chf_box[box],
+     $     chf_int[icomp],
+     $     chf_real[eps],
+     $     chf_int[whichvel],
+     $     chf_int[whicheta],
+     $     chf_int[whichlambda],
+     $     chf_real[lambdafactor]
+     $     )
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getklvpointviscous(klb(chf_ix[i;j;k]),
+     $         freq,x, alpha, beta, icomp, eps,
+     $         whichvel, whicheta, whichlambda, lambdafactor)
+
+        chf_enddo
+
+        return
+        end
+
+cccccccccccccccccccccccccccccccc
+        subroutine getklvpointviscous(
+     &     chf_real[klv],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[xvec],
+     $     chf_const_real[alpha],
+     $     chf_const_real[beta],
+     $     chf_int[icomp],
+     $     chf_real[eps],
+     $     chf_int[whichvel],
+     $     chf_int[whicheta],
+     $     chf_int[whichlambda],
+     $     chf_real[lambdafactor]
+     $     )
+
+        REAL_T  CHF_DDECL[x;y;z],    lambda
+        REAL_T  CHF_DDECL[freqx;freqy;freqz], vel, divf, eta
+        real_t chf_ddecl[fx;fy;fz]
+        integer CHF_DDECL[i;j;k]
+
+        CHF_DTERM[
+        i = icomp;
+        j = max(1-icomp, 0);
+        k = 3-icomp-j]
+
+        call getetapointresist(   eta,freq,xvec, icomp, eps, whicheta)
+        if(whichlambda .eq. 2) then
+           lambda = -lambdafactor*eta
+        else
+           call getetapointresist(lambda,freq,xvec, icomp, eps, whichlambda)
+        endif
+
+        call getmagpointresist(   vel,freq,xvec, icomp, whichvel)
+
+c        frequency already multiplied by pi
+        CHF_DTERM[
+        freqx = freq(i);
+        freqy = freq(j);
+        freqz = freq(k)]
+
+        CHF_DTERM[
+        x = xvec(i);
+        y = xvec(j);
+        z = xvec(k)]
+
+        CHF_DTERM[
+        fx = freqx*x;
+        fy = freqy*y;
+        fz = freqz*z]
+
+        if((whichvel.eq.2).and.(whicheta.eq.0)) then
+c     not dependent on lambda since div v = 0
+#if(CH_SPACEDIM==1)
+           divf = one
+#else
+           divf = -freqy*freqy*sin(fy)
+#if CH_SPACEDIM==3
+           divf = divf -freqz*freqz*sin(fz)
+#endif
+#endif
+
+        else if((whichvel.eq.1).and.(whicheta.eq.3).and.(whichlambda.eq.3)) then
+
+           divf = -three*half*freqx*freqx*sin(fx)
+        else if((whichvel.eq.1).and.(whicheta.eq.0).and.(whichlambda.eq.0)) then
+
+           divf = -three*freqx*freqx*sin(fx)
+
+        else if((whichvel.eq.1).and.(whicheta.eq.0).and.(whichlambda.eq.2)) then
+
+           divf = -(two - lambdafactor)*freqx*freqx*sin(fx)
+
+        else if((whichvel.eq.1).and.(whicheta.eq.1).and.(whichlambda.eq.1)) then
+#if CH_SPACEDIM==1
+           divf = one
+#else
+           divf =       -three*eta*freqx*freqx*sin(fx)
+           divf = divf + three*eps*freqx*freqx*cos(fx)*cos(fx)
+           divf = divf +       eps*freqx*freqy*cos(fx)*cos(fy)
+#if CH_SPACEDIM==3
+           divf = divf +       eps*freqx*freqz*cos(fx)*cos(fz)
+#endif
+#endif
+
+
+        else if((whichvel.eq.1).and.(whicheta.eq.1).and.(whichlambda.eq.2)) then
+#if CH_SPACEDIM==1
+           divf = one
+#else
+           divf =       -(two - lambdafactor)*eta*freqx*freqx*sin(fx)
+           divf = divf + (two - lambdafactor)*eps*freqx*freqx*cos(fx)*cos(fx)
+           divf = divf -       (lambdafactor)*eps*freqx*freqy*cos(fx)*cos(fy)
+#if CH_SPACEDIM==3
+           divf = divf -       (lambdafactor)*eps*freqx*freqz*cos(fx)*cos(fz)
+#endif
+#endif
+
+        else if((whichvel.eq.2).and.(whicheta.eq.1)) then
+
+#if  CH_SPACEDIM==1
+           divf  = one
+#else
+c     not dependent on lambda since div v = 0
+           divf =       - eta*freqy*freqy*sin(fy)
+#if CH_SPACEDIM==3
+           divf = divf  - eta*freqz*freqz*sin(fz)
+#endif
+#endif
+#if  CH_SPACEDIM==1
+           divf = one
+#else
+           divf = divf + eps*freqy*cos(fy)*(freqy*cos(fy) + freqx*cos(fx))
+#if CH_SPACEDIM==3
+           divf = divf + eps*freqz*cos(fz)*(freqz*cos(fz) + freqx*cos(fx))
+#endif
+#endif
+
+        else if(whichvel.eq.4) then
+
+           divf = zero
+
+        else
+
+c     some whichvel, whicheta,whichlambda combination called which i did not account for
+           call MayDay_Error()
+
+        endif
+
+        klv = alpha*vel  + beta*divf
+
+
+        return
+        end
+cccccccccccccccccccccccccccccc
+        subroutine getphipoint(
+     &    chf_real[phi],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[x])
+
+c
+c       set phi to a trig function at the spatial coordinates
+c
+        phi = chf_dterm[sin(freq(0)*x(0));
+     &                * sin(freq(1)*x(1));
+     &                * sin(freq(2)*x(2))]
+
+
+c     debug
+c        phi = x(0)*x(0) + x(1)*x(1)
+c        phi = x(0)*x(0)
+c     end debug
+
+        return
+        end
+
+        subroutine getlofphizpoly(
+     &    chf_real[lofphi],
+     &    chf_const_realvect[x],
+     &    chf_const_real[alpha],
+     &    chf_const_real[beta])
+
+        real_t phi, laplphi
+        real_t dist
+        external getlaplphirzfunc
+        real_t getlaplphirzfunc
+        external getphirzfunc
+        real_t getphirzfunc
+
+        dist = abs(x(0))
+
+        phi = getphirzfunc(dist)
+        laplphi = getlaplphirzfunc(dist)
+
+        lofphi = alpha*phi + beta*laplphi
+
+
+        return
+        end
+
+        subroutine getphirzpoly(
+     &    chf_real[phi],
+     &    chf_const_realvect[x])
+
+        real_t dist
+        external getphirzfunc
+        real_t getphirzfunc
+
+        dist =abs(x(0))
+
+        phi = getphirzfunc(dist)
+
+        return
+        end
+
+
+      subroutine getgradphirzpoly(
+     &     chf_realvect[gradphi],
+     &     chf_const_realvect[x])
+
+        real_t dist
+        external getgradphirzfunc
+        real_t getgradphirzfunc
+
+        dist = abs(x(0))
+
+c     dphidr = 3r^2
+        CHF_DTERM[
+        gradphi(0) = getgradphirzfunc(dist);
+        gradphi(1) = zero;
+        gradphi(2) = zero]
+
+        return
+        end
+
+
+        subroutine getgradphipoint(
+     &    chf_realvect[gradphi],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[x])
+
+c       set gradphi to grad(a trig function at the spatial coordinates)
+c
+        chf_dselect[
+        gradphi(0) = freq(0) * cos(freq(0)*x(0))                                       ;
+
+        gradphi(0) = freq(0) * cos(freq(0)*x(0)) * sin(freq(1)*x(1))
+        gradphi(1) = freq(1) * sin(freq(0)*x(0)) * cos(freq(1)*x(1))                   ;
+
+        gradphi(0) = freq(0) * cos(freq(0)*x(0)) * sin(freq(1)*x(1)) * sin(freq(2)*x(2))
+        gradphi(1) = freq(1) * sin(freq(0)*x(0)) * cos(freq(1)*x(1)) * sin(freq(2)*x(2))
+        gradphi(2) = freq(2) * sin(freq(0)*x(0)) * sin(freq(1)*x(1)) * cos(freq(2)*x(2))]
+
+
+c     debug
+c        gradphi(0) = two*x(0)
+c       gradphi(1) = two*x(1)
+c        gradphi(1) = zero
+c     end debug
+        return
+        end
+
+
+        subroutine getlofphi(
+     &    chf_fra1[lofphi],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[dx],
+     &    chf_const_realvect[problo],
+     &    chf_const_realvect[probhi],
+     &    chf_const_real[alpha],
+     &    chf_const_real[beta],
+     &    chf_box[box])
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+c
+c       set lofphi to l(a trig function at the spatial coordinates)
+c
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getlofphipoint(lofphi(chf_ix[i;j;k]),freq,x,alpha,beta)
+        chf_enddo
+
+        return
+        end
+
+
+        subroutine getlofphipoint(
+     &    chf_real[lofphi],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[x],
+     &    chf_const_real[alpha],
+     &    chf_const_real[beta])
+
+        real_t fac,phi
+c
+c       set lofphi to l(a trig function at the spatial coordinates)
+c
+        fac = -(chf_dterm[freq(0)**2;
+     &                  + freq(1)**2;
+     &                  + freq(2)**2])
+
+        phi = (chf_dterm[sin(freq(0)*x(0));
+     &                 * sin(freq(1)*x(1));
+     &                 * sin(freq(2)*x(2))])
+
+        lofphi = fac*phi
+
+        lofphi = alpha*phi + beta*lofphi
+
+c     debug
+c        lofphi = four
+c        lofphi = two
+
+c     end debug
+        return
+        end
+
+        subroutine getdbgphi(
+     &    chf_fra1[dbgphi],
+     &    chf_fra1[beta],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[dx],
+     &    chf_const_realvect[problo],
+     &    chf_const_realvect[probhi],
+     &    chf_const_real[alpha],
+     &    chf_box[box])
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+c
+c       set dbgphi = alpha*phi + div(beta(grad(a trig function at the spatial coordinates)))
+c       set beta   =                           a      function at the spatial coordinates)
+c
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getdbgphipoint(dbgphi(chf_ix[i;j;k]),
+     &        beta(chf_ix[i;j;k]),freq,x,alpha)
+        chf_enddo
+
+        return
+        end
+
+
+        subroutine getdbgphipoint(
+     &    chf_real[dbgphi],
+     &    chf_real[beta],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[x],
+     &    chf_const_real[alpha])
+
+        real_t gradphi(0:CH_SPACEDIM-1),gradbeta(0:CH_SPACEDIM-1)
+        real_t alphaphiplusbetalapphi,gradbetadotgradphi
+
+c
+c       set dbgphi to alpha*phi + div(beta(grad(a trig function at the spatial coordinates)))
+c       set beta   to                           a      function at the spatial coordinates)
+c
+
+c       first compute alpha*phi + beta*lap(phi)
+        call getbetapoint(beta,freq,x)
+        call getlofphipoint(alphaphiplusbetalapphi,freq,x,alpha,beta)
+
+c       next compute grad(beta) and grad(phi)
+        call getgradbetapoint(gradbeta,freq,x)
+        call getgradphipoint(gradphi,freq,x)
+
+c       recall: div(beta(grad(phi))) = beta*lap(phi) + grad(beta).dot.grad(phi)
+        gradbetadotgradphi = chf_dterm[gradbeta(0)*gradphi(0);
+     &                               + gradbeta(1)*gradphi(1);
+     &                               + gradbeta(2)*gradphi(2)]
+
+c       put it all together: alpha*phi + div(beta(grad(phi))) = alpha*phi + beta*lap(phi) + grad(beta).dot.grad(phi)
+        dbgphi = alphaphiplusbetalapphi
+        dbgphi = dbgphi + gradbetadotgradphi
+
+        return
+        end
+
+        subroutine getbetapoint(
+     &    chf_real[beta],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[x])
+
+
+        beta = chf_dterm[x(0)*x(0);
+     &                 + x(1)*x(1);
+     &                 + x(2)*x(2)]
+c        if(x(1).gt.0.5) then
+c           beta = 1.0
+c        else
+c           beta = 1000.0
+c        endif
+
+        return
+        end
+
+        subroutine getgradbetapoint(
+     &    chf_realvect[gradbeta],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[x])
+
+        integer idir
+c
+c       set gradbeta to grad(beta)
+c
+
+
+        do idir = 0, CH_SPACEDIM-1
+            gradbeta(idir) = two*x(idir)
+c            gradbeta(idir) = zero
+        enddo
+
+        return
+        end
+
+        subroutine getbetagradphipoint(
+     &    chf_realvect[gradphi],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[x])
+
+        integer idir
+        real_t beta
+c
+c       set gradphi to beta*grad(a trig function at the spatial coordinates)
+c
+        call getbetapoint(beta,freq,x)
+        call getgradphipoint(gradphi,freq,x)
+
+        do idir = 0, CH_SPACEDIM-1
+           gradphi(idir) = gradphi(idir)*beta
+        enddo
+
+        return
+        end
+
+        subroutine getsrc(
+     &    chf_fra1[src],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[dx],
+     &    chf_const_real[diffconst],
+     &    chf_const_realvect[problo],
+     &    chf_const_realvect[probhi],
+     &    chf_box[box])
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+c
+c       set src to a trig function at the spatial coordinates
+c
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getsrcpoint(src(chf_ix[i;j;k]),freq,x,diffconst)
+        chf_enddo
+
+        return
+        end
+
+
+        subroutine getsrcpoint(
+     &    chf_real[src],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[x],
+     &    chf_const_real[diffconst])
+
+        real_t fac,phi
+c
+c       set src to a trig function at the spatial coordinates
+c
+        fac = -(chf_dterm[freq(0)**2;
+     &                  + freq(1)**2;
+     &                  + freq(2)**2])
+
+        phi = (chf_dterm[sin(freq(0)*x(0));
+     &                 * sin(freq(1)*x(1));
+     &                 * sin(freq(2)*x(2))])
+
+        src = (-fac*diffconst)*phi
+c        src = 2.0*time
+
+c     debug
+c        src = -4.0*diffconst
+c        src = -2.0*diffconst
+c     end debug
+
+        return
+        end
+

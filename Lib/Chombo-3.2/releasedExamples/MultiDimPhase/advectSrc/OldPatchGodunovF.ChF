@@ -1,0 +1,501 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+        subroutine OLDMINFLATF(
+     &    CHF_FRA1[flattening],
+     &    CHF_CONST_FRA[zetaDir],
+     &    CHF_CONST_FRA[du],
+     &    CHF_BOX[box])
+
+        integer CHF_DDECL[i;j;k]
+        integer iv
+        real_t  sumdu,minflattot,minZetaDir
+
+        CHF_MULTIDO[box;i;j;k]
+          sumdu = zero
+          do iv = 0,CHF_NCOMP[du] - 1
+            sumdu = sumdu + du(CHF_IX[i;j;k],iv)
+          enddo
+          if (sumdu .lt. zero) then
+            minflattot = zetaDir(CHF_IX[i;j;k],0)
+
+            do iv = 1,CHF_NCOMP[du] - 1
+              minZetaDir = zetaDir(CHF_IX[i;j;k],iv)
+              minflattot = min(minflattot,minZetaDir)
+            enddo
+
+            flattening(CHF_IX[i;j;k]) = minflattot
+          else
+            flattening(CHF_IX[i;j;k]) = one
+          endif
+        CHF_ENDDO
+
+        return
+        end
+
+        subroutine OLDGETDPTWOF(
+     &    CHF_FRA1[delta2p],
+     &    CHF_CONST_FRA1[delta1p],
+     &    CHF_CONST_INT[idir],
+     &    CHF_BOX[loBox],
+     &    CHF_CONST_INT[hasLo],
+     &    CHF_BOX[hiBox],
+     &    CHF_CONST_INT[hasHi],
+     &    CHF_BOX[centerBox])
+
+        integer CHF_DDECL[i   ;j   ;k   ]
+        integer CHF_DDECL[ioff;joff;koff]
+
+c       Perform centered average to obtain delta2p in the interior.
+
+        CHF_DTERM[
+        ioff = CHF_ID(0,idir);
+        joff = CHF_ID(1,idir);
+        koff = CHF_ID(2,idir)]
+
+        CHF_MULTIDO[centerBox;i;j;k]
+          delta2p(CHF_IX[i;j;k]) = delta1p(CHF_IX[i+ioff;j+joff;k+koff])
+     &                           + delta1p(CHF_IX[i-ioff;j-joff;k-koff])
+        CHF_ENDDO
+
+c       Perform calculation on the cells adjacent to the domain boundary in
+c       current direction, if required.
+
+        if (hasLo .eq. 1) then
+          CHF_MULTIDO[loBox;i;j;k]
+            delta2p(CHF_IX[i;j;k]) = delta1p(CHF_IX[i+ioff;j+joff;k+koff])
+     &                             + delta1p(CHF_IX[i     ;j     ;k     ])
+          CHF_ENDDO
+        endif
+
+        if (hasHi .eq. 1) then
+          CHF_MULTIDO[hiBox;i;j;k]
+            delta2p(CHF_IX[i;j;k]) = delta1p(CHF_IX[i     ;j     ;k     ])
+     &                             + delta1p(CHF_IX[i-ioff;j-joff;k-koff])
+          CHF_ENDDO
+        endif
+
+        return
+        end
+
+        subroutine OLDGETFLATF(
+     &    CHF_FRA1[zetaTwiddle],
+     &    CHF_CONST_FRA1[delta1p],
+     &    CHF_CONST_FRA1[delta2p],
+     &    CHF_CONST_FRA1[bulkMin],
+     &    CHF_BOX[box])
+
+        integer CHF_DDECL[i;j;k]
+        real_t d,r0,r1,ratio,strength
+
+#include  "EosCommon.fh"
+
+#ifdef     CH_USE_FLOAT
+        data d  /0.33/
+        data r0 /0.75/
+        data r1 /0.85/
+#endif
+#ifdef     CH_USE_DOUBLE
+#ifdef  CH_CRAY
+        data d  /0.33/
+        data r0 /0.75/
+        data r1 /0.85/
+#else
+        data d  /0.33d0/
+        data r0 /0.75d0/
+        data r1 /0.85d0/
+#endif
+#endif
+
+c       Perform pointwise operation in the interior.
+
+        CHF_MULTIDO[box;i;j;k]
+          strength = abs(delta1p(CHF_IX[i;j;k])/bulkMin(CHF_IX[i;j;k]))
+
+          if (strength .ge. d) then
+            ratio =     abs(delta1p(CHF_IX[i;j;k])
+     &            / max(abs(delta2p(CHF_IX[i;j;k])),smallp))
+
+            if (ratio .le. r0) then
+              zetaTwiddle(CHF_IX[i;j;k]) = one
+            else if (ratio .ge. r1) then
+              zetaTwiddle(CHF_IX[i;j;k]) = zero
+            else
+              zetaTwiddle(CHF_IX[i;j;k]) = one - (ratio - r0)/(r1 - r0)
+            endif
+          else
+            zetaTwiddle(CHF_IX[i;j;k]) = one
+          endif
+        CHF_ENDDO
+
+        return
+        end
+
+        subroutine OLDGETGRADF(
+     &    CHF_FRA1[du],
+     &    CHF_CONST_FRA1[u],
+     &    CHF_CONST_INT[idir],
+     &    CHF_BOX[loBox],
+     &    CHF_CONST_INT[hasLo],
+     &    CHF_BOX[hiBox],
+     &    CHF_CONST_INT[hasHi],
+     &    CHF_BOX[centerBox])
+
+        integer CHF_DDECL[i   ;j   ;k   ]
+        integer CHF_DDECL[ioff;joff;koff]
+
+        CHF_DTERM[
+        ioff = CHF_ID(0,idir);
+        joff = CHF_ID(1,idir);
+        koff = CHF_ID(2,idir)]
+
+c       Perform first difference calculation in the interior.
+
+        CHF_MULTIDO[centerBox;i;j;k]
+          du(CHF_IX[i;j;k]) = half*(u(CHF_IX[i+ioff;j+joff;k+koff])
+     &                             -u(CHF_IX[i-ioff;j-joff;k-koff]))
+        CHF_ENDDO
+
+c       Perform calculation on the cells adjacent to the domain boundary in
+c       current direction, if required.
+
+        if (hasLo .eq. 1) then
+          CHF_MULTIDO[loBox;i;j;k]
+            du(CHF_IX[i;j;k]) = (u(CHF_IX[i+ioff;j+joff;k+koff])
+     &                         - u(CHF_IX[i     ;j     ;k     ]))
+          CHF_ENDDO
+        endif
+
+        if (hasHi .eq. 1) then
+          CHF_MULTIDO[hiBox;i;j;k]
+            du(CHF_IX[i;j;k]) = (u(CHF_IX[i     ;j     ;k     ])
+     &                         - u(CHF_IX[i-ioff;j-joff;k-koff]))
+          CHF_ENDDO
+        endif
+
+        return
+        end
+
+        subroutine OLDMAGNITUDEF(
+     &    CHF_FRA1[magdata],
+     &    CHF_CONST_FRA[data],
+     &    CHF_BOX[box])
+
+        integer CHF_DDECL[i;j;k]
+        integer iv
+        real_t cur,sum
+
+        CHF_MULTIDO[box;i;j;k]
+          sum = zero
+
+          do iv = 0,CHF_NCOMP[data]-1
+            cur = data(CHF_IX[i;j;k],iv)
+            sum = sum + cur*cur
+          enddo
+
+          magdata(CHF_IX[i;j;k]) = sqrt(sum)
+        CHF_ENDDO
+
+        return
+        end
+
+        subroutine OLDMIN3PTSF(
+     &    CHF_FRA1[mindata],
+     &    CHF_CONST_FRA1[data],
+     &    CHF_CONST_INT[idir],
+     &    CHF_BOX[loBox],
+     &    CHF_CONST_INT[hasLo],
+     &    CHF_BOX[hiBox],
+     &    CHF_CONST_INT[hasHi],
+     &    CHF_BOX[centerBox])
+
+        integer CHF_DDECL[i   ;j   ;k   ]
+        integer CHF_DDECL[ioff;joff;koff]
+
+        CHF_DTERM[
+        ioff = CHF_ID(0,idir);
+        joff = CHF_ID(1,idir);
+        koff = CHF_ID(2,idir)]
+
+c       Perform 3 point minimum calculation in the interior.
+
+        CHF_MULTIDO[centerBox;i;j;k]
+          mindata(CHF_IX[i;j;k]) = min(data(CHF_IX[i     ;j     ;k     ]),
+     &                                 data(CHF_IX[i+ioff;j+joff;k+koff]),
+     &                                 data(CHF_IX[i-ioff;j-joff;k-koff]))
+        CHF_ENDDO
+
+c       Perform calculation on the cells adjacent to the domain boundary in
+c       current direction, if required.
+
+        if (hasLo .ne. 0) then
+          CHF_MULTIDO[loBox;i;j;k]
+            mindata(CHF_IX[i;j;k]) = min(data(CHF_IX[i     ;j     ;k     ]),
+     &                                   data(CHF_IX[i+ioff;j+joff;k+koff]))
+          CHF_ENDDO
+        endif
+
+        if (hasHi .ne. 0) then
+          CHF_MULTIDO[hiBox;i;j;k]
+            mindata(CHF_IX[i;j;k]) = min(data(CHF_IX[i      ;j      ;k      ]),
+     &                                   data(CHF_IX[i-ioff;j-joff;k-koff]))
+          CHF_ENDDO
+        endif
+
+        return
+        end
+
+        subroutine OLDSECONDSLOPEDIFFSF(
+     &    CHF_FRA[deltaWC],
+     &    CHF_FRA[deltaWL],
+     &    CHF_FRA[deltaWR],
+     &    CHF_CONST_FRA[W],
+     &    CHF_CONST_INT[numSlopes],
+     &    CHF_CONST_INT[idir],
+     &    CHF_BOX[loBox],
+     &    CHF_CONST_INT[hasLo],
+     &    CHF_BOX[hiBox],
+     &    CHF_CONST_INT[hasHi],
+     &    CHF_BOX[centerBox])
+
+        integer CHF_DDECL[i   ;j   ;k   ],lvar
+        integer CHF_DDECL[ioff;joff;koff]
+        real_t dWR,dWL
+
+c       Perform first difference calculation in the interior.
+        CHF_DTERM[
+        ioff = CHF_ID(0,idir);
+        joff = CHF_ID(1,idir);
+        koff = CHF_ID(2,idir)]
+
+        do lvar = 0,numSlopes - 1
+          CHF_MULTIDO[centerBox;i;j;k]
+            dWR = W(CHF_IX[i+ioff;j+joff;k+koff],lvar)
+     &          - W(CHF_IX[i     ;j     ;k     ],lvar)
+            dWL = W(CHF_IX[i     ;j     ;k     ],lvar)
+     &          - W(CHF_IX[i-ioff;j-joff;k-koff],lvar)
+
+            deltaWR(CHF_IX[i;j;k],lvar) = dWR
+            deltaWL(CHF_IX[i;j;k],lvar) = dWL
+            deltaWC(CHF_IX[i;j;k],lvar) = half*(dWR + dWL)
+          CHF_ENDDO
+
+c         Perform calculation on the cells adjacent to the domain boundary in
+c         current direction, if required.
+
+          if (hasLo .ne. 0) then
+            CHF_MULTIDO[loBox;i;j;k]
+              dWR = W(CHF_IX[i+ioff;j+joff;k+koff],lvar)
+     &            - W(CHF_IX[i     ;j     ;k     ],lvar)
+              deltaWC(CHF_IX[i;j;k],lvar) = dWR
+              deltaWL(CHF_IX[i;j;k],lvar) = dWR
+              deltaWR(CHF_IX[i;j;k],lvar) = dWR
+            CHF_ENDDO
+          endif
+
+          if (hasHi .ne. 0) then
+            CHF_MULTIDO[hiBox;i;j;k]
+              dWL = W(CHF_IX[i     ;j     ;k     ],lvar)
+     &            - W(CHF_IX[i-ioff;j-joff;k-koff],lvar)
+              deltaWC(CHF_IX[i;j;k],lvar) = dWL
+              deltaWL(CHF_IX[i;j;k],lvar) = dWL
+              deltaWR(CHF_IX[i;j;k],lvar) = dWL
+            CHF_ENDDO
+          endif
+        enddo
+
+        return
+        end
+
+        subroutine OLDFOURTHSLOPEDIFFSF(
+     &    CHF_FRA[delta4WC],
+     &    CHF_CONST_FRA[W],
+     &    CHF_CONST_FRA[delta2W],
+     &    CHF_CONST_INT[numSlopes],
+     &    CHF_CONST_INT[idir],
+     &    CHF_BOX[loBox],
+     &    CHF_CONST_INT[hasLo],
+     &    CHF_BOX[hiBox],
+     &    CHF_CONST_INT[hasHi],
+     &    CHF_BOX[centerBox])
+
+        integer CHF_DDECL[i   ;j   ;k   ],lvar
+        integer CHF_DDECL[ioff;joff;koff]
+        real_t dWR,dWL
+
+c       Perform first difference calculation in the interior.
+        CHF_DTERM[
+        ioff = CHF_ID(0,idir);
+        joff = CHF_ID(1,idir);
+        koff = CHF_ID(2,idir)]
+
+        do lvar = 0,numSlopes - 1
+          CHF_MULTIDO[centerBox;i;j;k]
+            dWR =       W(CHF_IX[i+ioff;j+joff;k+koff],lvar)
+     &          - delta2W(CHF_IX[i+ioff;j+joff;k+koff],lvar)*fourth
+            dWL =       W(CHF_IX[i-ioff;j-joff;k-koff],lvar)
+     &          + delta2W(CHF_IX[i-ioff;j-joff;k-koff],lvar)*fourth
+
+            delta4WC(CHF_IX[i;j;k],lvar) = two3rd*(dWR - dWL)
+          CHF_ENDDO
+
+c         Perform calculation on the cells adjacent to the domain boundary in
+c         current direction, if required.
+
+          if (hasLo .ne. 0) then
+            CHF_MULTIDO[loBox;i;j;k]
+              delta4WC(CHF_IX[i;j;k],lvar) = delta2W(CHF_IX[i;j;k],lvar)
+            CHF_ENDDO
+          endif
+
+          if (hasHi .ne. 0) then
+            CHF_MULTIDO[hiBox;i;j;k]
+              delta4WC(CHF_IX[i;j;k],lvar) = delta2W(CHF_IX[i;j;k],lvar)
+            CHF_ENDDO
+          endif
+        enddo
+
+        return
+        end
+
+        subroutine OLDAPPLYFLATF(
+     &    CHF_FRA[dW],
+     &    CHF_CONST_FRA1[flattening],
+     &    CHF_CONST_INT[numSlopes],
+     &    CHF_BOX[box])
+
+        integer CHF_DDECL[i;j;k],lvar
+
+c       apply the flattening coefficient
+        do lvar = 0,numSlopes - 1
+          CHF_MULTIDO[box;i;j;k]
+            dW(CHF_IX[i;j;k],lvar) = flattening(CHF_IX[i;j;k])
+     &                                     * dW(CHF_IX[i;j;k],lvar)
+          CHF_ENDDO
+        enddo
+
+        return
+        end
+
+        subroutine OLDVANLEERLIMITERF(
+     &    CHF_FRA[dW],
+     &    CHF_CONST_FRA[dWleft],
+     &    CHF_CONST_FRA[dWright],
+     &    CHF_CONST_INT[idir],
+     &    CHF_BOX[box])
+
+        integer CHF_DDECL[i;j;k],iv
+        real_t dWl,dWr,dWc,dWlim
+
+        do iv = 0,CHF_NCOMP[dW] - 1
+          CHF_MULTIDO[box;i;j;k]
+c           dW comes in with the centered diff value
+            dWc = dW     (CHF_IX[i;j;k],iv)
+            dWl = dWleft (CHF_IX[i;j;k],iv)
+            dWr = dWright(CHF_IX[i;j;k],iv)
+
+            dWlim = min(two*abs(dWl),two*abs(dWr))
+            dWlim = min(dWlim,abs(dWc))
+
+            if (dWl*dWr .lt. zero) then
+              dWlim = zero
+            else
+              dWlim = dWlim*sign(one,dWl)
+            endif
+
+            dW(CHF_IX[i;j;k],iv) = dWlim
+          CHF_ENDDO
+        enddo
+
+        return
+        end
+
+        subroutine OLDDIVUEDGEF(
+     &    CHF_FRA1[divu],
+     &    CHF_CONST_FRA1[uNorm],
+     &    CHF_CONST_FRA[duTan],
+     &    CHF_CONST_INT[idir],
+     &    CHF_BOX[loBox],
+     &    CHF_CONST_INT[hasLo],
+     &    CHF_BOX[hiBox],
+     &    CHF_CONST_INT[hasHi],
+     &    CHF_BOX[centerBox])
+
+        integer CHF_DDECL[i;j;k],CHF_DDECL[ioff;joff;koff]
+
+        CHF_DTERM[
+        ioff = CHF_ID(0,idir);
+        joff = CHF_ID(1,idir);
+        koff = CHF_ID(2,idir)]
+
+        CHF_MULTIDO[centerBox;i;j;k]
+          divu(CHF_IX[i;j;k]) = uNorm(CHF_IX[i     ;j     ;k     ])
+     &                        - uNorm(CHF_IX[i-ioff;j-joff;k-koff])
+
+#if CH_SPACEDIM >=2
+          divu(CHF_IX[i;j;k]) = divu(CHF_IX[i;j;k])
+     &                        + half*(duTan(CHF_IX[i     ;j     ;k     ],0)
+     &                               +duTan(CHF_IX[i-ioff;j-joff;k-koff],0))
+#endif
+
+#if CH_SPACEDIM == 3
+          divu(CHF_IX[i;j;k]) = divu(CHF_IX[i;j;k])
+     &                        + half*(duTan(CHF_IX[i     ;j     ;k     ],1)
+     &                               +duTan(CHF_IX[i-ioff;j-joff;k-koff],1))
+#endif
+        CHF_ENDDO
+
+        if (hasLo .eq. 1) then
+           CHF_MULTIDO[loBox;i;j;k]
+             divu(CHF_IX[i;j;k]) = divu(CHF_IX[i+ioff;j+joff;k+koff])
+           CHF_ENDDO
+        endif
+
+        if (hasHi .eq. 1) then
+           CHF_MULTIDO[hiBox;i;j;k]
+             divu(CHF_IX[i;j;k]) = divu(CHF_IX[i-ioff;j-joff;k-koff])
+           CHF_ENDDO
+        endif
+
+        return
+        end
+
+        subroutine OLDARTVISCF(
+     &    CHF_FRA[F],
+     &    CHF_CONST_FRA[U],
+     &    CHF_CONST_FRA1[divu],
+     &    CHF_CONST_REAL[coeff],
+     &    CHF_CONST_INT[idir],
+     &    CHF_BOX[box])
+
+        integer CHF_DDECL[i   ; j   ; k   ]
+        integer CHF_DDECL[ioff; joff; koff]
+        integer iv
+
+        real_t fc,dv,s1,s2
+
+#include   "EosCommon.fh"
+
+        CHF_DTERM[
+        ioff = CHF_ID(0,idir);
+        joff = CHF_ID(1,idir);
+        koff = CHF_ID(2,idir)]
+
+        do iv = 0,CHF_NCOMP[F] - 1
+          CHF_MULTIDO[box;i;j;k]
+            fc = F   (CHF_IX[i     ;j     ;k     ],iv)
+            dv = divu(CHF_IX[i     ;j     ;k     ])
+            s1 = U   (CHF_IX[i     ;j     ;k     ],iv)
+            s2 = U   (CHF_IX[i-ioff;j-joff;k-koff],iv)
+
+            F(CHF_IX[i;j;k],iv) = fc + coeff*min(dv,zero)*(s1-s2)
+          CHF_ENDDO
+        enddo
+
+        return
+        end

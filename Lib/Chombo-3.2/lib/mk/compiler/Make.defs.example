@@ -1,0 +1,49 @@
+### This is a compiler-specific definitions file for the <example> compiler.
+## It documents all the compiler variables.
+
+## The important things to know:
+##  1) this file should _only_ set variables that begin with "def".
+##  2) the $cxxname and $fname variables should be used to determine
+##     the names of the C++ and Fortran compilers, since $CXX and $FC.
+##     may contain a directory path and/or options.
+##  3) The 'Make.defs' file automatically merges the $def* variables into
+##     the variables actually used in the make rules that compile/link code.
+##  4) The user can override any of these variables on the command line.
+##  5) The $cxx*flags variables (except for $cxxcppflags) are also used in
+##     the link rule, so any option that is the same for the linker and
+##     compiler should not be repeated in the $ld*flags variables.
+
+## Compiler Variables:
+##  defcppcomflags = C-preprocessor options for both C++ and Fortran code
+##  defcppdbgflags = C-preprocessor options for both C++ and Fortran code when DEBUG=TRUE
+##  defcppoptflags = C-preprocessor options for both C++ and Fortran code when OPT=TRUE or HIGH
+##  defcxxcppflags = C-preprocessor options for only C++ code
+##  defcxxcomflags = C++ compiler/linker options
+##  defcxxdbgflags = C++ compiler/linker options when DEBUG=TRUE
+##  defcxxoptflags = C++ compiler/linker options when OPT=TRUE or HIGH
+##  defcxxprofflags= C++ compiler/linker options when PROFILE=TRUE
+##  deffcppflags   = C-preprocessor options for only Fortran code
+##  deffcomflags   = Fortran compiler options
+##  deffdbgflags   = Fortran compiler options when DEBUG=TRUE
+##  deffoptflags   = Fortran compiler options when OPT=TRUE or HIGH
+##  deffprofflags  = Fortran compiler options when PROFILE=TRUE
+##  defflibflags   = linker options to specify the Fortran libraries
+##  defldcomflags  = linker options
+##  deflddbgflags  = linker options when DEBUG=TRUE
+##  defldoptflags  = linker options when OPT=TRUE or HIGH
+##  defldprofflags = linker options when PROFILE=TRUE
+
+makefiles+=compiler/Make.defs.example
+
+cxxname := $(notdir $(firstword $(CXX)))
+fname   := $(notdir $(firstword $(FC)))
+
+ifeq ($(cxxname),<c++_compiler_name>)
+endif
+
+ifeq ($(fname),<fortran_compiler_name)
+  # if the Fortran compiler is from a different vendor than the C++ compiler,
+  # the flibflags variable should include the directory where the Fortran compiler
+  # keeps its own libraries.  One way to do this is:
+  ###defflibflags = -L$(dir $(shell which $(FC)))../lib
+endif

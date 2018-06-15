@@ -1,0 +1,108 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+      subroutine ccpextraptodomface(
+     &     chf_fra1[facevel],
+     &     chf_const_int[facedir],
+     &     chf_const_int[ishift],
+     &     chf_box[facebox])
+
+      integer chf_ddecl[i;j;k]
+      integer chf_ddecl[ioff;joff;koff]
+
+      chf_dterm[
+      ioff = ishift*chf_id(0,facedir);
+      joff = ishift*chf_id(1,facedir);
+      koff = ishift*chf_id(2,facedir)]
+
+      chf_multido[facebox;i;j;k]
+
+      facevel(chf_ix[i;j;k]) =
+     &     (two*facevel(chf_ix[i+  ioff;j+  joff;k+  koff])
+     &     -    facevel(chf_ix[i+2*ioff;j+2*joff;k+2*koff]))
+
+      chf_enddo
+
+      return
+      end
+
+      subroutine ccpavecelltoface(
+     &     chf_fra1[facevel],
+     &     chf_const_fra1[cellvel],
+     &     chf_const_int[facedir],
+     &     chf_box[facebox])
+
+      integer chf_ddecl[i;j;k]
+      integer chf_ddecl[ioff;joff;koff]
+
+      chf_dterm[
+      ioff = chf_id(0,facedir);
+      joff = chf_id(1,facedir);
+      koff = chf_id(2,facedir)]
+
+      chf_multido[facebox;i;j;k]
+
+      facevel(chf_ix[i;j;k]) =
+     &     ( cellvel(chf_ix[i     ;j     ;k     ])
+     &     + cellvel(chf_ix[i-ioff;j-joff;k-koff])
+     &     )*half
+
+      chf_enddo
+
+      return
+      end
+
+      subroutine ccpavefacetocell(
+     &     chf_fra1[cellgrad],
+     &     chf_const_fra1[facegrad],
+     &     chf_const_int[facedir],
+     &     chf_box[cellbox])
+
+      integer chf_ddecl[i; j; k]
+      integer chf_ddecl[ioff; joff; koff]
+
+      chf_dterm[
+      ioff = chf_id(0,facedir);
+      joff = chf_id(1,facedir);
+      koff = chf_id(2,facedir)]
+
+      chf_multido[cellbox;i;j;k]
+
+      cellgrad(chf_ix[i;j;k]) =
+     &     (facegrad(chf_ix[i+ioff;j+joff;k+koff])
+     &     +facegrad(chf_ix[i     ;j     ;k     ]))*half
+
+      chf_enddo
+
+      return
+      end
+
+      subroutine ccpcellgradfromfacedata(
+     &     chf_fra1[cellgrad],
+     &     chf_const_fra1[facedata],
+     &     chf_const_int[facedir],
+     &     chf_const_real[dx],
+     &     chf_box[cellbox])
+
+      integer chf_ddecl[i; j; k]
+      integer chf_ddecl[ioff; joff; koff]
+
+      chf_dterm[
+      ioff = chf_id(0,facedir);
+      joff = chf_id(1,facedir);
+      koff = chf_id(2,facedir)]
+
+      chf_multido[cellbox;i;j;k]
+
+      cellgrad(chf_ix[i;j;k]) =
+     &     (facedata(chf_ix[i+ioff;j+joff;k+koff])
+     &     -facedata(chf_ix[i     ;j     ;k     ]))/dx
+
+      chf_enddo
+
+      return
+      end

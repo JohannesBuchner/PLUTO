@@ -9,7 +9,7 @@ class PlutoFiles(object):
         try:
             self.f = open(self.fname, 'r')
         except IOError:
-            print "File : %s not found"%self.fname
+            print("File : %s not found"%self.fname)
 
     def List2File(self, contents):
         self.fc = open(self.fname, 'w')
@@ -40,7 +40,7 @@ class PlutoFiles(object):
                     strlist.append([scrh.index(item), item])
 
             else:
-                print "Invalid String in LocateString"
+                print("Invalid String in LocateString")
                 sys.exit()
                 
         return strlist

@@ -1,0 +1,34 @@
+# Grid size
+# n_cell =  64  64  64
+n_cell = 128 128 128
+# n_cell = 256 256 256
+# n_cell = 512 256 256
+
+# Maximum box size
+maxboxsize = 16
+
+# Domain domain - physical coordinates
+# prob_lo is the origin of the coordinate system
+prob_lo = -1.0 -1.0 -1.0
+# prob_hi is the high point of the domain in the x direction
+# Note:  dx = dy = dz
+prob_hi =  1.0
+
+# Axis of the cylinder (direction and a point on the axis)
+cylDirection = 1.00 0.00 0.00
+cylPoint     = 0.00 0.00 0.00
+
+# Radius of the cylinder
+cylRadius = 0.26
+
+# Number of spheres
+sphNumber = 200
+# minimum and maximum radius of the spheres
+sphMinRadius = 0.03
+sphMaxRadius = 0.05
+
+# insideRegular != 0 ->
+#   Domain is on the outside of the spheres and  inside of the cylinder
+# insideRegular == 0 ->
+#   Domain is on the inside  of the spheres and outside of the cylinder
+insideRegular = 1

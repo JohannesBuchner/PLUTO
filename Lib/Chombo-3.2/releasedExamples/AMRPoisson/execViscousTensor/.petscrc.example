@@ -1,0 +1,10 @@
+#-log_summary
+-pc_type hypre 
+-pc_hypre_type boomeramg
+-ksp_type gmres
+-ksp_max_it 100
+-ksp_rtol 1.e-10
+-mat_ascii_output_large
+-options_left
+-ksp_monitor
+

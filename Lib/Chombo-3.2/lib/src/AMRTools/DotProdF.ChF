@@ -1,0 +1,53 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+C=======================================================
+C     DOTPRODUCT
+C     takes the dot product between two fabs over all components
+C     R = Sum_ijkn(a(i,j,k,n)*b(i,j,k,n))
+C
+C     => inputs,  <= outputs
+C     dotprodout <=  result R
+C     afab        => a
+C     bfab        => b
+C     region      => box over which to do the sum
+C     startcomp   => first component of sum
+C     endcomp     => last component of sum
+C
+C     Warning: afab, bfab must have the same number
+C     of components and span region.
+C
+C     dtgraves nov 2, 1999
+C=======================================================
+
+      subroutine DOTPRODUCT(
+     &     CHF_REAL[dotprodout],
+     &     CHF_CONST_FRA[afab],
+     &     CHF_CONST_FRA[bfab],
+     &     CHF_BOX[region],
+     &     CHF_CONST_INT[startcomp],
+     &     CHF_CONST_INT[endcomp])
+
+      integer CHF_AUTODECL[i]
+      integer nv
+
+      dotprodout = 0
+
+      do nv=startcomp,endcomp,1
+
+         CHF_AUTOMULTIDO[region; i]
+
+         dotprodout = dotprodout +
+     &        afab(CHF_AUTOIX[i],nv)*
+     &        bfab(CHF_AUTOIX[i],nv)
+
+         CHF_ENDDO
+      enddo
+
+      return
+      end

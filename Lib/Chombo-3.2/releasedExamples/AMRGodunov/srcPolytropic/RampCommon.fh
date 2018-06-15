@@ -1,0 +1,25 @@
+#ifdef CH_LANG_CC
+/*
+ *      _______              __
+ *     / ___/ /  ___  __ _  / /  ___
+ *    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+ *    \___/_//_/\___/_/_/_/_.__/\___/
+ *    Please refer to Copyright.txt, in Chombo's root directory.
+ */
+#endif
+
+C
+C   Fortran parameters for the ramp/wedge example:
+C
+C     alpha   - The angle from horizontal to the wedge edge
+C     ms      - Mach shock number
+C     xcorner - Position of the corner/tip of the wedge
+C     artvisc - Artificial viscosity coefficient
+C
+C   This entire problem is rotated so that the wedge edge is horizontal
+C   in the problem domain.
+C
+        real_t alpha,ms,xcorner
+        real_t artvisc
+        common /rampcm/ alpha,ms,xcorner,
+     &                  artvisc

@@ -1,0 +1,19 @@
+foo1 = 1
+foo2 = 2.25
+foo2 = 2.5
+foo3 = 3
+foo4 = 4 5 6 7 8 9
+foo5 = hello
+foo6 = a man a plan a canal 
+foo7 = 7 8 9 10 11 12
+foobool1 = true
+foobool2 = 1
+foobool3 = false
+foobool4 = 0
+foobool5 = TRUE
+foobool6 = FALSE
+
+sub.foo1 = 100.0
+sub.sub1 = 5.0
+
+        

@@ -1,0 +1,897 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+      subroutine testVIRC_1( CHF_VI[ vectorI ], CHF_CONST_VI[ VectorCI ]
+     &                     ,CHF_VR[ vectorR ], CHF_CONST_VR[ VectorCR ]
+     &                     ,CHF_VC[ vCmplx ]
+     &                     ,CHF_CONST_REAL[ Eps ], CHF_INT[ status ] )
+      REAL_T     R10         ,R11           ,R12
+      parameter( R10 = 1.1d0 ,R11 = 22.22d0 ,R12 = 333.333d0 )
+      REAL_T tmp,tmp2,diff
+      COMPLEX_T ctmp
+      status = 0
+      !! Test conditions:
+      !!  vectorI length 1, value 12345678, modified to 87654321
+      !!  vectorCI length 2, values 23456789,98765432, not modified
+      !!  vectorR length 3, values 1.1,22.22,333.333, modified to 1/<value>
+      !!  vectorCR length 4, values 1+1/2^20,1/<value[0]>,1+1/2^40,1/<value[2]>
+      !!  vCplx length 2, im modified to re, re modified to im/2
+      !!  NOTE: vectorCR[2:3] will be 1 when PRECISION=FLOAT
+
+      ! test CHF_VI
+      if ( CHF_UBOUND[vectorI] .NE. 0 )then
+        status = status + 1
+        write(6,*) '    error: testVIR_1 got integer arg 1 ubound = '
+     &            ,CHF_UBOUND[vectorI],' instead of 0'
+      endif
+      if ( vectorI(0) .NE. 12345678 )then
+        status = status + 1
+        write(6,*) '    error: testVIR_1 got integer arg 1 = '
+     &            ,vectorI(0) ,' instead of 12345678'
+      endif
+      vectorI(0) = 87654321
+
+      ! test CHF_CONST_VI
+      if ( CHF_UBOUND[vectorCI] .NE. 1 )then
+        status = status + 1
+        write(6,*) '    error: testVIR_1 got const integer arg 2 ubound = ' !'
+     &            ,CHF_UBOUND[vectorCI],' instead of 1'
+      endif
+      if ( vectorCI(0) .NE. 23456789 )then
+        status = status + 1
+        write(6,*) '    error: testVIR_1 got const integer arg 2 [0] = '
+     &            ,vectorCI(0) ,' instead of 23456789'
+      endif
+      if ( vectorCI(1) .NE. 98765432 )then
+        status = status + 1
+        write(6,*) '    error: testVIR_1 got const integer arg 2 [1] = '
+     &            ,vectorCI(1) ,' instead of 98765432'
+      endif
+
+      ! test CHF_VR
+      if ( CHF_UBOUND[vectorR] .NE. 2 )then
+        status = status + 1
+        write(6,*) '    error: testVIR_1 got real arg 3 ubound = '
+     &            ,CHF_UBOUND[vectorR],' instead of 2'
+      endif
+      if ( vectorR(0) .NE. R10 )then
+        status = status + 1
+        write(6,*) '    error: testVIR_1 got real arg 3 [0] = '
+     &            ,vectorR(0) ,' instead of ',R10
+      endif
+      vectorR(0) = 1.0d0 / vectorR(0)
+      if ( vectorR(1) .NE. R11 )then
+        status = status + 1
+        write(6,*) '    error: testVIR_1 got real arg 3 [1] = '
+     &            ,vectorR(1) ,' instead of ',R11
+      endif
+      vectorR(1) = 1.0d0 / vectorR(1)
+      if ( vectorR(2) .NE. R12 )then
+        status = status + 1
+        write(6,*) '    error: testVIR_1 got real arg 3 [2] = '
+     &            ,vectorR(2) ,' instead of ',R12
+      endif
+      vectorR(2) = 1.0d0 / vectorR(2)
+
+      ! test CHF_CONST_VR
+      if ( CHF_UBOUND[vectorCR] .NE. 3 )then
+        status = status + 1
+        write(6,*) '    error: testVIR_1 got const real arg 4 ubound = '
+     &            ,CHF_UBOUND[vectorCR],' instead of 3'
+      endif
+      tmp = 2**20 !cast to real with appropriate precision
+      tmp = 1.0d0 + ( 1.0d0 / tmp )
+      if ( vectorCR(0) .NE. tmp )then
+        status = status + 1
+        write(6,*) '    error: testVIR_1 got const real arg 4 [0] = '
+     &            ,vectorCR(0) ,' instead of ', tmp
+      endif
+      ![NOTE: g77 on Intel DEBUG=FALSE gets a different value for tmp than g++]
+      tmp = 1.0d0 / tmp
+      diff = vectorCR(1) - tmp
+      if ( ABS( diff ) .GT. Eps )then
+        status = status + 1
+        write(6,*) '    error: testVIR_1 got const real arg 4 [1] = '
+     &            ,vectorCR(1) ,' instead of ', tmp
+     &            , ', diff = ' ,diff ,".GT." ,Eps
+      endif
+
+      tmp = 2**20 !cast to real with appropriate precision
+      tmp = tmp * tmp !==2**40
+      tmp = 1.0d0 + ( 1.0d0 / tmp ) !this will underflow in IEEE single precision
+      if ( vectorCR(2) .NE. tmp )then
+        status = status + 1
+        write(6,*) '    error: testVIR_1 got const real arg 4 [2] = '
+     &            ,vectorCR(2) ,' instead of ', tmp
+      endif
+      tmp = 1.0d0 / tmp
+      if ( vectorCR(3) .NE. tmp )then
+        status = status + 1
+        write(6,*) '    error: testVIR_1 got const real arg 4 [3] = '
+     &            ,vectorCR(3) ,' instead of ', tmp
+      endif
+
+     ! test CHF_VC
+      if ( CHF_UBOUND[vCmplx] .NE. 1 )then
+        status = status + 1
+        write(6,*) '   error: testVIR_1 got const integer arg 5 ubound = ' !'
+     &            ,CHF_UBOUND[vCmplx],' instead of 1'
+      endif
+      ctmp = vCmplx(0)
+      tmp = ctmp
+      tmp2= IMAG(ctmp)
+      if (vectorCR(0) .NE. tmp)then
+          status = status+1
+          write(6,*) '    error: testVIR_1 wrong real part of complex  '
+     &        ,tmp ,' instead of ', vectorCR(0)
+      endif
+
+      vCmplx(0) = CMPLX(tmp2,tmp/2)
+      ctmp = vCmplx(1)
+      tmp = ctmp
+      tmp2= IMAG(ctmp)
+      if (vectorCR(3) .NE. tmp2)then
+          status = status+1
+          write(6,*) '    error: testVIR_1 wrong img part of complex  '
+     &        ,tmp ,' instead of ', vectorCR(3)
+      endif
+      vCmplx(1) = CMPLX(tmp2,tmp/2)
+
+      return
+      end
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      subroutine TESTIR1D_1( CHF_I1D[ arrayI ], CHF_CONST_I1D[ arrayCI ]
+     &                      ,CHF_R1D[ arrayR ], CHF_CONST_R1D[ arrayCR ]
+     &                      ,CHF_CONST_REAL[ Eps ]
+     &                      ,CHF_INT[ status ] )
+      REAL_T     R10         ,R11           ,R12
+      parameter( R10 = 1.1d0 ,R11 = 22.22d0 ,R12 = 333.333d0 )
+      REAL_T tmp ,diff
+      status = 0
+      !! Test conditions:
+      !!  arrayI length 1, value 12345678, modified to 87654321
+      !!  arrayCI length 2, values 23456789,98765432, not modified
+      !!  arrayR length 3, values 1.1,22.22,333.333, modified to 1/<value>
+      !!  arrayCR length 4, values 1+1/2^20,1/<value[0]>,1+1/2^40,1/<value[2]>
+      !!  NOTE: arrayCR[2:3] will be 1 when PRECISION=FLOAT
+
+      ! test CHF_I1D
+      if ( CHF_UBOUND[arrayI] .NE. 0 )then
+        status = status + 1
+        write(6,*) '    error: testIR1D_1 got integer arg 1 ubound = '
+     &            ,CHF_UBOUND[arrayI],' instead of 0'
+      endif
+      if ( arrayI(0) .NE. 12345678 )then
+        status = status + 1
+        write(6,*) '    error: testIR1D_1 got integer arg 1 = '
+     &            ,arrayI(0) ,' instead of 12345678'
+      endif
+      arrayI(0) = 87654321
+
+      ! test CHF_CONST_I1D
+      if ( CHF_UBOUND[arrayCI] .NE. 1 )then
+        status = status + 1
+        write(6,*) '    error: testIR1D_1 got const integer arg 2 ubound = ' !'
+     &            ,CHF_UBOUND[arrayCI],' instead of 1'
+      endif
+      if ( arrayCI(0) .NE. 23456789 )then
+        status = status + 1
+        write(6,*) '    error: testIR1D_1 got const integer arg 2 [0] = ' !'
+     &            ,arrayCI(0) ,' instead of 23456789'
+      endif
+      if ( arrayCI(1) .NE. 98765432 )then
+        status = status + 1
+        write(6,*) '    error: testIR1D_1 got const integer arg 2 [1] = ' !'
+     &            ,arrayCI(1) ,' instead of 98765432'
+      endif
+
+      ! test CHF_R1D
+      if ( CHF_UBOUND[arrayR] .NE. 2 )then
+        status = status + 1
+        write(6,*) '    error: testIR1D_1 got real arg 3 ubound = '
+     &            ,CHF_UBOUND[arrayR],' instead of 2'
+      endif
+      if ( arrayR(0) .NE. R10 )then
+        status = status + 1
+        write(6,*) '    error: testIR1D_1 got real arg 3 [0] = '
+     &            ,arrayR(0) ,' instead of ',R10
+      endif
+      arrayR(0) = 1.0d0 / arrayR(0)
+      if ( arrayR(1) .NE. R11 )then
+        status = status + 1
+        write(6,*) '    error: testIR1D_1 got real arg 3 [1] = '
+     &            ,arrayR(1) ,' instead of ',R11
+      endif
+      arrayR(1) = 1.0d0 / arrayR(1)
+      if ( arrayR(2) .NE. R12 )then
+        status = status + 1
+        write(6,*) '    error: testIR1D_1 got real arg 3 [2] = '
+     &            ,arrayR(2) ,' instead of ',R12
+      endif
+      arrayR(2) = 1.0d0 / arrayR(2)
+
+      ! test CHF_CONST_R1D
+      if ( CHF_UBOUND[arrayCR] .NE. 3 )then
+        status = status + 1
+        write(6,*) '    error: testIR1D_1 got const real arg 4 ubound = ' !'
+     &            ,CHF_UBOUND[arrayCR],' instead of 3'
+      endif
+      tmp = 2**20 !cast to real with appropriate precision
+      tmp = 1.0d0 + ( 1.0d0 / tmp )
+      if ( arrayCR(0) .NE. tmp )then
+        status = status + 1
+        write(6,*) '    error: testIR1D_1 got const real arg 4 [0] = '
+     &            ,arrayCR(0) ,' instead of ', tmp
+      endif
+      ![NOTE: g77 on Intel DEBUG=FALSE gets a different value for tmp than g++]
+      tmp = 1.0d0 / tmp
+      diff = arrayCR(1) - tmp
+      if ( ABS( diff ) .GT. Eps )then
+        status = status + 1
+        write(6,*) '    error: testIR1D_1 got const real arg 4 [1] = '
+     &            ,arrayCR(1) ,' instead of ', tmp
+     &            , ', diff = ' ,diff ,".GT." ,Eps
+      endif
+
+      tmp = 2**20 !cast to real with appropriate precision
+      tmp = tmp * tmp !==2**40
+      tmp = 1.0d0 + ( 1.0d0 / tmp ) !this will underflow in IEEE single precision
+      if ( arrayCR(2) .NE. tmp )then
+        status = status + 1
+        write(6,*) '    error: testIR1D_1 got const real arg 4 [2] = '
+     &            ,arrayCR(2) ,' instead of ', tmp
+      endif
+      tmp = 1.0d0 / tmp
+      if ( arrayCR(3) .NE. tmp )then
+        status = status + 1
+        write(6,*) '    error: testIR1D_1 got const real arg 4 [3] = '
+     &            ,arrayCR(3) ,' instead of ', tmp
+      endif
+
+      return
+      end
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!![NOTE: this is the same as the _1 version except the error msgs use the
+!!!       name of the calling routine. -dbs]
+
+      subroutine TESTIR1D_2( CHF_I1D[ arrayI ], CHF_CONST_I1D[ arrayCI ]
+     &                      ,CHF_R1D[ arrayR ], CHF_CONST_R1D[ arrayCR ]
+     &                      ,CHF_CONST_REAL[ Eps ]
+     &                      ,CHF_INT[ status ] )
+      REAL_T     R10         ,R11           ,R12
+      parameter( R10 = 1.1d0 ,R11 = 22.22d0 ,R12 = 333.333d0 )
+      REAL_T tmp ,diff
+      status = 0
+      !! Test conditions:
+      !!  arrayI length 1, value 12345678, modified to 87654321
+      !!  arrayCI length 2, values 23456789,98765432, not modified
+      !!  arrayR length 3, values 1.1,22.22,333.333, modified to 1/<value>
+      !!  arrayCR length 4, values 1+1/2^20,1/<value[0]>,1+1/2^40,1/<value[2]>
+      !!  NOTE: arrayCR[2:3] will be 1 when PRECISION=FLOAT
+
+      ! test CHF_I1D
+      if ( CHF_UBOUND[arrayI] .NE. 1 )then
+        status = status + 1
+        write(6,*) '    error: testCALL got integer arg 1 ubound = '
+     &            ,CHF_UBOUND[arrayI],' instead of 1'
+      endif
+      if ( arrayI(0) .NE. 12345678 )then
+        status = status + 1
+        write(6,*) '    error: testCALL got integer arg 1 = '
+     &            ,arrayI(0) ,' instead of 12345678'
+      endif
+      arrayI(0) = 87654321
+
+      ! test CHF_CONST_I1D
+      if ( CHF_UBOUND[arrayCI] .NE. 1 )then
+        status = status + 1
+        write(6,*) '    error: testCALL got const integer arg 2 ubound = ' !'
+     &            ,CHF_UBOUND[arrayCI],' instead of 1'
+      endif
+      if ( arrayCI(0) .NE. 23456789 )then
+        status = status + 1
+        write(6,*) '    error: testCALL got const integer arg 2 [0] = ' !'
+     &            ,arrayCI(0) ,' instead of 23456789'
+      endif
+      if ( arrayCI(1) .NE. 98765432 )then
+        status = status + 1
+        write(6,*) '    error: testCALL got const integer arg 2 [1] = ' !'
+     &            ,arrayCI(1) ,' instead of 98765432'
+      endif
+
+      ! test CHF_R1D
+      if ( CHF_UBOUND[arrayR] .NE. 2 )then
+        status = status + 1
+        write(6,*) '    error: testCALL got real arg 3 ubound = '
+     &            ,CHF_UBOUND[arrayR],' instead of 2'
+      endif
+      if ( arrayR(0) .NE. R10 )then
+        status = status + 1
+        write(6,*) '    error: testCALL got real arg 3 [0] = '
+     &            ,arrayR(0) ,' instead of ',R10
+      endif
+      arrayR(0) = 1.0d0 / arrayR(0)
+      if ( arrayR(1) .NE. R11 )then
+        status = status + 1
+        write(6,*) '    error: testCALL got real arg 3 [1] = '
+     &            ,arrayR(1) ,' instead of ',R11
+      endif
+      arrayR(1) = 1.0d0 / arrayR(1)
+      if ( arrayR(2) .NE. R12 )then
+        status = status + 1
+        write(6,*) '    error: testCALL got real arg 3 [2] = '
+     &            ,arrayR(2) ,' instead of ',R12
+      endif
+      arrayR(2) = 1.0d0 / arrayR(2)
+
+      ! test CHF_CONST_R1D
+      if ( CHF_UBOUND[arrayCR] .NE. 3 )then
+        status = status + 1
+        write(6,*) '    error: testCALL got const real arg 4 ubound = ' !'
+     &            ,CHF_UBOUND[arrayCR],' instead of 3'
+      endif
+      tmp = 2**20 !cast to real with appropriate precision
+      tmp = 1.0d0 + ( 1.0d0 / tmp )
+      if ( arrayCR(0) .NE. tmp )then
+        status = status + 1
+        write(6,*) '    error: testCALL got const real arg 4 [0] = '
+     &            ,arrayCR(0) ,' instead of ', tmp
+      endif
+      ![NOTE: g77 on Intel DEBUG=FALSE gets a different value for tmp than g++]
+      tmp = 1.0d0 / tmp
+      diff = arrayCR(1) - tmp
+      if ( ABS( diff ) .GT. Eps )then
+        status = status + 1
+        write(6,*) '    error: testCALL got const real arg 4 [1] = '
+     &            ,arrayCR(1) ,' instead of ', tmp
+     &            , ', diff = ' ,diff ,".GT." ,Eps
+      endif
+
+      tmp = 2**20 !cast to real with appropriate precision
+      tmp = tmp * tmp !==2**40
+      tmp = 1.0d0 + ( 1.0d0 / tmp ) !this will underflow in IEEE single precision
+      if ( arrayCR(2) .NE. tmp )then
+        status = status + 1
+        write(6,*) '    error: testCALL got const real arg 4 [2] = '
+     &            ,arrayCR(2) ,' instead of ', tmp
+      endif
+      tmp = 1.0d0 / tmp
+      if ( arrayCR(3) .NE. tmp )then
+        status = status + 1
+        write(6,*) '    error: testCALL got const real arg 4 [3] = '
+     &            ,arrayCR(3) ,' instead of ', tmp
+      endif
+
+      return
+      end
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      subroutine TESTDSEL_1( CHF_CONST_INT[ SpaceDim ]
+     &                      ,CHF_CONST_INT[ Verbose ] ,CHF_INT[ status ] )
+      integer    I1     ,I2     ,I3, I4, I5, I6
+      parameter( I1 = 1 ,I2 = 2 ,I3 = 3, I4 = 4, I5 = 5, I6 = 6 )
+      integer tmp ,tmp3(1:6)
+      status = 0
+      !! Tests:
+      !!  1) select an integer
+      !!  2) select a statement
+
+      ! simple selection test on a value
+      tmp = CHF_DSELECT[ I1 ; I2 ; I3; I4; I5; I6 ]
+      if ( tmp .NE. SpaceDim )then
+                if (  Verbose .GT. 0 )then
+          write(6,*) '    error: testDSEL_1 simple value selection for CH_SPACEDIM = ' !'
+     &              ,CH_SPACEDIM, ' got ',tmp ,' instead of ' ,SpaceDim
+        endif
+      endif
+
+      ! selection test on a statement
+      tmp3(1) = 0
+      tmp3(2) = 0
+      tmp3(3) = 0
+      CHF_DSELECT[ tmp3(1) = 1 ;
+                   tmp3(2) = 2 ;
+                   tmp3(3) = 3 ;
+                   tmp3(4) = 4 ;
+                   tmp3(5) = 5 ;
+                   tmp3(6) = 6]
+      if ( tmp3(CH_SPACEDIM) .EQ. 0 )then
+        if (  Verbose .GT. 0 )then
+          write(6,*) '    error: testDSEL_1 statement selection for CH_SPACEDIM = '  !'
+     &              ,CH_SPACEDIM, 'got (:)=',tmp3 ,'instead of (', CH_SPACEDIM ,') = '  !'
+     &              ,CH_SPACEDIM+1
+        endif
+      endif
+
+      ! done
+      return
+      end
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Test CHF_MULTIDO macro.
+
+! David Serafini <dbs>  Jan 2004.
+
+      subroutine TESTMDO_1( CHF_FIA1[a] ,CHF_BOX[ba] ,CHF_CONST_INT[Vol]
+     &                     ,CHF_CONST_INT[Verbose], CHF_INT[status] )
+      integer CHF_DDECL[i1;i2;i3;i4;i5;i6],stride,sumpts
+      REAL_T suma
+
+      stride = -2
+      status = 0
+
+! this one should work
+      sumpts = 0
+      suma = 0.0
+      CHF_MULTIDO[ba;i1;i2;i3;i4;i5;i6]
+        suma = suma + a(CHF_IX[i1;i2;i3;i4;i5;i6])
+        sumpts = sumpts + 1
+      CHF_ENDDO
+      if ( sumpts .NE. Vol )then
+        status = status + 1
+        if ( Verbose .GT. 0 )then
+          write(6,*) '    error: testMDO_1: simple 3arg MULTIDO got '
+     &              ,'volume ',sumpts,' instead of ',Vol
+        endif
+      endif
+
+! this one should work too, and produce the same output as above
+      sumpts = 0
+      CHF_MULTIDO[ba;i1;i2;i3;i4;i5;i6 ;1]
+        sumpts = sumpts + 1
+      CHF_ENDDO
+      if ( sumpts .NE. Vol )then
+        status = status + 1
+        if ( Verbose .GT. 0 )then
+          write(6,*) '    error: testMDO_1: 3arg MULTIDO with explicit '
+     &              ,'stride 1 got volume ',sumpts,' instead of ',Vol
+        endif
+      endif
+
+! this one should work too, and produce a loop with stride 2
+      sumpts = 0
+      CHF_MULTIDO[ba;i1;i2;i3;i4;i5;i6 ;2]
+        sumpts = sumpts + 1
+      CHF_ENDDO
+      if ( sumpts .NE. Vol/(2**CH_SPACEDIM) )then
+        status = status + 1
+        if ( Verbose .GT. 0 )then
+          write(6,*) '    error: testMDO_1: 3arg MULTIDO with stride 2 '
+     &              ,'got volume ',sumpts,' instead of '
+     &              ,Vol/(2**CH_SPACEDIM)
+        endif
+      endif
+
+! this one should work and produce a loop running backwards
+      sumpts = 0
+      CHF_MULTIDO[ba;i1;i2;i3;i4;i5;i6 ;-1]
+        sumpts = sumpts + 1
+      CHF_ENDDO
+      if ( sumpts .NE. Vol )then
+        status = status + 1
+        if ( Verbose .GT. 0 )then
+          write(6,*) '    error: testMDO_1: 3arg MULTIDO with stride -1'
+     &              ,' got volume ',sumpts,' instead of ',Vol
+        endif
+      endif
+
+! this one should not work, but does (stride is ignored silently)
+      sumpts = 0
+      CHF_MULTIDO[ba;i1;i2;i3;i4;i5;i6 ;stride]
+        sumpts = sumpts + 1
+      CHF_ENDDO
+      if ( sumpts .NE. Vol )then
+        status = status + 1
+        if ( Verbose .GT. 0 )then
+          write(6,*) '    error: testMDO_1: 3arg MULTIDO with variable '
+     &              ,'stride got volume ',sumpts,' instead of ',Vol
+        endif
+      endif
+
+! this one should not work
+!!!NOTE: have to uncomment this to use it.
+!!!      CHF_MULTIDO[ba;i1;i2;i3 ;0]
+!!!      CHF_ENDDO
+
+      return
+      end
+ 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Test CHF_AUTOMULTIDO macro.
+
+! Dan Martin (dmartin)  April 2008
+
+      subroutine TESTAMDO_1( CHF_FIA1[a] ,CHF_BOX[ba] ,CHF_CONST_INT[Vol]
+     &                       ,CHF_BOX[offsetbox]
+     &                     ,CHF_CONST_INT[Verbose], CHF_INT[status] )
+      integer CHF_AUTODECL[i],stride,sumpts
+      integer CHF_AUTODECL[ii]
+      REAL_T suma
+
+      stride = -2
+      status = 0
+
+      CHF_DTERM[ii0=1;
+                ii1=1;
+                ii2=1;
+                ii3=1;
+                ii4=1;
+                ii5=1]
+
+! this one should work
+      sumpts = 0
+      suma = 0.0
+      CHF_AUTOMULTIDO[ba;i]
+        suma = suma + a(CHF_AUTOIX[i])
+        sumpts = sumpts + 1
+      CHF_ENDDO
+      if ( sumpts .NE. Vol )then
+        status = status + 1
+        if ( Verbose .GT. 0 )then
+          write(6,*) '    error: testMDOA_1: simple 3arg AUTOMULTIDO got '
+     &              ,'volume ',sumpts,' instead of ',Vol
+        endif
+      endif
+
+
+!  use offset box along with offsetix to compute the same thing
+      sumpts = 0
+      suma = 0.0
+      CHF_AUTOMULTIDO[offsetbox;i]
+        suma = suma + a(CHF_OFFSETIX[i;-ii])
+        sumpts = sumpts + 1
+      CHF_ENDDO
+      if ( sumpts .NE. Vol )then
+        status = status + 1
+        if ( Verbose .GT. 0 )then
+          write(6,*) '    error: testMDOA_1: offset 3arg AUTOMULTIDO '
+     &              ,'with OFFSETIX got volume ',sumpts,' instead of ',Vol
+        endif
+      endif
+
+! this one should work too, and produce the same output as above
+      sumpts = 0
+      CHF_AUTOMULTIDO[ba;i;1]
+        sumpts = sumpts + 1
+      CHF_ENDDO
+      if ( sumpts .NE. Vol )then
+        status = status + 1
+        if ( Verbose .GT. 0 )then
+          write(6,*) '    error: testMDOA_1: 3arg AUTOMULTIDO with explicit '
+     &              ,'stride 1 got volume ',sumpts,' instead of ',Vol
+        endif
+      endif
+
+! this one should work too, and produce a loop with stride 2
+      sumpts = 0
+      CHF_AUTOMULTIDO[ba;i;2]
+        sumpts = sumpts + 1
+      CHF_ENDDO
+      if ( sumpts .NE. Vol/(2**CH_SPACEDIM) )then
+        status = status + 1
+        if ( Verbose .GT. 0 )then
+          write(6,*) '    error: testMDOA_1: 3arg AUTOMULTIDO with stride 2 '
+     &              ,'got volume ',sumpts,' instead of '
+     &              ,Vol/(2**CH_SPACEDIM)
+        endif
+      endif
+
+! this one should work and produce a loop running backwards
+      sumpts = 0
+      CHF_AUTOMULTIDO[ba;i ;-1]
+        sumpts = sumpts + 1
+      CHF_ENDDO
+      if ( sumpts .NE. Vol )then
+        status = status + 1
+        if ( Verbose .GT. 0 )then
+          write(6,*) '    error: testMDOA_1: 3arg AUTOMULTIDO with stride -1'
+     &              ,' got volume ',sumpts,' instead of ',Vol
+        endif
+      endif
+
+! this one should not work, but does (stride is ignored silently)
+! while this works for CHF_MULTIDO, it doesn't work for auto
+C       sumpts = 0
+C       CHF_MULTIDO[ba;i;stride]
+C         sumpts = sumpts + 1
+C       CHF_ENDDO
+C       if ( sumpts .NE. Vol )then
+C         status = status + 1
+C         if ( Verbose .GT. 0 )then
+C           write(6,*) '    error: testMDOA_1: 3arg AUTOMULTIDO with variable '
+C      &              ,'stride got volume ',sumpts,' instead of ',Vol
+C         endif
+C       endif
+
+! this one should not work
+!!!NOTE: have to uncomment this to use it.
+!!!      CHF_AUTOMULTIDO[ba;i ;0]
+!!!      CHF_ENDDO
+
+      return
+      end
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Test CHF_ID array
+      subroutine TEST_CHFID(CHF_INT[status])
+
+      integer dir1, dir2, testval
+
+      do dir1=0, CH_SPACEDIM-1
+         do dir2=0, CH_SPACEDIM-1
+            testval = CHF_ID(dir1, dir2)
+            if (dir1.eq.dir2) then
+               if (testval.eq.1) then
+                  status = status + 0
+               else
+c     test fails
+                  status = status + 1
+               endif
+            else
+               if (testval.eq.0) then
+                  status = status + 0
+               else
+c     test fails
+                  status = status + 1
+               endif
+            endif
+         enddo
+      enddo
+
+      return
+      end
+
+
+
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Test using CHF_ commands when calling another Fortran or ChF routine
+
+      subroutine TESTCALL( CHF_I1D[ arrayI ], CHF_CONST_I1D[ arrayCI ]
+     &                    ,CHF_R1D[ arrayR ], CHF_CONST_R1D[ arrayCR ]
+     &                    ,CHF_CONST_REAL[ Eps ]
+     &                    ,CHF_INT[ status ] )
+      integer int1,status2
+      integer int2(CHF_DDECL[1;1;1;1;1;1])
+      chf_call TESTIR1D_2( CHF_I1D[ arrayI ], CHF_CONST_I1D[ arrayCI ]
+     &                ,CHF_R1D[ arrayR ], CHF_CONST_R1D[ arrayCR ]
+     &                ,CHF_CONST_REAL[ Eps ]
+     &                ,CHF_INT[ status ] )
+      int1 = 23
+      ! test calling a plain Fortran (not ChomboFortran) routine
+      ![NOTE: this has to be implemented in a .F file, not a .ChF file.
+      call TESTCALL_2( int1 ,status2 )
+      status = status + status2
+      if ( int1 .NE. 32 )then
+        write(6,*) 'error: TESTCALL: plain Fortran call to TESTCALL_2 '
+     &            ,'returned with arg 1 = ',int1,' instead of 32.'
+        status = status + 1
+      endif
+
+      ! test calling a plain Fortran (not ChomboFortran) routine using CHF_IX
+      int2(CHF_IX[1;1;1;1;1;1]) = 23
+      call TESTCALL_2( int2(CHF_IX[1;1;1;1;1;1]) ,status2 )
+      status = status + status2
+      if ( int2(CHF_IX[1;1;1;1;1;1]) .NE. 32 )then
+        write(6,*) 'error: TESTCALL: plain Fortran call to '
+     &            ,'TESTCALL_2() with CHF IX returned with arg 1 = '
+     &            ,int2(CHF_IX[1;1;1;1;1;1]),' instead of 32.'
+        status = status + 1
+      endif
+
+      ! test calling a plain Fortran (not ChomboFortran) routine using CHF_UBOUND
+      arrayI(CHF_UBOUND[arrayI;0]) = 23
+      call TESTCALL_2( arrayI(CHF_UBOUND[arrayI;0]) ,status2 )
+      if ( int2(CHF_IX[1;1;1;1;1;1]) .NE. 32 )then
+        write(6,*) 'error: TESTCALL: plain Fortran call to '
+     &            ,'TESTCALL_2() with CHF UBOUND returned with arg 1 = '
+     &            ,int2(CHF_IX[1;1;1;1;1;1]),' instead of 32.'
+        status = status + 1
+      endif
+
+      ! test CALL after IF
+      ![NOTE: regression test for bug GregM found. <dbs>]
+      if ( Eps .LT. 0 ) chf_call MAYDAY_ERROR()
+
+      return
+      end
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Test parsing end-of-line comments
+
+      subroutine TEST_PARSE1( CHF_INT[ status ] )
+
+#if 0
+! this test has proved to be brittle under various compilers, so 
+! commenting it out for now (and return status = 0)
+      integer i,c  ! simple comment
+      character bar*255  !'a comment with a string in it'
+      integer  LENC
+      external LENC
+#endif
+      status = 0
+#if 0
+c     this function keeps breaking and it has absolutely nothing to
+c     do with chombo fortran.   It is just testing the fortran compiler
+
+      bar = 'a string with a comment ! in it'
+      bar = bar(:LENC(bar)) // ''''  !string with embedded quote and a double quote '' in the comment
+      !! Check the result:
+      !!  a) check the number of "!" in the string
+      !!  b) check the number of "'" in the string
+      c = 0
+      do i = 1 ,LENC(bar)
+        if ( bar(i:i) .EQ. '!' )then
+          c = c + 1
+        endif
+      enddo
+      if ( c .NE. 1 ) status = status + 1
+      c = 0
+      do i = 1 ,LENC(bar)
+        if ( bar(i:i) .EQ. '''' )then
+          c = c + 1
+        endif
+      enddo
+      if ( c .NE. 1 ) status = status + 2
+      return  ! comment with a comment !!! in it
+      end
+
+
+      integer function LENC( str )
+      character str*(*)
+      integer l
+      do l = LEN(str),1,-1
+        if ( str(l:l) .NE. ' ' )goto 10
+      enddo
+      l = 0
+   10 LENC = l
+#endif
+
+      return
+      end
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+c
+c Test coarsening (requires a previous shifting of input)
+c
+c crFIA <=  coarse integer data
+c fnBox  => fine box
+c fnFIA  => fine integer data
+c ----------------------------------------------------------------------
+
+      subroutine TEST_SHIFT_FIA(
+     &   CHF_FIA[crFIA],
+     &   CHF_BOX[fnBox],
+     &   CHF_CONST_FIA[fnFIA],
+     &   CHF_CONST_INT[refRatio])
+
+      integer CHF_AUTODECL[iFn]
+      integer CHF_AUTODECL[iCr]
+
+      CHF_AUTOMULTIDO[fnBox;iFn]
+         CHF_DTERM[
+            iCr0 = iFn0/refRatio;
+            iCr1 = iFn1/refRatio;
+            iCr2 = iFn2/refRatio;
+            iCr3 = iFn3/refRatio;
+            iCr4 = iFn4/refRatio;
+            iCr5 = iFn5/refRatio;]
+         crFIA(CHF_AUTOIX[iCr], 0) = crFIA(CHF_AUTOIX[iCr], 0) +
+     &      fnFIA(CHF_AUTOIX[iFn], 0)
+      CHF_ENDDO
+
+      return
+      end
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+c
+c Test coarsening (requires a previous shifting of input)
+c
+c crFIA <=  coarse integer data
+c fnBox  => fine box
+c fnFIA  => fine integer data
+c ----------------------------------------------------------------------
+
+      subroutine TEST_SHIFT_FIA1(
+     &   CHF_FIA1[crFIA],
+     &   CHF_BOX[fnBox],
+     &   CHF_CONST_FIA1[fnFIA],
+     &   CHF_CONST_INT[refRatio])
+
+      integer CHF_AUTODECL[iFn]
+      integer CHF_AUTODECL[iCr]
+
+      CHF_AUTOMULTIDO[fnBox;iFn]
+         CHF_DTERM[
+            iCr0 = iFn0/refRatio;
+            iCr1 = iFn1/refRatio;
+            iCr2 = iFn2/refRatio;
+            iCr3 = iFn3/refRatio;
+            iCr4 = iFn4/refRatio;
+            iCr5 = iFn5/refRatio;]
+         crFIA(CHF_AUTOIX[iCr]) = crFIA(CHF_AUTOIX[iCr]) +
+     &      fnFIA(CHF_AUTOIX[iFn])
+      CHF_ENDDO
+
+      return
+      end
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+c
+c Test coarsening (requires a previous shifting of input)
+c
+c crFRA <=  coarse real data
+c fnBox  => fine box
+c fnFRA  => fine real data
+c ----------------------------------------------------------------------
+
+      subroutine TEST_SHIFT_FRA(
+     &   CHF_FRA[crFRA],
+     &   CHF_BOX[fnBox],
+     &   CHF_CONST_FRA[fnFRA],
+     &   CHF_CONST_INT[refRatio])
+
+      integer CHF_AUTODECL[iFn]
+      integer CHF_AUTODECL[iCr]
+
+      CHF_AUTOMULTIDO[fnBox;iFn]
+         CHF_DTERM[
+            iCr0 = iFn0/refRatio;
+            iCr1 = iFn1/refRatio;
+            iCr2 = iFn2/refRatio;
+            iCr3 = iFn3/refRatio;
+            iCr4 = iFn4/refRatio;
+            iCr5 = iFn5/refRatio;]
+         crFRA(CHF_AUTOIX[iCr], 0) = crFRA(CHF_AUTOIX[iCr], 0) +
+     &      fnFRA(CHF_AUTOIX[iFn], 0)
+      CHF_ENDDO
+
+      return
+      end
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+c
+c Test coarsening (requires a previous shifting of input)
+c
+c crFRA <=  coarse real data
+c fnBox  => fine box
+c fnFRA  => fine real data
+c ----------------------------------------------------------------------
+
+      subroutine TEST_SHIFT_FRA1(
+     &   CHF_FRA1[crFRA],
+     &   CHF_BOX[fnBox],
+     &   CHF_CONST_FRA1[fnFRA],
+     &   CHF_CONST_INT[refRatio])
+
+      integer CHF_AUTODECL[iFn]
+      integer CHF_AUTODECL[iCr]
+
+      CHF_AUTOMULTIDO[fnBox;iFn]
+         CHF_DTERM[
+            iCr0 = iFn0/refRatio;
+            iCr1 = iFn1/refRatio;
+            iCr2 = iFn2/refRatio;
+            iCr3 = iFn3/refRatio;
+            iCr4 = iFn4/refRatio;
+            iCr5 = iFn5/refRatio;]
+         crFRA(CHF_AUTOIX[iCr]) = crFRA(CHF_AUTOIX[iCr]) +
+     &      fnFRA(CHF_AUTOIX[iFn])
+      CHF_ENDDO
+
+      return
+      end

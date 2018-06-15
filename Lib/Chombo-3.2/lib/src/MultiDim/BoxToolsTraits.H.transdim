@@ -1,0 +1,308 @@
+#ifndef _BOXTOOLSTRAITS_H_TRANSDIM_
+#define _BOXTOOLSTRAITS_H_TRANSDIM_
+
+// No need at this point to include some of these files but it's a
+// good idea to save app programmers the need to include anything but
+// regular .H files and H.transdim files.
+
+#include "IntVect.H.multidim"
+#include "MayDay.H"
+#include "Box.H.multidim"
+#include "ProblemDomain.H.multidim"
+#include "BaseFab.H.multidim"
+#include "FluxBox.H.multidim"
+#include "DisjointBoxLayout.H.multidim"
+#include "LayoutIterator.H.multidim"
+#include "LevelData.H.multidim"
+#include "Vector.H"
+#include "DataIterator.H.multidim"
+  // Avoids compiler warning about
+  // "neither the destructor nor the class-specific operator delete will be called"
+#include "SliceSpec.H.multidim"
+
+using namespace Chombo;
+
+//
+// BaseFabTraits
+//
+template<typename BaseFabT> struct BaseFabTraits;
+
+#ifdef CH_USE2D
+template<typename T> struct BaseFabTraits<D2::BaseFab<T> >
+{
+#ifdef CH_USE1D
+    typedef D1::BaseFab<T> OneDimLessBaseFab;
+#endif
+    typedef T ElementT;
+};
+#endif
+
+#ifdef CH_USE3D
+template<typename T> struct BaseFabTraits<D3::BaseFab<T> >
+{
+#ifdef CH_USE2D
+    typedef D2::BaseFab<T> OneDimLessBaseFab;
+#endif
+    typedef T ElementT;
+};
+#endif
+
+#ifdef CH_USE4D
+template<typename T> struct BaseFabTraits<D4::BaseFab<T> >
+{
+#ifdef CH_USE3D
+    typedef D3::BaseFab<T> OneDimLessBaseFab;
+#endif
+    typedef T ElementT;
+};
+#endif
+
+#ifdef CH_USE5D
+template<typename T> struct BaseFabTraits<D5::BaseFab<T> >
+{
+#ifdef CH_USE4D
+    typedef D4::BaseFab<T> OneDimLessBaseFab;
+#endif
+    typedef T ElementT;
+};
+#endif
+
+#ifdef CH_USE6D
+template<typename T> struct BaseFabTraits<D6::BaseFab<T> >
+{
+#ifdef CH_USE5D
+    typedef D5::BaseFab<T> OneDimLessBaseFab;
+#endif
+    typedef T ElementT;
+};
+#endif
+
+
+//
+// DimTraits
+//
+
+template<typename U> struct DimTraits;
+
+// Dim=1
+#ifdef CH_USE1D
+template<> struct DimTraits<D1::IntVect> { static const int dim=1; };
+template<> struct DimTraits<D1::Box> { static const int dim=1; };
+template<> struct DimTraits<D1::SliceSpec> { static const int dim=1; };
+template<> struct DimTraits<D1::FArrayBox> { static const int dim=1; };
+template<> struct DimTraits<D1::FluxBox> { static const int dim=1; };
+template<typename T> struct DimTraits< D1::BaseFab<T> >
+{
+    static const int dim=1;
+};
+template<> struct DimTraits<D1::ProblemDomain> { static const int dim=1; };
+template<> struct DimTraits<D1::DisjointBoxLayout> { static const int dim=1; };
+template<typename T> struct DimTraits< D1::LevelData<T> >
+{
+    static const int dim=1;
+};
+#endif
+
+// Dim=2
+#ifdef CH_USE2D
+template<> struct DimTraits<D2::IntVect> { static const int dim=2; };
+template<> struct DimTraits<D2::Box> { static const int dim=2; };
+template<> struct DimTraits<D2::SliceSpec> { static const int dim=2; };
+template<> struct DimTraits<D2::FArrayBox> { static const int dim=2; };
+template<> struct DimTraits<D2::FluxBox> { static const int dim=2; };
+template<typename T> struct DimTraits< D2::BaseFab<T> >
+{
+    static const int dim=2;
+};
+template<> struct DimTraits<D2::ProblemDomain> { static const int dim=2; };
+template<> struct DimTraits<D2::DisjointBoxLayout> { static const int dim=2; };
+template<typename T> struct DimTraits< D2::LevelData<T> >
+{
+    static const int dim=2;
+};
+#endif
+
+// Dim=3
+#ifdef CH_USE3D
+template<> struct DimTraits<D3::IntVect> { static const int dim=3; };
+template<> struct DimTraits<D3::Box> { static const int dim=3; };
+template<> struct DimTraits<D3::SliceSpec> { static const int dim=3; };
+template<> struct DimTraits<D3::FArrayBox> { static const int dim=3; };
+template<> struct DimTraits<D3::FluxBox> { static const int dim=3; };
+template<typename T> struct DimTraits< D3::BaseFab<T> >
+{
+    static const int dim=3;
+};
+template<> struct DimTraits<D3::ProblemDomain> { static const int dim=3; };
+template<> struct DimTraits<D3::DisjointBoxLayout> { static const int dim=3; };
+template<typename T> struct DimTraits< D3::LevelData<T> >
+{
+    static const int dim=3;
+};
+#endif
+
+// Dim=4
+#ifdef CH_USE4D
+template<> struct DimTraits<D4::IntVect> { static const int dim=4; };
+template<> struct DimTraits<D4::Box> { static const int dim=4; };
+template<> struct DimTraits<D4::SliceSpec> { static const int dim=4; };
+template<> struct DimTraits<D4::FArrayBox> { static const int dim=4; };
+template<> struct DimTraits<D4::FluxBox> { static const int dim=4; };
+template<typename T> struct DimTraits< D4::BaseFab<T> >
+{
+    static const int dim=4;
+};
+template<> struct DimTraits<D4::ProblemDomain> { static const int dim=4; };
+template<> struct DimTraits<D4::DisjointBoxLayout> { static const int dim=4; };
+template<typename T> struct DimTraits< D4::LevelData<T> >
+{
+    static const int dim=4;
+};
+#endif
+
+// Dim=5
+#ifdef CH_USE5D
+template<> struct DimTraits<D5::IntVect> { static const int dim=5; };
+template<> struct DimTraits<D5::Box> { static const int dim=5; };
+template<> struct DimTraits<D5::SliceSpec> { static const int dim=5; };
+template<> struct DimTraits<D5::FArrayBox> { static const int dim=5; };
+template<> struct DimTraits<D5::FluxBox> { static const int dim=5; };
+template<typename T> struct DimTraits< D5::BaseFab<T> >
+{
+    static const int dim=5;
+};
+template<> struct DimTraits<D5::ProblemDomain> { static const int dim=5; };
+template<> struct DimTraits<D5::DisjointBoxLayout> { static const int dim=5; };
+template<typename T> struct DimTraits< D5::LevelData<T> >
+{
+    static const int dim=5;
+};
+#endif
+
+//
+// ObjTraits
+//
+
+template<int DIM> struct ObjTraits;
+
+#ifdef CH_USE1D
+template<> struct ObjTraits<1>
+{
+    typedef D1::IntVect IntVect;
+    typedef D1::Box     Box;
+    typedef D1::BaseFab<Real>  BaseFab_Real;
+    typedef D1::BaseFab<int>  BaseFab_int;
+    typedef D1::ProblemDomain ProblemDomain;
+    typedef D1::LayoutIterator LayoutIterator;
+    typedef D1::DataIterator DataIterator;
+    typedef D1::DisjointBoxLayout DisjointBoxLayout;
+    typedef D1::LevelData< D1::FArrayBox > LevelData;
+    typedef D1::LevelData< D1::FluxBox > LevelFlux;
+
+    typedef D1::SliceSpec SliceSpec;
+    typedef Vector<int> VectorOfInt;
+    typedef Vector<D1::Box> VectorOfBox;
+};
+#endif
+
+#ifdef CH_USE2D
+template<> struct ObjTraits<2>
+{
+    typedef D2::IntVect IntVect;
+    typedef D2::Box     Box;
+    typedef D2::BaseFab<Real>  BaseFab_Real;
+    typedef D2::BaseFab<int>  BaseFab_int;
+    typedef D2::ProblemDomain ProblemDomain;
+    typedef D2::LayoutIterator LayoutIterator;
+    typedef D2::DataIterator DataIterator;
+    typedef D2::DisjointBoxLayout DisjointBoxLayout;
+    typedef D2::LevelData< D2::FArrayBox > LevelData;
+    typedef D2::LevelData< D2::FluxBox > LevelFlux;
+
+    typedef D2::SliceSpec SliceSpec;
+    typedef Vector<int> VectorOfInt;
+    typedef Vector<D2::Box> VectorOfBox;
+};
+#endif
+
+#ifdef CH_USE3D
+template<> struct ObjTraits<3>
+{
+    typedef D3::IntVect IntVect;
+    typedef D3::Box     Box;
+    typedef D3::BaseFab<Real>  BaseFab_Real;
+    typedef D3::BaseFab<int>  BaseFab_int;
+    typedef D3::ProblemDomain ProblemDomain;
+    typedef D3::LayoutIterator LayoutIterator;
+    typedef D3::DataIterator DataIterator;
+    typedef D3::DisjointBoxLayout DisjointBoxLayout;
+    typedef D3::LevelData< D3::FArrayBox > LevelData;
+    typedef D3::LevelData< D3::FluxBox > LevelFlux;
+
+    typedef D3::SliceSpec SliceSpec;
+    typedef Vector<int> VectorOfInt;
+    typedef Vector<D3::Box> VectorOfBox;
+};
+#endif
+
+#ifdef CH_USE4D
+template<> struct ObjTraits<4>
+{
+    typedef D4::IntVect IntVect;
+    typedef D4::Box     Box;
+    typedef D4::BaseFab<Real>  BaseFab_Real;
+    typedef D4::BaseFab<int>  BaseFab_int;
+    typedef D4::ProblemDomain ProblemDomain;
+    typedef D4::LayoutIterator LayoutIterator;
+    typedef D4::DataIterator DataIterator;
+    typedef D4::DisjointBoxLayout DisjointBoxLayout;
+    typedef D4::LevelData< D4::FArrayBox > LevelData;
+    typedef D4::LevelData< D4::FluxBox > LevelFlux;
+
+    typedef D4::SliceSpec SliceSpec;
+    typedef Vector<int> VectorOfInt;
+    typedef Vector<D4::Box> VectorOfBox;
+};
+#endif
+
+#ifdef CH_USE5D
+template<> struct ObjTraits<5>
+{
+    typedef D5::IntVect IntVect;
+    typedef D5::Box     Box;
+    typedef D5::BaseFab<Real>  BaseFab_Real;
+    typedef D5::BaseFab<int>  BaseFab_int;
+    typedef D5::ProblemDomain ProblemDomain;
+    typedef D5::LayoutIterator LayoutIterator;
+    typedef D5::DataIterator DataIterator;
+    typedef D5::DisjointBoxLayout DisjointBoxLayout;
+    typedef D5::LevelData< D5::FArrayBox > LevelData;
+    typedef D5::LevelData< D5::FluxBox > LevelFlux;
+
+    typedef D5::SliceSpec SliceSpec;
+    typedef Vector<int> VectorOfInt;
+    typedef Vector<D5::Box> VectorOfBox;
+};
+#endif
+
+#ifdef CH_USE6D
+template<> struct ObjTraits<6>
+{
+    typedef D6::IntVect IntVect;
+    typedef D6::Box     Box;
+    typedef D6::BaseFab<Real>  BaseFab_Real;
+    typedef D6::BaseFab<int>  BaseFab_int;
+    typedef D6::ProblemDomain ProblemDomain;
+    typedef D6::LayoutIterator LayoutIterator;
+    typedef D6::DataIterator DataIterator;
+    typedef D6::DisjointBoxLayout DisjointBoxLayout;
+    typedef D6::LevelData< D6::FArrayBox > LevelData;
+    typedef D6::LevelData< D6::FluxBox > LevelFlux;
+
+    typedef D6::SliceSpec SliceSpec;
+    typedef Vector<int> VectorOfInt;
+    typedef Vector<D6::Box> VectorOfBox;
+};
+#endif
+
+#endif // include guard

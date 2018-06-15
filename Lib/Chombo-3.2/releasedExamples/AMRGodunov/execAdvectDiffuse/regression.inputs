@@ -1,0 +1,48 @@
+cfl = 0.9
+diffusion_coef = 0.001
+initial_cfl = 0.1
+verbosity = 1
+max_step = 2
+max_time = 100.0
+tag_buffer_size = 3
+refine_thresh = 0.01
+regrid_interval = 2 2 2 2 2 2
+max_dt_growth = 1.1
+dt_tolerance_factor = 1.1
+domain_length = 1.0 
+grid_buffer_size = 1
+periodic_bc = 1 1 1 
+fixed_dt   = -1.0
+
+max_level = 0
+n_cell =  32 32 32
+ref_ratio = 2 2 2 2 
+
+block_factor =  4
+max_grid_size = 16
+fill_ratio = 0.75
+
+checkpoint_interval = -1
+plot_interval = -10
+plot_prefix  = plt
+chk_prefix = chk
+
+blob_center = 0.75 0.5 0.5
+blob_radius = 0.1
+#0 = constant
+#1 = rotating
+advection_vel_type = 0
+
+use_limiting = true
+
+amrmultigrid.num_smooth  = 8
+amrmultigrid.tolerance   = 1.0e-10
+amrmultigrid.num_mg      = 1
+amrmultigrid.norm_thresh = 1.0e-10
+amrmultigrid.hang_eps    = 1.0e-10
+amrmultigrid.max_iter    = 100
+amrmultigrid.verbosity   = 1
+##1 = neumann, 0 = dirichlet
+bc_lo   = 1 1 1
+bc_hi   = 1 1 1
+bc_value = 0.

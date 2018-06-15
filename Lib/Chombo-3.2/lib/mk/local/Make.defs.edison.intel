@@ -1,0 +1,31 @@
+## This file defines variables for use on the login nodes of the NERSC Linux
+## machine 'edison'.  
+##
+## NOTE: everything is always in 64bit mode
+
+makefiles+=local/Make.defs.edison.gnu
+
+CXX=CC
+FC=ftn
+MPICXX=CC
+USE_64=TRUE
+
+CH_CPP=$(CXX) -E -P -C
+
+RUN = aprun -n 2 ./#
+
+cxxoptflags += -O2 -fast -no-ipo
+foptflags += -O2
+flibflags += -lifport -lifcore -limf -lsvml -lm -lipgo -lirc -lsvml
+XTRALDFLAGS += -Wl,-zmuldefs
+syslibflags = -mkl
+
+USE_HDF=TRUE
+#HDF5_DIR = $(CRAY_HDF5_DIR)/INTEL/140
+HDF5_DIR = $(HDF5_ROOT)
+
+HDFLIBFLAGS=   -L$(HDF5_DIR)/lib     $(HDF_POST_LINK_OPTS)  -lhdf5 -lz
+HDFMPILIBFLAGS=-L$(HDF5_DIR)/lib     $(HDF_POST_LINK_OPTS)  -lhdf5 -lz
+HDFINCFLAGS=   -I$(HDF5_DIR)/include $(HDF_INCLUDE_OPTS) 
+HDFMPIINCFLAGS=-I$(HDF5_DIR)/include $(HDF_INCLUDE_OPTS) 
+

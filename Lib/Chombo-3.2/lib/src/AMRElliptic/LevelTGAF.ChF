@@ -1,0 +1,72 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+      subroutine RESGHOSTBC(
+     $     CHF_FRA[state],
+     &     CHF_BOX[bcBox],
+     &     CHF_CONST_INT[idir],
+     &     CHF_CONST_INT[side],
+     &     CHF_CONST_INT[ncomp])
+
+c ::: local variables
+      integer nc
+      integer CHF_DDECL[ii;jj;kk]
+      integer CHF_DDECL[i;j;k]
+
+      REAL_T nearval, farval
+
+      CHF_DTERM[
+      ii = side*CHF_ID(0,idir);
+      jj = side*CHF_ID(1,idir);
+      kk = side*CHF_ID(2,idir) ]
+
+      do nc = 0, ncomp-1
+
+         CHF_MULTIDO[bcBox; i;j;k]
+           nearval = state(CHF_IX[i-ii;j-jj;k-kk],nc)
+           farval  = state(CHF_IX[i-2*ii;j-2*jj;k-2*kk],nc)
+
+           state(CHF_IX[i;j;k],nc) = two*nearval - farval
+
+         CHF_ENDDO
+
+      enddo
+
+      return
+      end
+      subroutine HORESGHOSTBC(CHF_FRA[state],
+     &                         CHF_BOX[bcBox],
+     &                         CHF_CONST_INT[idir],
+     &                         CHF_CONST_INT[side],
+     &                         CHF_CONST_INT[ncomp])
+
+c ::: local variables
+      integer nc
+      integer CHF_DDECL[ii;jj;kk]
+      integer CHF_DDECL[i;j;k]
+
+      REAL_T nearval, midval, farval
+
+      CHF_DTERM[
+      ii = side*CHF_ID(0,idir);
+      jj = side*CHF_ID(1,idir);
+      kk = side*CHF_ID(2,idir) ]
+
+      do nc = 0, ncomp-1
+
+         CHF_MULTIDO[bcBox; i;j;k]
+           nearval = state(CHF_IX[i-ii;j-jj;k-kk],nc)
+           midval  = state(CHF_IX[i-2*ii;j-2*jj;k-2*kk],nc)
+           farval  = state(CHF_IX[i-3*ii;j-3*jj;k-3*kk],nc)
+
+           state(CHF_IX[i;j;k],nc) = three*(nearval - midval) + farval
+
+         CHF_ENDDO
+
+      enddo
+
+      return
+      end

@@ -1,0 +1,79 @@
+### This is a compiler-specific definitions file for Portland Group compilers (pg*).
+
+## It sets values for the defaults variables ($def*), which will be used
+## if the calling makefile doesn't set the corresponding variables.
+## The corresponding variables are the ones without the "def" prefix.
+
+## Defaults variables:
+##  defcxxdbgflags : for C++ compiling and linking when DEBUG=TRUE
+##  defcxxoptflags : for C++ compiling and linking when OPT=TRUE or HIGH
+##  defcxxprofflags: for C++ compiling and linking when PROFILE=TRUE
+##  deffdbgflag    : for Fortran compiling when DEBUG=TRUE
+##  deffoptflag    : for Fortran compiling when OPT=TRUE or HIGH
+##  deffprofflags  : for Fortran compiling when PROFILE=TRUE
+##  defflibflags   : library options needed to link the Fortran code
+##  defldflags     : options for linking
+##  cppcallsfort   : preprocessor macro as used in FORT_PROTO.H to specify
+##                    how the C++ code should construct names for calling Fortran
+
+## Note you may have to set 'CH_CPP=$(CXX) -E' in Make.defs.local.  The default,
+## 'CH_CPP=$(CXX) -E -P' will output to file named '*.i'.
+
+makefiles+=compiler/Make.defs.PGI
+
+cxxname := $(notdir $(firstword $(CXX)))
+fname   := $(notdir $(firstword $(FC)))
+
+ifeq ($(cxxname),pgCC)
+  defcxxoptflags  = -fast   #--one_instantiation_per_object --instantiation_dir t/$(_config)
+  defcxxdbgflags  = -g #-v #--one_instantiation_per_object --instantiation_dir t/$(_config)
+  defcxxprofflags = -p
+endif
+
+ifeq ($(fname),pgf77)
+  deffoptflags = -fast -O2 -Munroll
+  deffdbgflags = -g -Mbounds
+  deffprofflags = -p
+  #[NOTE: assume the command path is */bin/$fname, and */lib is the library directory.]
+#  defflibflags = -L$(dir $(shell which $(firstword $(FC))))../lib -lpgftnrtl -lm -lc -lpgc
+  defflibflags = -L$(dir $(shell which $(firstword $(FC))))../lib -pgf77libs -lm -lc
+  ifneq ($(cxxname),pgCC)
+    export LD_LIBRARY_PATH := $(dir $(shell which $(firstword $(FC))))../lib:$(LD_LIBRARY_PATH)
+  endif
+endif
+
+ifeq ($(fname),pgf90)
+  deffoptflags = -fast -r8
+  # NOTE: f90 v1.7 and earlier didn't support -Mbounds
+  #deffdbgflags = -g -Mbounds
+  deffdbgflags = -g -r8
+  # NOTE: the following came from Steve Nakamoto <scn@pgroup.com>
+  deffprofflags = -Mprof=func -Mx,119,2
+
+  # OK, now seriously... this is silly.  There's got to be a better way to link with fortran.
+  # This is what was working prior to a PGI upgrade to 7.0.2 on the XT4 (ndk)
+  #defflibflags = -L$(dir $(shell which $(firstword $(FC))))../lib -lpgf90 -lpgf90_rpm1 -lpgf902 -lpgf90rtl -lpgftnrtl -lpghpf -lm -lc -lpgc
+  # But I found that these at least linked with PGI upgrade to 7.0.2 on the XT4 (ndk)
+#  defflibflags = -L$(dir $(shell which $(firstword $(FC))))../lib -lqk_pgf90 -lqk_pgc -lqk_pgftnrtl -lpghpf2 -lpghpf_rpm1 -lm -lc
+  defflibflags = -L$(dir $(shell which $(firstword $(FC))))../lib -pgf90libs -lm -lc
+
+  ifneq ($(cxxname),pgCC)
+    export LD_LIBRARY_PATH := $(dir $(shell which $(firstword $(FC))))../lib:$(LD_LIBRARY_PATH)
+  endif
+endif
+
+ifeq ($(fname),ftn)
+  deffoptflags = -r8 -fast -O3 -Mvect=sse -Munroll=c:3
+  deffdbgflags = -g -r8
+
+  # If using the fortran compiler "ftn", these worked on CRAY XT for catamount
+  #defflibflags = -L$(dir $(shell which $(firstword $(FC))))../lib -lpghpf2 -lpghpf_rpm1 -lpgf90  -lm -lc
+
+  # with CNL, these worked.  order important.
+  defflibflags = -lpgf90 -lpgf90_rpm1 -lpgftnrtl -lpghpf2 
+
+  ifneq ($(cxxname),pgCC)
+    export LD_LIBRARY_PATH := $(dir $(shell which $(firstword $(FC))))../lib:$(LD_LIBRARY_PATH)
+  endif
+
+endif

@@ -1,0 +1,162 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+      subroutine GETCOARSEFINEINTERPMATRIX(
+!
+!     => inputs,  <= outputs
+!     cmfat   <=  coarse-fine interpolation matrix
+!     nref     => refinement ratio
+!     nnbrs    => number of coarse cells in neighborhood
+!     npwrs    => number of nonzero powers
+!     nfine    => size of fine
+!     degree   => degree of approximation
+!     nbrsv    => indices of coarse cells of the stencil, D at a time
+!     fbox     => base box of fine cells, = [0:nref-1]^D or slice thereof
+!     degbox   => box of degrees, = [0:degree]^D or slice thereof
+!
+!     petermc, 16 Dec 2008
+     &     CHF_FRA[cfmat],
+     &     CHF_CONST_INT[nref],
+     &     CHF_CONST_INT[nnbrs],
+     &     CHF_CONST_INT[npwrs],
+     &     CHF_CONST_INT[degree],
+     &     CHF_CONST_INT[nfine],
+     &     CHF_CONST_VI[nbrsv],
+     &     CHF_BOX[fbox],
+     &     CHF_BOX[degbox])
+
+      integer CHF_AUTODECL[i]
+      integer ipwr, sump, ifine, inbr, idim, ic
+      integer pwrs(npwrs, CH_SPACEDIM)
+      integer nbrs(nnbrs, CH_SPACEDIM)
+      integer fine(nfine, CH_SPACEDIM)
+      real_t mat(nfine, nnbrs)
+
+!     Set pwrs.
+      ipwr = 0
+      CHF_AUTOMULTIDO[degbox; i]
+         sump = CHF_DTERM[i0; +i1; +i2; +i3; +i4; +i5]
+         if ((sump .gt. 0) .and. (sump .le. degree))then
+            ipwr = ipwr + 1
+            CHF_DTERM[
+            pwrs(ipwr, 1) = i0 ;
+            pwrs(ipwr, 2) = i1 ;
+            pwrs(ipwr, 3) = i2 ;
+            pwrs(ipwr, 4) = i3 ;
+            pwrs(ipwr, 5) = i4 ;
+            pwrs(ipwr, 6) = i5 ]
+         endif
+      CHF_ENDDO
+
+!     Set nbrs from nbrsv.
+      ic = 0
+      do inbr = 1, nnbrs
+         do idim = 1, CH_SPACEDIM
+            nbrs(inbr, idim) = nbrsv(ic)
+            ic = ic + 1
+         end do
+      end do
+
+!     Set fine from fbox.
+      ifine = 0
+      CHF_AUTOMULTIDO[fbox; i]
+         ifine = ifine + 1
+         CHF_DTERM[
+         fine(ifine, 1) = i0 ;
+         fine(ifine, 2) = i1 ;
+         fine(ifine, 3) = i2 ;
+         fine(ifine, 4) = i3 ;
+         fine(ifine, 5) = i4 ;
+         fine(ifine, 6) = i5 ]
+      CHF_ENDDO
+
+      call coarsefineleastsquares(nref, nnbrs, npwrs, nfine,
+     &     nbrs, pwrs, fine, mat)
+
+!     Set cfmat from mat.
+      ifine = 0
+      CHF_AUTOMULTIDO[cfmat; i]
+         ifine = ifine + 1
+         do inbr = 1, nnbrs
+            cfmat(CHF_AUTOIX[i], inbr-1) = mat(ifine, inbr)
+         end do
+      CHF_ENDDO
+
+      return
+      end
+
+
+      subroutine APPLYCOARSEFINEINTERP(
+!
+!     => inputs,  <= outputs
+!     fine    <=  fine data, interpolated from coarse data
+!     coarse   => coarse data
+!     stmat    => stencil matrix containing interpolation coefficients
+!     fbase    => base index of fine cells
+!     cbase    => index of coarse cell whose fine cells we fill in
+!     nbrsv    => indices of coarse cells of the stencil, D at a time
+!     fbox     => base box of fine cells, = [0:nref-1]^D or slice thereof
+!
+!     Fill in fine-level data, fine(fbox + fbase),
+!     using coarse-level data, coarse(cbase + nbrsv),
+!     and stencil coefficients, stmat(fbox).
+!
+!     petermc, 21 Jan 2009
+     &     CHF_FRA[fine],
+     &     CHF_CONST_FRA[coarse],
+     &     CHF_CONST_FRA[stmat],
+     &     CHF_CONST_INTVECT[fbase],
+     &     CHF_CONST_INTVECT[cbase],
+     &     CHF_CONST_VI[nbrsv],
+     &     CHF_BOX[fbox])
+
+      integer CHF_AUTODECL[ibase]
+      integer CHF_AUTODECL[icoar]
+      integer CHF_AUTODECL[ifine]
+      integer ncomp, stsize, n, stpt, stbase
+      real_t val
+
+      ncomp = CHF_NCOMP[fine]
+      stsize = (CHF_UBOUND[nbrsv] + 1) / CH_SPACEDIM
+      do n = 0, ncomp-1
+         CHF_AUTOMULTIDO[fbox; ibase]
+!     CHF_IX[ibase; jbase; kbase] is in [0:nref-1]^D
+!     CHF_IX[ifine; jfine; kfine]:  indices of fine cell
+            CHF_DTERM[
+            ifine0 = ibase0 + fbase(0) ;
+            ifine1 = ibase1 + fbase(1) ;
+            ifine2 = ibase2 + fbase(2) ;
+            ifine3 = ibase3 + fbase(3) ;
+            ifine4 = ibase4 + fbase(4) ;
+            ifine5 = ibase5 + fbase(5) ]
+
+            val = 0
+            stbase = 0
+            do stpt = 0, stsize-1
+!     CHF_IX[icoar; jcoar; kcoar]:  indices of coarse cell
+!     (stbase = CH_SPACEDIM * stpt)
+               CHF_DTERM[
+               icoar0 = cbase(0) + nbrsv(stbase    ) ;
+               icoar1 = cbase(1) + nbrsv(stbase + 1) ;
+               icoar2 = cbase(2) + nbrsv(stbase + 2) ;
+               icoar3 = cbase(3) + nbrsv(stbase + 3) ;
+               icoar4 = cbase(4) + nbrsv(stbase + 4) ;
+               icoar5 = cbase(5) + nbrsv(stbase + 5) ]
+
+               val = val +
+     &              stmat(CHF_AUTOIX[ibase], stpt) *
+     &              coarse(CHF_AUTOIX[icoar], n)
+
+               stbase = stbase + CH_SPACEDIM
+            end do
+            fine(CHF_AUTOIX[ifine], n) = val
+         CHF_ENDDO
+      end do
+
+      return
+      end

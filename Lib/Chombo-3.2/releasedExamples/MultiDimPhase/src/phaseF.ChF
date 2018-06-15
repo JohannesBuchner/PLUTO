@@ -1,0 +1,80 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+c ----------------------------------------------------
+c  compute undivided difference of phi
+c ----------------------------------------------------
+      subroutine UNDIVIDEDGRAD(CHF_FRA[dq],
+     &                         CHF_CONST_FRA[q],
+     &                         CHF_BOX[dInterior],
+     &                         CHF_BOX[loedge],
+     &                         CHF_BOX[hiedge],
+     &                         CHF_CONST_INT[idir],
+     &                         CHF_CONST_INT[haslo],
+     &                         CHF_CONST_INT[hashi])
+
+c      integer ldir,
+      integer CHF_DDECL[i;j;k]
+      integer CHF_DDECL[ioff;joff;koff]
+      integer n, ncomp
+
+      ncomp = CHF_NCOMP[q]
+
+      CHF_DTERM[
+      ioff = CHF_ID(0,idir);
+      joff = CHF_ID(1,idir);
+      koff = CHF_ID(2,idir)]
+
+
+c     Perform first difference calculation in the interior.
+
+      CHF_MULTIDO[dInterior;i;j;k]
+
+c     Find maximum gradient -- refine where max>cutoff
+      dq(CHF_IX[i;j;k],0) = 0
+      do n = 0, ncomp-1
+      dq(CHF_IX[i;j;k],0) = max( abs(dq(CHF_IX[i;j;k],0)),
+     &       0.5*abs( q(CHF_IX[i+ioff;j+joff;k+koff],n)
+     &        - q(CHF_IX[i-ioff;j-joff;k-koff],n) ))
+      enddo
+
+      CHF_ENDDO
+
+c     Perform calculation on the cells adjacent to the domain boundary in
+c     sweep direction, if required.
+
+      if (haslo .eq. 1) then
+
+         CHF_MULTIDO[loedge;i;j;k]
+
+      dq(CHF_IX[i;j;k],0)=0
+      do n = 0, ncomp-1
+           dq(CHF_IX[i;j;k],0) = max( abs(dq(CHF_IX[i;j;k],0)),
+     &        abs( q(CHF_IX[i+ioff;j+joff;k+koff], n) - q(CHF_IX[i;j;k], n)))
+         enddo
+
+         CHF_ENDDO
+      endif
+
+      if (hashi .eq. 1) then
+         CHF_MULTIDO[hiedge;i;j;k]
+
+      dq(CHF_IX[i;j;k],0)=0
+      do n = 0, ncomp-1
+           dq(CHF_IX[i;j;k],0) = max( abs(dq(CHF_IX[i;j;k],0)),
+     &          abs(q(CHF_IX[i;j;k], n) -
+     &              q(CHF_IX[i-ioff;j-joff;k-koff], n)))
+         enddo
+         CHF_ENDDO
+
+      endif
+      return
+      end
+
+
+

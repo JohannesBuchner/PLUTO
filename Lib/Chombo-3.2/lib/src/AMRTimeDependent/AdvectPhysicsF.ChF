@@ -1,0 +1,359 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+c     added by dmartin, 11 Oct 2007
+#define SMALLNUMBER 1.0d-9
+
+      subroutine avefacescaltofacevect(
+!     Average data on faces of one orientation in order to get data
+!     on faces of another orientation.
+!
+!     => input, <= outputs
+!     facevect <= facedir-face-centered box of averaged data,
+!                 to be put into component vectdir
+!     facescal => vectdir-face-centered input data
+!     facedir => dimension of faces on which to return facevect
+!     vectdir => dimension of faces on which facescal lives
+!     dcalcface => facedir-face-centered box of faces on which to set facevect
+!     offbox => Box that must be preset to
+!               offbox = Box(IntVect::Zero, IntVect::Unit);
+!               offbox.shift(facedir, -1);
+!               representing all shifts from facedir-faces to vectdir-faces
+!               that are used in averaging
+!
+!     Modified by petermc, 20 June 2011, to work in DIM>3.
+     &     CHF_FRA[facevect],
+     &     CHF_CONST_FRA1[facescal],
+     &     CHF_CONST_INT[facedir],
+     &     CHF_CONST_INT[vectdir],
+     &     CHF_BOX[dcalcface],
+     &     CHF_BOX[offbox])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ioff]
+      integer numpts
+      real_t wt, tot
+
+      if (facedir .eq. vectdir) then
+!     This is the easy case.
+         CHF_AUTOMULTIDO[dcalcface; i]
+            facevect(CHF_AUTOIX[i], vectdir) = facescal(CHF_AUTOIX[i])
+         CHF_ENDDO
+      else
+         numpts = 2**CH_SPACEDIM
+         wt = one / (numpts * one)
+         CHF_AUTOMULTIDO[dcalcface; i]
+            tot = zero
+            CHF_AUTOMULTIDO[offbox; ioff]
+               tot = tot + facescal(CHF_OFFSETIX[i; +ioff])
+            CHF_ENDDO
+            facevect(CHF_AUTOIX[i], vectdir) = wt * tot
+         CHF_ENDDO
+      endif
+
+      return
+      end
+
+
+      subroutine avescaltoface(
+     &     CHF_FRA1[facescal],
+     &     CHF_CONST_FRA1[cellscal],
+     &     CHF_CONST_INT[idir],
+     &     CHF_BOX[dcalcface])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[f2cLo]
+      integer CHF_AUTODECL[f2cHi]
+
+!     +f2cLo from face to adjacent cell on low side (index is 1 lower)
+      CHF_AUTOID[f2cLo; idir; -1]
+!     +f2cHi from face to adjacent cell on high side (index is same)
+      CHF_AUTOID[f2cHi; idir; 0]
+
+      CHF_AUTOMULTIDO[dcalcface; i]
+         facescal(CHF_AUTOIX[i]) =  half * (
+     &     cellscal(CHF_OFFSETIX[i; +f2cLo]) +
+     &     cellscal(CHF_OFFSETIX[i; +f2cHi]) )
+      CHF_ENDDO
+
+      return
+      end
+
+
+      subroutine avecelltoface(
+     &     CHF_FRA1[facevel],
+     &     CHF_CONST_FRA[cellvel],
+     &     CHF_CONST_INT[idir],
+     &     CHF_BOX[dcalcface])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[f2cLo]
+      integer CHF_AUTODECL[f2cHi]
+
+!     +f2cLo from face to adjacent cell on low side (index is 1 lower)
+      CHF_AUTOID[f2cLo; idir; -1]
+!     +f2cHi from face to adjacent cell on high side (index is same)
+      CHF_AUTOID[f2cHi; idir; 0]
+
+      CHF_AUTOMULTIDO[dcalcface; i]
+         facevel(CHF_AUTOIX[i]) =  half * (
+     &     cellvel(CHF_OFFSETIX[i; +f2cLo], idir) +
+     &     cellvel(CHF_OFFSETIX[i; +f2cHi], idir) )
+      CHF_ENDDO
+
+      return
+      end
+
+
+      subroutine avefacetocell(
+     &     CHF_FRA[cellvel],
+     &     CHF_CONST_FRA1[facevel],
+     &     CHF_CONST_INT[idir],
+     &     CHF_BOX[dcalccell])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[c2fLo]
+      integer CHF_AUTODECL[c2fHi]
+
+!     +c2fLo from cell to adjacent face on low side (index is same)
+      CHF_AUTOID[c2fLo; idir; 0]
+!     +c2fHi from cell to adjacent face on high side (index is 1 higher)
+      CHF_AUTOID[c2fHi; idir; 1]
+
+      CHF_AUTOMULTIDO[dcalccell; i]
+         cellvel(CHF_AUTOIX[i], idir) =  half * (
+     &     facevel(CHF_OFFSETIX[i; +c2fLo]) +
+     &     facevel(CHF_OFFSETIX[i; +c2fHi]) )
+      CHF_ENDDO
+
+      return
+      end
+
+
+      subroutine MAGNITUDEF(
+     &     CHF_FRA1[magdata],
+     &     CHF_CONST_FRA[data],
+     &     CHF_BOX[box])
+
+      integer CHF_AUTODECL[i]
+      integer iv
+      real_t cur,sum
+
+      CHF_AUTOMULTIDO[box; i]
+         sum = zero
+
+         do iv = 0, CHF_NCOMP[data]-1
+            cur = data(CHF_AUTOIX[i], iv)
+            sum = sum + cur*cur
+         enddo
+
+         magdata(CHF_AUTOIX[i]) = sqrt(sum)
+      CHF_ENDDO
+
+      return
+      end
+
+
+        subroutine GETRELGRADF(
+     &    CHF_FRA1[du],
+     &    CHF_CONST_FRA1[u],
+     &    CHF_CONST_INT[idir],
+     &    CHF_BOX[loBox],
+     &    CHF_CONST_INT[hasLo],
+     &    CHF_BOX[hiBox],
+     &    CHF_CONST_INT[hasHi],
+     &    CHF_BOX[centerBox])
+
+        integer CHF_AUTODECL[i]
+        integer CHF_AUTODECL[ioff]
+        real_t diff,aver
+
+        CHF_AUTOID[ioff; idir]
+
+c       Perform first difference calculation in the interior.
+
+        CHF_AUTOMULTIDO[centerBox; i]
+          diff = half*(u(CHF_OFFSETIX[i; +ioff])
+     &                -u(CHF_OFFSETIX[i; -ioff]))
+          aver = half*(u(CHF_OFFSETIX[i; +ioff])
+     &                +u(CHF_OFFSETIX[i; -ioff]))
+          du(CHF_AUTOIX[i]) = diff / aver
+        CHF_ENDDO
+
+c       Perform calculation on the cells adjacent to the domain boundary in
+c       current direction, if required.
+
+        if (hasLo .eq. 1) then
+          CHF_AUTOMULTIDO[loBox; i]
+            diff = u(CHF_OFFSETIX[i; +ioff]) - u(CHF_AUTOIX[i])
+            aver = half*(u(CHF_OFFSETIX[i; +ioff]) + u(CHF_AUTOIX[i]))
+            du(CHF_AUTOIX[i]) = diff / aver
+          CHF_ENDDO
+        endif
+
+        if (hasHi .eq. 1) then
+          CHF_AUTOMULTIDO[hiBox; i]
+            diff = u(CHF_AUTOIX[i]) - u(CHF_OFFSETIX[i; -ioff])
+            aver = half*(u(CHF_AUTOIX[i]) + u(CHF_OFFSETIX[i; -ioff]))
+            du(CHF_AUTOIX[i]) = diff / aver
+          CHF_ENDDO
+        endif
+
+        return
+        end
+
+
+      subroutine POSTNORMALSOURCE(
+     &     CHF_FRA[dWminus],
+     &     CHF_FRA[dWplus],
+     &     CHF_CONST_FRA[W],
+     &     CHF_CONST_FRA1[advVel],
+     &     CHF_CONST_REAL[dt],
+     &     CHF_CONST_REAL[dx],
+     &     CHF_CONST_INT[idir],
+     &     CHF_BOX[box])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[c2fLo]
+      integer CHF_AUTODECL[c2fHi]
+      integer n
+      real_t dudx
+
+!     +c2fLo from cell to adjacent face on low side (index is same)
+      CHF_AUTOID[c2fLo; idir; 0]
+!     +c2fHi from cell to adjacent face on high side (index is 1 higher)
+      CHF_AUTOID[c2fHi; idir; 1]
+
+      CHF_AUTOMULTIDO[box; i]
+         dudx = advVel(CHF_OFFSETIX[i; +c2fHi])
+     &     - advVel(CHF_OFFSETIX[i; +c2fLo])
+         dudx = dt*dudx / dx * half
+         do n=0, CHF_NCOMP[W]-1
+            dWplus(CHF_AUTOIX[i], n) =
+     &           dWPlus(CHF_AUTOIX[i], n) - dudx * W(CHF_AUTOIX[i],n)
+            dWMinus(CHF_AUTOIX[i], n) =
+     &           dWMinus(CHF_AUTOIX[i], n) - dudx * W(CHF_AUTOIX[i],n)
+         end do
+      CHF_ENDDO
+
+      return
+      end
+
+
+      subroutine RIEMANNF(
+     &     CHF_FRA[Wgdnv],
+     &     CHF_CONST_FRA[WLeft],
+     &     CHF_CONST_FRA[WRight],
+     &     CHF_CONST_FRA1[advVel],
+     &     CHF_CONST_INT[idir],
+     &     CHF_BOX[box])
+
+      integer CHF_AUTODECL[i]
+      integer n
+      real_t sl,sr
+      real_t so
+      real_t ustar
+
+c     Constant gamma predictor step.
+
+      do n=0, CHF_NCOMP[WLeft]-1
+
+         CHF_AUTOMULTIDO[box; i]
+c     don't need floors in this simple problem
+c           sl = max(smallr,WLeft(CHF_IX[i;j;k],n))
+            sl =  WLeft(CHF_AUTOIX[i], n)
+
+c     don't need floors in this simple problem
+c           sr = max(smallr,WRight(CHF_IX[i;j;k],n) )
+            sr = WRight(CHF_AUTOIX[i], n)
+
+c assumption for this function is that advection velocity is a
+c single-component face-centered FAB containing the normal advection
+c velocity
+            ustar = advVel(CHF_AUTOIX[i])
+
+            if (ustar .gt. zero) then
+               so = sl
+            else
+               so = sr
+            endif
+
+c if ustar is "zero", average left and right states
+c     added by dmartin, 11 Oct 2007
+            if (abs(ustar) .lt. SMALLNUMBER) then
+               so = half*(sl+sr)
+            endif
+
+            Wgdnv(CHF_AUTOIX[i], n) = so
+
+c don't need floor for this simple problem
+c     Wgdnv(CHF_IX[i;j;k],n) = max(Wgdnv(CHF_IX[i;j;k],n) ,smallr)
+         CHF_ENDDO
+      end do
+
+      return
+      end
+
+
+      subroutine QUASILINEARUPDATE(
+     &     CHF_FRA[AdWdx],
+     &     CHF_CONST_FRA[WHalf],
+     &     CHF_CONST_FRA1[cellVel],
+     &     CHF_CONST_REAL[scale],
+     &     CHF_CONST_INT[idir],
+     &     CHF_BOX[box])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[c2fLo]
+      integer CHF_AUTODECL[c2fHi]
+      integer n
+
+!     +c2fLo from cell to adjacent face on low side (index is same)
+      CHF_AUTOID[c2fLo; idir; 0]
+!     +c2fHi from cell to adjacent face on high side (index is 1 higher)
+      CHF_AUTOID[c2fHi; idir; 1]
+
+      do n=0, CHF_NCOMP[AdWdx]-1
+         CHF_AUTOMULTIDO[box; i]
+            AdWdx(CHF_AUTOIX[i], n) =
+     &        scale * cellVel(CHF_AUTOIX[i]) *
+     &        (WHalf(CHF_OFFSETIX[i; +c2fHi], n) -
+     &         WHalf(CHF_OFFSETIX[i; +c2fLo], n))
+         CHF_ENDDO
+      end do
+
+      return
+      end
+
+
+c     added M Adams 12/09
+      subroutine avecellvectofacevec(
+     &     CHF_FRA[facevec],
+     &     CHF_CONST_FRA[cellvec],
+     $     CHF_CONST_INT[facedir],
+     &     CHF_BOX[dcalcface])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[f2cLo]
+      integer CHF_AUTODECL[f2cHi]
+      integer idir
+
+!     +f2cLo from face to adjacent cell on low side (index is 1 lower)
+      CHF_AUTOID[f2cLo; facedir; -1]
+!     +f2cHi from face to adjacent cell on high side (index is same)
+      CHF_AUTOID[f2cHi; facedir; 0]
+
+      do idir = 0, CH_SPACEDIM-1
+         CHF_AUTOMULTIDO[dcalcface; i]
+            facevec(CHF_AUTOIX[i], idir) =  half * (
+     &           cellvec(CHF_OFFSETIX[i; +f2cLo], idir) +
+     &           cellvec(CHF_OFFSETIX[i; +f2cHi], idir) )
+         CHF_ENDDO
+      enddo
+
+      return
+      end

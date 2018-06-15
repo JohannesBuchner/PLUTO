@@ -1,0 +1,25 @@
+domain_length = 1.0
+verbosity = 1
+print_debug = 1
+##grid parameters 
+#n_cell = 64 64 64
+#n_cell = 128 32 32
+n_cell = 128 128 128
+#n_cell = 256 64 64
+#n_cell = 256 256 256
+max_grid_size =32
+file_output = 1
+
+## domain params
+## prob_lo is the origin of the  coord system
+prob_lo          = 0.0 0.0 0.0 
+## prob_hi is the high point of the box in the 0 direction
+## dx=dy=dz
+prob_hi          = 1.0
+
+#########eb specific stuff#############
+#uses channel_radius for radius
+cylinder_axis = 4 1 1
+#cylinder_axis = 0.234 0.567 0.89
+cylinder_radius = 0.0625
+

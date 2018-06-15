@@ -1,0 +1,131 @@
+#restart_file = chk.nx.128.000100.2d.hdf5
+artificial_viscosity = 0.3
+cfl = 0.1
+use_mass_redist = 1
+initial_cfl = 0.001
+verbosity = 2
+#max_step = 465
+#max_step = 40000
+max_step = 0
+#max_step = 10000
+max_time = 7.0
+tag_buffer_size = 1
+refine_thresh = 0.1
+regrid_interval = 2 2 2 2 2 2
+max_dt_growth = 1.05
+dt_tolerance_factor = 1.05
+#fixed_dt   = 0.0005
+fixed_dt   = -1
+#air or h2
+#gamma = 1.4
+#helium 
+gamma = 1.6666666667
+backward_euler = true
+tag_on_energy = true
+
+#turn off implicit reflux can sometimes
+#help early in a run to keep it stable
+#(sometimes the solves do not converge)
+turn_off_implicit_reflux = true
+
+# Domain domain - physical coordinates (2D)
+# prob_lo is the origin of the coordinate system
+prob_lo =  0.0 0. 0.
+# prob_hi is the high point of the domain in the x direction
+# Note:  dx = dy = dz
+prob_hi =  2.0e-3 1.0e-3 1.0e-3
+domain_length = 2.0e-3 1.0e-3 1.0e-3
+#number you multiply r0 by to get floor
+smallness = 1.0e-1
+
+
+###explosion problem defns
+#### center is assuming lowest value is
+#### 0 0 0 instead of prob_lo
+explosion_center =  0.0 0.0 0.0
+explosion_p0 = 1.0
+explosion_r0 = 1.0
+explosion_p1 = 20.0
+explosion_r1 = 1.0
+
+
+
+max_level = 0
+##grid parameters
+#coarsest grid size
+logflag = 1
+n_cell =    128 64 64
+#n_cell =   256 128 128
+#n_cell =   512 256 256
+#n_cell =   1024 512 512
+ref_ratio = 2 2 2 2 2 2 2
+#ref_ratio = 4 4 4
+#ref_ratio = 2 4 4
+#ref_ratio = 8 8 8
+block_factor =  4
+max_grid_size = 16
+fill_ratio = 0.75
+do_smushing = 0
+###file output stuff
+#checkpoint_interval = 10
+#plot_interval = 10
+check_max_and_min = true
+checkpoint_interval = 50
+plot_interval = 50
+plot_prefix  = plt.capped
+chk_prefix = chk.capped
+###slope switches
+use_fourth_order_slopes = 1
+use_flattening = 1
+use_art_visc   = 1
+redist_radius = 1
+
+#########eb specific stuff#############
+#capped cylinders
+which_geom = 22
+# capping == 0 -> flat caps
+# capping != 0 -> spherical caps
+capping = 1
+tag_on_energy = true
+
+num_cylinders = 2
+one_dim_problem = 2
+one_dim_normal =  2. 1. 0.
+one_dim_origin = 1.0e-3 0.5e-3 0.5e-3
+explosion_size = 0.5e-4
+
+cylinder_axis_0  =  2. 1. 0.
+cylinder_radius_0 = 1.0e-4
+cylinder_origin_0 = 1.0e-3 0.5e-3 0.5e-3
+cylinder_length_0 = 1.2e-3
+
+cylinder_axis_1  =  1. -2.  0.
+cylinder_radius_1 = 0.25e-4
+cylinder_origin_1 = 1.0e-3 0.5e-3 0.5e-3
+cylinder_length_1 = 0.85e-3
+
+grid_buffer_size = 1
+ebvto_do_lazy_relax = true
+amrmultigrid.num_smooth = 128
+amrmultigrid.num_mg = 1
+amrmultigrid.hang_eps = 1.0e-15
+amrmultigrid.norm_thresh = 1.0e-15
+amrmultigrid.tolerance = 1.0e-15
+amrmultigrid.max_iter = 100
+amrmultigrid.verbosity = 3
+do_diffusion = true
+# do_diffusion = false
+ slip_boundaries = false
+ tag_all_irregular = true
+ use_air_coefficients = false
+specific_heat        = 300.0
+
+thermal_conductivity = 1.7e-2
+#mu_viscosity         = 0.0
+#lambda_viscosity     = 0.0
+mu_viscosity         = 2.1e-5
+lambda_viscosity     = -1.4e-5
+
+
+
+

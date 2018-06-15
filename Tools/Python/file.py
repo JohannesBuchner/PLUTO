@@ -20,7 +20,7 @@ def openr (fname):
   try:
     fl = open (fname,'r')
   except IOError:
-    print " ! file.openr: Cannot open file '"+fname+"'"
+    print(" ! file.openr: Cannot open file '"+fname+"'")
     sys.exit()
 
   return (fl)
@@ -203,8 +203,8 @@ def count_words(f_name, i_line, f_line = -1):
    try:
      fl = open(f_name,'r')
    except IOError:
-     print "Error in count_words [file.py]:"
-     print "Cannot open file '"+f_name+"'"
+     print("Error in count_words [file.py]:")
+     print("Cannot open file '"+f_name+"'")
      sys.exit()
    
 # go to line i_line

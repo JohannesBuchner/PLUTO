@@ -1,0 +1,15 @@
+1
+0.5 0.5 .40
+0.20 0.05 1.5
+0 0.0
+0.5 0.5 0.65
+0.25 0.05 1.0
+0 0.0
+
+
+# format
+number of vortices
+(then for each vortex)
+x y z of center
+radius of ring from x,y=0, radius of vorticity support, strength
+wavenumber of perturbation, magnitude of perturbation

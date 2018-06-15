@@ -1,0 +1,108 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+c ---------------------------------------------------------------
+c this subroutine uses higher-order averaging to average
+c the fine data down to the coarse grid.
+c INPUTS/OUTPUTS:
+c coarse   <=>  coarse data
+c fine      => fine data -- note that boundary data must be filled
+c lap       =  scratch space for Laplacian
+c lapBox    => box over which Laplacian may be computed
+c coarseBox => extents of coarse gridbox
+c nref      => refinement ratio
+c fineRefBox=> box indexing the fine cells overlying a coarse cell
+c              (0,nRef-1) in each dimension
+c doHO      => if 0, don't do higher-order averaging
+c ---------------------------------------------------------------
+      subroutine AVERAGEHO(CHF_FRA1[coarse], CHF_CONST_FRA1[fine],
+     &                     CHF_FRA1[lap], CHF_BOX[b],
+     &                     CHF_BOX[lapBox],
+     &                     CHF_CONST_INT[nref],
+     &                     CHF_BOX[fineRefBox],
+     &                     CHF_INT[doHO],
+     &                     CHF_INT[doAverage])
+
+      integer var
+      integer CHF_AUTODECL[ic]
+      integer CHF_AUTODECL[ifine]
+      integer CHF_AUTODECL[ifinecell]
+      integer dir
+      REAL_T weight
+
+c     fineRefBox is the fine cells overlying a coarse cell
+c      CHF_LBOUND[fineRefBox;0] = 0
+c      CHF_UBOUND[fineRefBox;0] = nref-1
+#if (CH_SPACEDIM > 1)
+c      CHF_LBOUND[fineRefBox;1] = 0
+c      CHF_UBOUND[fineRefBox;1] = nref-1
+#endif
+#if (CH_SPACEDIM > 2)
+c      CHF_LBOUND[fineRefBox;2] = 0
+c      CHF_UBOUND[fineRefBox;2] = nref-1
+#endif
+
+c  set coarse to zero
+      CHF_AUTOMULTIDO[b;ic]
+         coarse(CHF_AUTOIX[ic]) = zero
+      CHF_ENDDO
+
+c  now compute the higher-order correction
+      CHF_AUTOMULTIDO[lapBox; ifine]
+        if ((CH_SPACEDIM.eq.2).and.(doHO.ne.0)) then
+#if (CH_SPACEDIM == 2)
+           weight = (nref+1)*nref/eight/four
+
+           lap(CHF_AUTOIX[ifine]) = -weight
+     &                               *(-four*fine(CHF_IX[ifine0;ifine1])
+     &                                +fine(CHF_IX[ifine0+1;ifine1])
+     &                                +fine(CHF_IX[ifine0-1;ifine1])
+     &                                +fine(CHF_IX[ifine0;ifine1+1])
+     &                                +fine(CHF_IX[ifine0;ifine1-1]))
+#endif
+        else
+c           call MAYDAY_ERROR()
+c  just set this to 0 for now
+          lap(CHF_AUTOIX[ifine]) = 0.0
+        endif
+
+      CHF_ENDDO
+
+c ::: now loop over coarse cells and compute averaged fine solution
+
+c ::: Choose between averaging and summing
+      if (doAverage .eq.1) then
+         weight = one/(nref**CH_SPACEDIM)
+      else
+         weight = one
+      endif
+
+      CHF_AUTOMULTIDO[b;ic]
+
+        CHF_AUTOMULTIDO[fineRefBox;ifinecell]
+
+        CHF_DTERM[
+          ifine0 = nref*ic0 + ifinecell0;
+          ifine1 = nref*ic1 + ifinecell1;
+          ifine2 = nref*ic2 + ifinecell2;
+          ifine3 = nref*ic3 + ifinecell3;
+          ifine4 = nref*ic4 + ifinecell4;
+          ifine5 = nref*ic5 + ifinecell5]
+
+
+          coarse(CHF_AUTOIX[ic]) = coarse(CHF_AUTOIX[ic])
+     &                 + weight*fine(CHF_AUTOIX[ifine])
+     &                 + weight*lap(CHF_AUTOIX[ifine])
+
+        CHF_ENDDO
+
+      CHF_ENDDO
+
+      return
+
+      end

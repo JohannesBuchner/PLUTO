@@ -1,0 +1,176 @@
+# -*- Mode: Makefile; -*-
+
+################################################################
+###
+### This makefile defines all the  default multidim rules for Chombo.
+### It should be `include'd in all other makefiles as the last line of the file.
+###
+### The file `$(CHOMBO_HOME)/mk/Make.defs' and $(CHOMBO_HOME)/mk/Make.rules 
+### should have been `include'd before this one.
+###
+### None of the variables are exported because this makefile is intended
+### to be `include'd by all the makefiles in the system.
+###
+### By convention, UPPERcase variables are user-visible, lowercase are not.
+###
+### This file expects certain variables to be defined before it is `include'd.
+### The library- or application-specific makefile should set either $(lbase) or $(ebase).
+### The `Make.defs.defaults' file or the user should set:
+###    DIM DEBUG OPT PRECISION PROFILE NAMESPACE CXX FC MPICXX MPI PROF USE_SETVAL OBJMODEL XTRACONFIG MULTIDIM
+### The user may also set:
+###        CXXFLAGS     CPPFLAGS     FFLAGS     LDFLAGS     LIBFLAGS
+###    XTRACXXFLAGS XTRACPPFLAGS XTRAFFLAGS XTRALDFLAGS XTRALIBFLAGS
+###
+### There are several user variables that control the behavior of the rules
+###  defined here.  They are:
+###    USE_64      if TRUE, use 64bit pointers on systems where 32bits is the default
+###    USE_COMPLEX if TRUE, enable the 'Complex' type
+###                 (default is TRUE, disable only if compiler doesn't allow it)
+###    USE_EB      if TRUE, build Chombo Embedded Boundary code
+###    USE_CCSE    if TRUE, build CCSE mglib and supporting code into one lib
+###    USE_HDF     if TRUE, use the HDF5 library
+###    USE_MF      if TRUE, build Chombo MultiFluid code (requires USE_EB=TRUE)
+###    USE_MT      if TRUE, enable Chombo memory tracking
+###    USE_SETVAL  if TRUE, initialize all FABs to special values
+###    USE_TIMER   if TRUE, enable Chombo Timer class
+###    ECHO   controls verbosity; default is "@", change to "" (null string)
+###           to echo commands that _aren't_ echoed by default
+###    QUIET  controls verbosity; default is "", change to "@" to disable
+###           echo of commands that _are_ echoed by default
+###    NODEPENDS controls building dependency files; default is unset, change
+###              to anything to skip building the .d files [NOTE: this is
+###              dangerous and should probably only be used when doing
+###              'clean' or 'realclean' targets.]
+###
+### There are several other variables that control how programs are executed
+### by the various "run*" targets.  They are:
+###    RUN       prepended to the filename of the program to initiate execution
+###              (default for serial is "./", default for parallel is "mpirun -np 2 ./")
+###    RUNFLAGS  options specified after the program filename to initiate execution
+###              (default for serial is null, default for parallel is null;
+###               used for parallel execution when the "-np" option (or its equivalent)
+###               must come after the program name)
+###    VERBOSE   to control the amount of output produced by the program
+###              (Chombo programs canonically use "-q" to run quietly and "-v"
+###               to run verbosely.  default is "-q".)
+###    INPUT     arguments to the program (default is <program-basename>.inputs)
+###
+### Compiling for parallel execution using MPI is determined by the $MPI
+### logical variable (==TRUE or FALSE) and $MPICXX, which specifies the name
+### of the parallel compiler.  In this case, the CXX variable specifies the
+### serial compiler that is used by the parallel compiler. The $CXXFLAGS
+### variable is used to get the compiler options in either case.
+### The actual compiles are done with a local variable, $cxxc, which
+### is set depending on whether MPI is TRUE or not.
+###
+### Some of the variable set C-preprocessor macro variables when the code is
+### compiled.  Chombo cpp macro variables have the form "CH_USE_FEATURE"
+### except for CH_SPACEDIM, CH_MPI, NDEBUG and CH_<system> (where <system>
+### is the OS type) Only CH_SPACEDIM has a value that is meaningful.  For
+### all others it matters only if they are defined or not.
+### See the definition of CPPFLAGS below to find the names of the Chombo macro
+### variables and which make variables control them.
+###
+#################################################################
+# In several place sh invokes a csh to get error returns handled correctly
+# when pipes are used (sigh)...
+#################################################################
+
+makefiles+=Make.rules.md
+
+## First, set some local variables
+##  6dconfig       is the configuration identification string used in filenames
+
+##
+## The next group of rules compile code
+##
+
+# rules to build objects for executable programs and libraries
+
+o/$(6dconfig)/%.o : %.cpp   d/$(6dconfig)/%.d
+	$(QUIET)$(cxxc) $(CXXFLAGS) $(XTRACXXFLAGS) $(pic) -DCH_SPACEDIM=6 $(MDCPPFLAGS) $(XTRACPPFLAGS) -DCH_LANG_CC $(cxxcompflag) $< $(cxxobjflag)$@
+
+o/$(6dconfig)/%.o : %.ChF  d/$(6dconfig)/%.d
+	$(QUIET)$(chfpp_src) -f $< $(CHFFLAGS) -p p/$(6dconfig)/$(notdir $*.C) -c /dev/null -D 6
+#       this is not as stupid as it looks---see comment below
+	$(QUIET)$(CSHELLCMD) "$(CH_CPP) -DCH_SPACEDIM=6 $(MDCPPFLAGS) -I. $(XTRACPPFLAGS) $(fcppflags) -DCH_LANG_FORT p/$(6dconfig)/$(notdir $*.C) | awk 'NF>0' > p/$(6dconfig)/$(notdir $*.cpre)"
+	$(QUIET)$(CSHELLCMD) "cat p/$(6dconfig)/$(notdir $*.cpre) | $(stripsharp_src)  | $(fortpost)  > f/$(6dconfig)/$*.f"
+	$(QUIET)$(FC) $(FFLAGS) $(XTRAFFLAGS) $(fcompflag) f/$(6dconfig)/$*.f $(fobjflag)$@
+
+o/$(6dconfig)/%.o : %.F  d/$(6dconfig)/%.d
+	$(QUIET)$(CSHELLCMD) "$(CH_CPP) -DCH_SPACEDIM=6 $(MDCPPFLAGS) $(XTRACPPFLAGS) $(fcppflags) -DCH_LANG_FORT $< | $(fortpost) | awk 'NF>0' > f/$(6dconfig)/$*.f"
+	$(QUIET)$(FC) $(FFLAGS) $(XTRAFFLAGS) $(fcompflag) f/$(6dconfig)/$*.f $(fobjflag)$@
+
+o/$(6dconfig)/%.o : %.f  d/$(6dconfig)/%.d
+	$(QUIET)$(FC) $(FFLAGS) $(XTRAFFLAGS) $(fcompflag) $< $(fobjflag)$@
+
+##
+## Rules to make dependency files.
+## The dependency file is modified always to include the dependency file itself as a dependent.
+## The dependency file is also modified to change the name of the object file:
+##  when building a library, the dependent is the library member;
+##  when building an executable, the dependent is the object file in the o/ subdirectory.
+## All dependency files depend on the file ".dummy" to guarantee that the d/$6dconfig subdir
+##  is created before doing anything else.  This only matters when running make in parallel.
+
+
+
+d/$(6dconfig)/%.d : %.cpp d/$(6dconfig)/.dummy
+#	$(QUIET)touch $<
+	@if [ x"$(QUIET)" != x"@" ]; then echo Depending $< ...; fi
+ifdef lbase
+	$(ECHO)$(CSHELLCMD) "$(mkdep) -DCH_SPACEDIM=6 $(MDCPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%$(_lib_6dconfig)(\1.o) $@ : %g' > $@"
+else
+	$(ECHO)$(CSHELLCMD) "$(mkdep) -DCH_SPACEDIM=6 $(MDCPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%o/$(6dconfig)/\1.o $@ : %g' > $@"
+endif
+#	# if $(mkdep) failed, sed will still make the output file so delete it if it is empty
+	$(ECHO)if [ ! -s $@ ]; then $(RM) $@; fi
+
+d/$(6dconfig)/%.d : %.ChF d/$(6dconfig)/.dummy
+	@if [ x"$(QUIET)" != x"@" ]; then echo Depending $< ...; fi
+ifdef lbase
+	$(ECHO)$(CSHELLCMD) "$(mkdep) -DCH_SPACEDIM=6 $(MDCPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%$(_lib_6dconfig)(\1.o) $@ : %g' > $@"
+else
+	$(ECHO)$(CSHELLCMD) "$(mkdep) -DCH_SPACEDIM=6 $(MDCPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%o/$(6dconfig)/\1.o $@ : %g' > $@"
+endif
+#	# if $(mkdep) failed, sed will still make the output file so delete it if it is empty
+	$(ECHO)if [ ! -s $@ ]; then $(RM) $@; fi
+
+d/$(6dconfig)/%.d : %.F d/$(6dconfig)/.dummy
+	@if [ x"$(QUIET)" != x"@" ]; then echo Depending $< ...; fi
+ifdef lbase
+	$(ECHO)$(CSHELLCMD) "$(mkdep) -DCH_SPACEDIM=6 $(MDCPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%$(_lib_6dconfig)(\1.o) $@ : %g' > $@"
+else
+	$(ECHO)$(CSHELLCMD) "$(mkdep) -DCH_SPACEDIM=6 $(MDCPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%o/$(6dconfig)/\1.o $@ : %g' > $@"
+endif
+#	# if $(mkdep) failed, sed will still make the output file so delete it if it is empty
+	$(ECHO)if [ ! -s $@ ]; then $(RM) $@; fi
+
+d/$(6dconfig)/%.d : %.f d/$(6dconfig)/.dummy
+	@if [ x"$(QUIET)" != x"@" ]; then echo Depending $< ...; fi
+ifdef lbase
+	$(ECHO)$(CSHELLCMD) "$(mkdep) -DCH_SPACEDIM=6 $(MDCPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%$(_lib_6dconfig)(\1.o) $@ : %g' > $@"
+else
+	$(ECHO)$(CSHELLCMD) "$(mkdep) -DCH_SPACEDIM=6 $(MDCPPFLAGS) $(XTRACPPFLAGS) $< | sed 's%\($*\)\.o[ :]*%o/$(6dconfig)/\1.o $@ : %g' > $@"
+endif
+#	# if $(mkdep) failed, sed will still make the output file so delete it if it is empty
+	$(ECHO)if [ ! -s $@ ]; then $(RM) $@; fi
+
+#################################################################################
+
+# This file exists solely to force creation of the subdirectories that
+# hold the dependency, object and preprocessor files.
+# NOTE: we cant use a dependency for this because .dummy will always
+#       be out-of-date with respect to the subdirs because they are
+#       modified after .dummy is created.  But since there are no
+#       dependencies, this rule only runs when the file doesn't exist.
+%/$(6dconfig)/.dummy:
+	$(ECHO)mkdir -p o/$(6dconfig) f/$(6dconfig) d/$(6dconfig) p/$(6dconfig)
+	$(ECHO)touch $@
+
+# Rule to build subdirectories.
+#XXX# [NOTE: I think this is unnecessary now. <dbs>]
+#XXXo/$(6dconfig) f/$(6dconfig) d/$(6dconfig) p/$(6dconfig):
+#XXX	mkdir -p $@
+
+

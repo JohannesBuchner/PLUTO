@@ -1,0 +1,52 @@
+#main parameters
+main.verbosity = 4 # higher number means more verbose output
+main.iterations = 1 # number of times to do Poisson solve
+main.writePlotFiles = 1 # if 1, write hdf5 plotfiles
+
+#AMR grid generation parameters
+grids.num_cells = 32 32 32 32 # number of cells on base level
+grids.max_level = 2 # finest allowable AMR level 
+grids.max_box_size = 10000
+grids.domain_size = 1.0 1.0 1.0
+  
+grids.block_factor = 8
+grids.fillRatio = 0.85 # how efficiently to make refined meshes.
+grids.ref_ratio = 2 2 2
+grids.refine_threshold = 0.25
+
+# periodicity over-rides BC's
+grids.is_periodic = 0 0 0 # 1 if periodic, 0 if not
+
+# Multigrid solver parameters
+solver.num_smooth = 4
+solver.num_mg     = 1
+solver.num_bottom = 1
+solver.num_pre = 2
+solver.num_post = 2
+
+solver.max_iterations = 100
+solver.tolerance  = 1.0e-9
+solver.hang       = 1.0e-10
+
+
+#bcs for faces -- note that periodic BC's over-ride bc_lo and bc_hi
+#5==reflective slip
+#6==no slip
+bc_lo              = 6 6 6 
+bc_hi              = 6 6 6 
+bc_value = 0.0  
+
+# example of grid-reading capability. 
+# set read_in_grids to "true" to see 
+# example of grids read from the inputs file
+# rather than being dynamically adaptive
+grids.read_in_grids       = false
+#grids.read_in_grids       = true
+grids.level_1_box_count   = 2
+grids.level_1_box_0_lo   = 8 8 8
+grids.level_1_box_0_hi   = 23 23 23
+grids.level_1_box_1_lo   = 32 32 32
+grids.level_1_box_1_hi   = 47 47 47 
+grids.level_2_box_count   = 1
+grids.level_2_box_0_lo   = 24 24 24
+grids.level_2_box_0_hi   = 39 39 39

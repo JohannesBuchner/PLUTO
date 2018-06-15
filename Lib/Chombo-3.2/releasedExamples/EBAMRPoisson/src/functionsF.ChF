@@ -1,0 +1,1688 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+cccccccccccccccccccc
+        subroutine getetaresist(
+     &     chf_fra1[eta],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[dx],
+     &     chf_const_realvect[problo],
+     &     chf_box[box],
+     $     chf_int[idir],
+     $     chf_real[etaval],
+     $     chf_real[eps],
+     $     chf_int[whicheta]
+     $     )
+
+        integer chf_ddecl[i;j;k],jdir
+
+        real_t x(0:CH_SPACEDIM-1)
+        integer iv(0:CH_SPACEDIM-1)
+
+        chf_multido[box;i;j;k]
+           CHF_DTERM[
+           iv(0) = i;
+           iv(1) = j;
+           iv(2) = k]
+
+           do jdir = 0, CH_SPACEDIM-1
+              if(idir .eq. jdir) then
+                 x(jdir) = iv(jdir)*dx(jdir) + problo(jdir)
+              else
+                 x(jdir) = (iv(jdir)+half)*dx(jdir) + problo(jdir)
+              endif
+           enddo
+
+          call getetapointresist(eta(chf_ix[i;j;k]),freq,x,
+     $          etaval, eps, whicheta)
+
+        chf_enddo
+
+        return
+        end
+
+cccccccccccccccccccccccccccccccc
+        subroutine getetapointresist(
+     &     chf_real[eta],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[xval],
+     $     chf_real[etaval],
+     $     chf_real[eps],
+     $     chf_int[whicheta]
+     $     )
+
+        REAL_T CHF_DDECL[x; y; z]
+
+
+        if(whicheta.eq. 1) then
+
+           CHF_DTERM[
+           x = freq(0)*xval(0);
+           y = freq(1)*xval(1);
+           z = freq(2)*xval(2)]
+
+           eta  = etaval*(one + eps*(CHF_DTERM[sin(x); + sin(y); +sin(z)]))
+c           eta  = one
+
+        elseif(whicheta.eq.0) then
+
+           eta = one
+c           eta = 0.01
+
+        elseif(whicheta.eq.3) then
+
+           eta = half
+c           eta = 0.01
+
+        else
+           call MayDay_Error()
+        endif
+
+        return
+        end
+ccccccccccccccccccccccccccccc
+        subroutine getklbresist(
+     &     chf_fra1[klb],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[dx],
+     &     chf_const_realvect[problo],
+     $     chf_const_real[alpha],
+     $     chf_const_real[beta],
+     &     chf_box[box],
+     $     chf_int[icomp],
+     $     chf_real[eps],
+     $     chf_int[whichmag],
+     $     chf_int[whicheta]
+     $     )
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getklbpointresist(klb(chf_ix[i;j;k]),freq,x,
+     $         alpha, beta, icomp, eps, whichmag, whicheta)
+
+        chf_enddo
+
+        return
+        end
+
+        subroutine getmagresist(
+     &     chf_fra1[mag],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[dx],
+     &     chf_const_realvect[problo],
+     &     chf_box[box],
+     $     chf_int[icomp],
+     $     chf_int[whichmag]
+     $     )
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getmagpointresist(mag(chf_ix[i;j;k]),freq,x,
+     $         icomp, whichmag)
+
+        chf_enddo
+
+        return
+        end
+
+cccccccccccccccccccccccccccccccc
+        subroutine getmagpointresist(
+     &     chf_real[mag],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[xval],
+     $     chf_const_int[icomp],
+     $     chf_const_int[whichmag]
+     $     )
+
+        REAL_T  CHF_DDECL[x;y;z], time
+        integer CHF_DDECL[i;j;k]
+
+        CHF_DTERM[
+        i = icomp;
+        j = max(1-icomp, 0);
+        k = 3-icomp-j]
+
+
+c        frequency already multiplied by pi
+        if(whichmag.eq. 2) then
+           CHF_DTERM[
+           x = freq(i)*xval(i);
+           y = freq(j)*xval(j);
+           z = freq(k)*xval(k)]
+
+#if CH_SPACEDIM==2
+           mag = sin(y)
+#elif CH_SPACEDIM==3
+           mag = sin(y) + sin(z)
+#else
+           bogus_spacedim()
+#endif
+        else if (whichmag .eq.3) then
+           time = zero
+           call getphipoint(mag, freq, xval, time)
+
+        elseif(whichmag.eq. 1) then
+           x = freq(icomp)*xval(icomp)
+           mag = sin(x)
+        elseif(whichmag.eq.0) then
+           x = xval(icomp)
+           mag = x*x
+        elseif(whichmag.eq.4) then
+           x = xval(icomp)
+           mag = x
+        else
+           call MayDay_Error()
+        endif
+
+        return
+        end
+
+cccccccccccccccccccccccccccccccc
+        subroutine getdvdxpointresist(
+     &     chf_real[mag],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[xval],
+     $     chf_const_int[icomp],
+     $     chf_const_int[ideriv],
+     $     chf_const_int[whichmag]
+     $     )
+
+        REAL_T  CHF_DDECL[x;y;z], time, gradphi(0:CH_SPACEDIM-1)
+        integer CHF_DDECL[i;j;k]
+
+        CHF_DTERM[
+        i = icomp;
+        j = max(1-icomp, 0);
+        k = 3-icomp-j]
+
+
+c        frequency already multiplied by pi
+        if(whichmag.eq. 2) then
+           CHF_DTERM[
+           x = freq(i)*xval(i);
+           y = freq(j)*xval(j);
+           z = freq(k)*xval(k)]
+
+#if CH_SPACEDIM==2
+           if(ideriv.eq.j) then
+              mag = freq(j)*cos(y)
+           else
+              mag = zero
+           endif
+#elif CH_SPACEDIM==3
+           if(ideriv.eq.j) then
+              mag = freq(j)*cos(y)
+           else if (ideriv.eq.k) then
+              mag = freq(k)*cos(z)
+           else
+              mag = zero
+           endif
+#else
+           bogus_spacedim()
+#endif
+
+        else if (whichmag .eq.3) then
+           time = zero
+           call getgradphipoint(gradphi, freq, xval, time)
+           mag = gradphi(ideriv)
+
+        elseif(whichmag.eq. 1) then
+
+           if(ideriv.eq.icomp) then
+              x = freq(icomp)*xval(icomp)
+              mag = freq(icomp)*cos(x)
+           else
+              mag = zero
+           endif
+        elseif(whichmag.eq. 4) then
+
+           if(ideriv.eq.icomp) then
+              mag = one
+           else
+              mag = zero
+           endif
+
+        else
+           call MayDay_Error()
+        endif
+
+        return
+        end
+cccccccccccccccccccccccccccccccc
+        subroutine getklbpointresist(
+     &     chf_real[klb],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[xvec],
+     $     chf_const_real[alpha],
+     $     chf_const_real[beta],
+     $     chf_int[icomp],
+     $     chf_real[eps],
+     $     chf_int[whichmag],
+     $     chf_int[whicheta]
+     $     )
+
+        REAL_T  CHF_DDECL[fx;fy;fz], time
+        REAL_T  CHF_DDECL[x;y;z],  termone, etaval
+        REAL_T  CHF_DDECL[freqx;freqy;freqz], mag, divf, eta
+        integer CHF_DDECL[i;j;k]
+
+        CHF_DTERM[
+        i = icomp;
+        j = max(1-icomp, 0);
+        k = 3-icomp-j]
+        etaval = one
+        call getetapointresist(eta,freq,xvec,  etaval, eps, whicheta)
+        call getmagpointresist(mag,freq,xvec,  icomp, whichmag)
+
+c        frequency already multiplied by pi
+        CHF_DTERM[
+        freqx = freq(i);
+        freqy = freq(j);
+        freqz = freq(k)]
+
+        CHF_DTERM[
+        x = xvec(i);
+        y = xvec(j);
+        z = xvec(k)]
+
+
+        if((whichmag.eq. 2).and.(whicheta.eq.0)) then
+
+           divf = -(freqy*freqy*sin(freqy*y))
+
+#if CH_SPACEDIM==3
+           divf = divf - (freqz*freqz*sin(freqz*z))
+#endif
+
+        elseif((whichmag.eq. 3).and.(whicheta.eq.0)) then
+           time = 0.0
+           call getlofphipoint(klb, freq, xvec, alpha, beta, time)
+           goto  123
+
+        elseif((whichmag.eq. 2).and.(whicheta.eq.1)) then
+
+           CHF_DTERM[
+           fx = freqx*x;
+           fy = freqy*y;
+           fz = freqz*z]
+
+           divf = (freqy*cos(fy) - freqx*cos(fx))*(eps*freqy*cos(fy)) - freqy*freqy*eta*sin(fy)
+#if CH_SPACEDIM==3
+           divf = eps*freqy*cos(fy)*(freqy*cos(fy) - freqx*cos(fx))  - eta*freqy*freqy*sin(fy)
+     $          + eps*freqz*cos(fz)*(freqz*cos(fz) - freqx*cos(fx))  - eta*freqz*freqz*sin(fz)
+#endif
+
+
+        elseif((whichmag.eq. 1).and.(whicheta.eq.1)) then
+
+           termone =  CHF_DTERM[
+     $          freqx*cos(freqx*x); +
+     $          freqy*cos(freqy*y); +
+     $          freqz*cos(freqz*z)]
+
+          divf = eps*freqx*cos(freqx*x)*termone
+     $         -freqx*freqx*sin(freqx*x)*eta
+
+        elseif((whichmag.eq.0).and.(whicheta.eq.0)) then
+
+           divf = two
+
+        elseif((whichmag.eq.4).and.(whicheta.eq.0)) then
+
+           divf = zero
+
+        elseif((whichmag.eq.1).and.(whicheta.eq.0)) then
+
+           divf = -freqx*freqx*sin(freqx*x)
+
+        else
+c     some whichmag, whicheta combination called which i did not account for
+           call MayDay_Error()
+        endif
+        klb = alpha*mag  + beta*divf
+
+ 123    continue
+
+        return
+        end
+
+ccccccccccccccccccccccccccccc
+        subroutine getklvviscous(
+     &     chf_fra1[klb],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[dx],
+     &     chf_const_realvect[problo],
+     $     chf_const_real[alpha],
+     &     chf_box[box],
+     $     chf_int[icomp],
+     $     chf_real[eps],
+     $     chf_int[whichvel],
+     $     chf_int[whicheta],
+     $     chf_int[whichlambda],
+     $     chf_const_real[beta],
+     $     chf_real[lambdafactor]
+     $     )
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getklvpointviscous(klb(chf_ix[i;j;k]),
+     $         freq,x, alpha, icomp, eps,
+     $         whichvel, whicheta, whichlambda, beta, lambdafactor)
+
+        chf_enddo
+
+        return
+        end
+
+cccccccccccccccccccccccccccccccc
+        subroutine getklvpointviscous(
+     &     chf_real[klv],
+     &     chf_const_realvect[freq],
+     &     chf_const_realvect[xvec],
+     $     chf_const_real[alpha],
+     $     chf_int[icomp],
+     $     chf_real[eps],
+     $     chf_int[whichvel],
+     $     chf_int[whicheta],
+     $     chf_int[whichlambda],
+     $     chf_const_real[beta],
+     $     chf_real[lambdafactor]
+     $     )
+
+        REAL_T  CHF_DDECL[x;y;z],   lambda
+        REAL_T  CHF_DDECL[freqx;freqy;freqz], vel, divf, eta
+        real_t chf_ddecl[fx;fy;fz], etaval
+        integer CHF_DDECL[i;j;k]
+
+        CHF_DTERM[
+        i = icomp;
+        j = max(1-icomp, 0);
+        k = 3-icomp-j]
+        etaval = one
+        call getetapointresist(   eta,freq,xvec, etaval, eps, whicheta)
+        if(whichlambda .eq. 2) then
+           lambda = -lambdafactor*eta
+        else
+           call getetapointresist(lambda,freq, xvec, etaval, eps, whichlambda)
+        endif
+
+        call getmagpointresist(   vel,freq,xvec, icomp, whichvel)
+
+c        frequency already multiplied by pi
+        CHF_DTERM[
+        freqx = freq(i);
+        freqy = freq(j);
+        freqz = freq(k)]
+
+        CHF_DTERM[
+        x = xvec(i);
+        y = xvec(j);
+        z = xvec(k)]
+
+        CHF_DTERM[
+        fx = freqx*x;
+        fy = freqy*y;
+        fz = freqz*z]
+
+        if((whichvel.eq.2).and.(whicheta.eq.0)) then
+c     not dependent on lambda since div v = 0
+
+           divf = -freqy*freqy*sin(fy)
+#if CH_SPACEDIM==3
+           divf = divf -freqz*freqz*sin(fz)
+#endif
+
+        else if((whichvel.eq.1).and.(whicheta.eq.3).and.(whichlambda.eq.3)) then
+
+           divf = -three*half*freqx*freqx*sin(fx)
+        else if((whichvel.eq.1).and.(whicheta.eq.0).and.(whichlambda.eq.0)) then
+
+           divf = -three*freqx*freqx*sin(fx)
+
+        else if((whichvel.eq.1).and.(whicheta.eq.0).and.(whichlambda.eq.2)) then
+
+           divf = -(two - lambdafactor)*freqx*freqx*sin(fx)
+
+        else if((whichvel.eq.1).and.(whicheta.eq.1).and.(whichlambda.eq.1)) then
+           divf =       -three*eta*freqx*freqx*sin(fx)
+           divf = divf + three*eps*freqx*freqx*cos(fx)*cos(fx)
+           divf = divf +       eps*freqx*freqy*cos(fx)*cos(fy)
+#if CH_SPACEDIM==3
+           divf = divf +       eps*freqx*freqz*cos(fx)*cos(fz)
+#endif
+
+
+        else if((whichvel.eq.1).and.(whicheta.eq.1).and.(whichlambda.eq.2)) then
+           divf =       -(two - lambdafactor)*eta*freqx*freqx*sin(fx)
+           divf = divf + (two - lambdafactor)*eps*freqx*freqx*cos(fx)*cos(fx)
+           divf = divf -       (lambdafactor)*eps*freqx*freqy*cos(fx)*cos(fy)
+#if CH_SPACEDIM==3
+           divf = divf -       (lambdafactor)*eps*freqx*freqz*cos(fx)*cos(fz)
+#endif
+
+        else if((whichvel.eq.2).and.(whicheta.eq.1)) then
+
+c     not dependent on lambda since div v = 0
+           divf =       - eta*freqy*freqy*sin(fy)
+#if CH_SPACEDIM==3
+           divf = divf  - eta*freqz*freqz*sin(fz)
+#endif
+
+           divf = divf + eps*freqy*cos(fy)*(freqy*cos(fy) + freqx*cos(fx))
+#if CH_SPACEDIM==3
+           divf = divf + eps*freqz*cos(fz)*(freqz*cos(fz) + freqx*cos(fx))
+#endif
+
+        else if(whichvel.eq.3) then
+           divf = 0
+           call getlofphipoint(klv,freq,xvec,alpha,beta,divf)
+
+        else if(whichvel.eq.4) then
+
+           divf = zero
+
+        else
+
+c     some whichvel, whicheta,whichlambda combination called which i did not account for
+           call MayDay_Error()
+
+        endif
+
+        klv = alpha*vel  + beta*divf
+
+
+        return
+        end
+      real_t  function getphirzfunc(radius)
+      implicit none
+      real_t radius
+
+      getphirzfunc = radius*radius
+
+      return
+      end
+
+
+      real_t  function getgradphirzfunc(radius)
+
+      implicit none
+      real_t radius
+
+      getgradphirzfunc = two*radius
+
+      return
+      end
+
+      real_t  function getlaplphirzfunc(radius)
+
+      implicit none
+      real_t radius
+
+      getlaplphirzfunc = four
+
+      return
+      end
+
+
+        subroutine getphi(
+     &    chf_fra1[phi],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[dx],
+     &    chf_const_real[time],
+     &    chf_const_realvect[problo],
+     &    chf_const_realvect[probhi],
+     &    chf_box[box])
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+c
+c       set phi to a trig function at the spatial coordinates
+c
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getphipoint(phi(chf_ix[i;j;k]),freq,x,time)
+        chf_enddo
+
+        return
+        end
+
+
+        subroutine getphipoint(
+     &    chf_real[phi],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[x],
+     &    chf_const_real[time])
+
+c
+c       set phi to a trig function at the spatial coordinates
+c
+        phi = chf_dterm[sin(freq(0)*x(0));
+     &                * sin(freq(1)*x(1));
+     &                * sin(freq(2)*x(2))]
+        phi = phi*cos(time)
+
+c        phi = time**2
+
+c     debug
+c        phi = x(0)*x(0) + x(1)*x(1)
+c        phi = x(0)*x(0)
+c     end debug
+
+        return
+        end
+
+
+        subroutine getshphi(
+     &    chf_fra1[phi],
+     &    chf_const_realvect[lmp],
+     &    chf_const_realvect[dx],
+     &    chf_const_real[time],
+     &    chf_const_realvect[problo],
+     &    chf_const_realvect[probhi],
+     &    chf_box[box])
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+c
+c       set phi to a spherical harmonic at the spatial coordinates
+c
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getshphipoint(phi(chf_ix[i;j;k]),lmp,x,time)
+        chf_enddo
+
+        return
+        end
+
+
+        subroutine getshphipoint(
+     &    chf_real[phi],
+     &    chf_const_realvect[lmp],
+     &    chf_const_realvect[x],
+     &    chf_const_real[time])
+
+        external normalization
+        real_t normalization
+        external algndr
+        real_t algndr
+        external bessel
+        real_t bessel
+        external trigphi
+        real_t trigphi
+
+        real_t r(0:CH_SPACEDIM-1)
+
+        integer l,m
+        real_t z,phase
+
+        call convert_spherical(x,r)
+
+        l = int(lmp(0))
+#if CH_SPACEDIM == 1
+        m = 0
+        phase = 0.
+        phi = normalization(l,m)*
+     &        trigphi(l,r(0),phase)
+#elif CH_SPACEDIM == 2
+        z = -sqrt(l**2-1.)
+        m = 0
+        phase = 0.
+        phi = normalization(l,m)*
+     &        (r(0)**z)*
+     &        trigphi(l,r(1),phase)
+#elif CH_SPACEDIM == 3
+        m = int(lmp(1))
+        phase = PI*lmp(2)
+        z = cos(r(1))
+        phi = normalization(l,m)*
+     &        bessel(l,r(0))*
+     &        algndr(l,m,z)*
+     &        trigphi(m,r(2),phase)
+#else
+        bogus_spacedim()
+#endif
+        return
+        end
+
+
+        subroutine getlofphirzpoly(
+     &    chf_real[lofphi],
+     &    chf_const_realvect[x],
+     &    chf_const_real[alpha],
+     &    chf_const_real[beta])
+
+        real_t phi, laplphi
+        real_t dist
+        external getlaplphirzfunc
+        real_t getlaplphirzfunc
+        external getphirzfunc
+        real_t getphirzfunc
+
+        dist = abs(x(0))
+
+        phi = getphirzfunc(dist)
+        laplphi = getlaplphirzfunc(dist)
+
+        lofphi = alpha*phi + beta*laplphi
+
+
+        return
+        end
+
+        subroutine getphirzpoly(
+     &    chf_real[phi],
+     &    chf_const_realvect[x])
+
+        real_t dist
+        external getphirzfunc
+        real_t getphirzfunc
+
+        dist =abs(x(0))
+
+        phi = getphirzfunc(dist)
+
+        return
+        end
+
+
+      subroutine getgradphirzpoly(
+     &     chf_realvect[gradphi],
+     &     chf_const_realvect[x])
+
+        real_t dist
+        external getgradphirzfunc
+        real_t getgradphirzfunc
+
+        dist = abs(x(0))
+
+c     dphidr = 3r^2
+        CHF_DTERM[
+        gradphi(0) = getgradphirzfunc(dist);
+        gradphi(1) = zero;
+        gradphi(2) = zero]
+
+        return
+        end
+
+
+        subroutine getgradphipoint(
+     &    chf_realvect[gradphi],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[x],
+     &    chf_const_real[time])
+
+        integer idir
+c
+c       set gradphi to grad(a trig function at the spatial coordinates)
+c
+        chf_dselect[
+        gradphi(0) = freq(0) * cos(freq(0)*x(0))                                       ;
+
+        gradphi(0) = freq(0) * cos(freq(0)*x(0)) * sin(freq(1)*x(1))
+        gradphi(1) = freq(1) * sin(freq(0)*x(0)) * cos(freq(1)*x(1))                   ;
+
+        gradphi(0) = freq(0) * cos(freq(0)*x(0)) * sin(freq(1)*x(1)) * sin(freq(2)*x(2))
+        gradphi(1) = freq(1) * sin(freq(0)*x(0)) * cos(freq(1)*x(1)) * sin(freq(2)*x(2))
+        gradphi(2) = freq(2) * sin(freq(0)*x(0)) * sin(freq(1)*x(1)) * cos(freq(2)*x(2))]
+
+        do idir = 0, CH_SPACEDIM-1
+           gradphi(idir) = gradphi(idir)*cos(time)
+c           gradphi(idir) = 0.0
+        enddo
+
+c     debug
+c       gradphi(0) = two*x(0)
+c       gradphi(1) = two*x(1)
+c       gradphi(1) = zero
+c     end debug
+        return
+        end
+
+
+        subroutine getgradshphipoint(
+     &    chf_realvect[gradphi],
+     &    chf_const_realvect[lmp],
+     &    chf_const_realvect[x],
+     &    chf_const_real[time])
+
+        external normalization
+        real_t normalization
+        external algndr
+        real_t algndr
+        external bessel
+        real_t bessel
+        external d_algndr
+        real_t d_algndr
+        external d_bessel
+        real_t d_bessel
+        external trigphi
+        real_t trigphi
+        external d_trigphi
+        real_t d_trigphi
+
+        real_t chf_ddecl[gr;gtheta;gphi]
+        real_t chf_ddecl[rad;st;sp]
+        real_t chf_ddecl[ir;ct;cp]
+        real_t r(0:CH_SPACEDIM-1)
+
+        integer l,m,idir
+        real_t z,phase
+
+        call convert_spherical(x,r)
+
+        chf_dterm[
+                  rad = r(0);
+                  st = sin(r(1));
+                  sp = sin(r(2))]
+        if (rad.eq.0.) call MayDay_Error()
+        chf_dterm[
+                  ir = 1./rad;
+                  ct = cos(r(1));
+                  cp = cos(r(2))]
+        l = int(lmp(0))
+#if CH_SPACEDIM == 1
+        m = 0
+        phase = 0.
+        gr = normalization(l,m)*
+     &       d_trigphi(l,rad,phase)
+#elif CH_SPACEDIM == 2
+        z = -sqrt(l**2-1.)
+        m = 0
+        phase = 0.
+        gr = normalization(l,m)*
+     &       z*(rad**(z-1.))*
+     &       trigphi(l,r(1),phase)
+        gtheta = normalization(l,m)*
+     &           (rad**z)*
+     &           ir*d_trigphi(l,r(1),phase)
+#elif CH_SPACEDIM == 3
+        m = int(lmp(1))
+        phase = PI*lmp(2)
+        gr = normalization(l,m)*
+     &       d_bessel(l,rad)*
+     &       algndr(l,m,ct)*
+     &       trigphi(m,r(2),phase)
+        gtheta = normalization(l,m)*
+     &           bessel(l,rad)*
+     &           ir*d_algndr(l,m,ct)*
+     &           trigphi(m,r(2),phase)
+        if (st.ne.0.) then
+           gphi = normalization(l,m)*
+     &            bessel(l,rad)*
+     &            algndr(l,m,ct)*
+     &            (ir/st)*d_trigphi(m,r(2),phase)
+        else
+           gphi = 0.
+        endif
+#else
+        bogus_spacedim();
+#endif
+c
+c       set gradphi to grad(a spherical harmonic function at the spatial coordinates)
+c
+        chf_dselect[
+        gradphi(0) = gr                               ;
+
+        gradphi(0) = ct*gr - st*gtheta
+        gradphi(1) = st*gr + ct*gtheta                ;
+
+        gradphi(0) = st*cp*gr + ct*cp*gtheta - sp*gphi
+        gradphi(1) = st*sp*gr + ct*sp*gtheta + cp*gphi
+        gradphi(2) = ct   *gr - st   *gtheta          ]
+
+        do idir = 0, CH_SPACEDIM-1
+           gradphi(idir) = gradphi(idir)*cos(time)
+        enddo
+
+        return
+        end
+
+
+        subroutine getmarshagradphipoint(
+     &    chf_realvect[gradphi],
+     &    chf_const_realvect[x])
+
+c       set gradphi to grad(marsha func)
+
+#if CH_SPACEDIM == 1
+        gradphi(0) = zero
+#elif CH_SPACEDIM == 2
+        gradphi(0) = cos(x(0))*exp(x(1))
+        gradphi(1) = sin(x(0))*exp(x(1))
+#elif CH_SPACEDIM == 3
+        gradphi(0) = cos(x(0))*exp(x(1))
+        gradphi(1) = sin(x(0))*exp(x(1))
+        gradphi(2) = zero
+#else
+        bogus_spacedim();
+#endif
+c     end debug
+        return
+        end
+
+
+        subroutine getlofphi(
+     &    chf_fra1[lofphi],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[dx],
+     &    chf_const_realvect[problo],
+     &    chf_const_realvect[probhi],
+     &    chf_const_real[alpha],
+     &    chf_const_real[beta],
+     &    chf_const_real[time],
+     &    chf_box[box])
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+c
+c       set lofphi to l(a trig function at the spatial coordinates)
+c
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getlofphipoint(lofphi(chf_ix[i;j;k]),freq,x,alpha,beta,time)
+        chf_enddo
+
+        return
+        end
+
+
+        subroutine getlofshphi(
+     &    chf_fra1[lofphi],
+     &    chf_const_realvect[lmp],
+     &    chf_const_realvect[dx],
+     &    chf_const_realvect[problo],
+     &    chf_const_realvect[probhi],
+     &    chf_const_real[alpha],
+     &    chf_const_real[beta],
+     &    chf_const_real[time],
+     &    chf_box[box])
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+c
+c       set lofphi to l(a trig function at the spatial coordinates)
+c
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getlofshphipoint(lofphi(chf_ix[i;j;k]),lmp,x,alpha,beta,time)
+        chf_enddo
+
+        return
+        end
+
+
+        subroutine getmarshalofphi(
+     &    chf_fra1[lofphi],
+     &    chf_const_realvect[dx],
+     &    chf_const_realvect[problo],
+     &    chf_const_realvect[probhi],
+     &    chf_box[box])
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+c
+c       set lofphi to l(a trig function at the spatial coordinates)
+c
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getmarshalofphipoint(lofphi(chf_ix[i;j;k]),x)
+        chf_enddo
+
+        return
+        end
+
+        subroutine getmarshalofphipoint(
+     &    chf_real[lofphi],
+     &    chf_const_realvect[x])
+
+        lofphi = zero
+
+        return
+        end
+
+        subroutine getmarshaphi(
+     &    chf_fra1[phi],
+     &    chf_const_realvect[dx],
+     &    chf_const_realvect[problo],
+     &    chf_const_realvect[probhi],
+     &    chf_box[box])
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+c
+c       set lofphi to l(a trig function at the spatial coordinates)
+c
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getmarshaphipoint(phi(chf_ix[i;j;k]),x)
+        chf_enddo
+
+        return
+        end
+
+        subroutine getmarshaphipoint(
+     &    chf_real[phi],
+     &    chf_const_realvect[x])
+
+        CHF_DTERM[
+        phi = sin(x(0));
+     $       *exp(x(1));
+     $       *one]
+
+        return
+        end
+
+
+        subroutine getlofphipoint(
+     &    chf_real[lofphi],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[x],
+     &    chf_const_real[alpha],
+     &    chf_const_real[beta],
+     &    chf_const_real[time])
+
+        real_t fac,phi
+c
+c       set lofphi to l(a trig function at the spatial coordinates)
+c
+        fac = -(chf_dterm[freq(0)**2;
+     &                  + freq(1)**2;
+     &                  + freq(2)**2])
+
+        call getphipoint(phi, freq, x, time)
+        lofphi = fac*phi
+
+
+c     debug
+c        lofphi = four
+c        lofphi = one
+c        lofphi = two
+c     end debug
+
+        lofphi = alpha*phi + beta*lofphi
+        return
+        end
+
+
+        subroutine getlofshphipoint(
+     &    chf_real[lofphi],
+     &    chf_const_realvect[lmp],
+     &    chf_const_realvect[x],
+     &    chf_const_real[alpha],
+     &    chf_const_real[beta],
+     &    chf_const_real[time])
+
+        external normalization
+        real_t normalization
+        external algndr
+        real_t algndr
+        external bessel
+        real_t bessel
+        external trigphi
+        real_t trigphi
+
+        real_t r(0:CH_SPACEDIM-1)
+
+        integer l,m
+        real_t z,phase,phi
+c
+c       set lofphi to l(a spherical harmonic at the spatial coordinates)
+c
+
+        call convert_spherical(x,r)
+
+        l = int(lmp(0))
+#if CH_SPACEDIM == 1
+        m = 0
+        phase = 0.
+        phi = normalization(l,m)*
+     &        (-l**2)*trigphi(l,r(0),phase)
+#elif CH_SPACEDIM == 2
+        z = -sqrt(l**2-1.)
+        m = 0
+        phase = 0.
+        phi = normalization(l,m)*
+     &        (r(0)**z)*
+     &        trigphi(l,r(1),phase)
+#elif CH_SPACEDIM == 3
+        m = int(lmp(1))
+        phase = PI*lmp(2)
+        z = cos(r(1))
+        phi = normalization(l,m)*
+     &        bessel(l,r(0))*
+     &        algndr(l,m,z)*
+     &        trigphi(m,r(2),phase)
+#else
+        bogus_spacedim()
+#endif
+        phi = phi*cos(time)
+        lofphi = -phi
+#if CH_SPACEDIM == 2
+        lofphi = lofphi/(r(0)**2)
+#endif
+        lofphi = alpha*phi + beta*lofphi
+
+        return
+        end
+
+
+        subroutine getdbgphi(
+     &    chf_fra1[dbgphi],
+     &    chf_fra1[beta],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[dx],
+     &    chf_const_realvect[problo],
+     &    chf_const_realvect[probhi],
+     &    chf_const_real[alpha],
+     &    chf_const_real[time],
+     &    chf_box[box])
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+c
+c       set dbgphi = alpha*phi + div(beta(grad(a trig function at the spatial coordinates)))
+c       set beta   =                           a      function at the spatial coordinates)
+c
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getdbgphipoint(dbgphi(chf_ix[i;j;k]),
+     &        beta(chf_ix[i;j;k]),freq,x,alpha,time)
+        chf_enddo
+
+        return
+        end
+
+
+        subroutine getdbgphipoint(
+     &    chf_real[dbgphi],
+     &    chf_real[beta],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[x],
+     &    chf_const_real[alpha],
+     &    chf_const_real[time])
+
+        real_t gradphi(0:CH_SPACEDIM-1),gradbeta(0:CH_SPACEDIM-1)
+        real_t alphaphiplusbetalapphi,gradbetadotgradphi
+
+c
+c       set dbgphi to alpha*phi + div(beta(grad(a trig function at the spatial coordinates)))
+c       set beta   to                           a      function at the spatial coordinates)
+c
+
+c       first compute alpha*phi + beta*lap(phi)
+        call getbetapoint(beta,freq,x,time)
+        call getlofphipoint(alphaphiplusbetalapphi,freq,x,alpha,beta,time)
+
+c       next compute grad(beta) and grad(phi)
+        call getgradbetapoint(gradbeta,freq,x,time)
+        call getgradphipoint(gradphi,freq,x,time)
+
+c       recall: div(beta(grad(phi))) = beta*lap(phi) + grad(beta).dot.grad(phi)
+        gradbetadotgradphi = chf_dterm[gradbeta(0)*gradphi(0);
+     &                               + gradbeta(1)*gradphi(1);
+     &                               + gradbeta(2)*gradphi(2)]
+
+c       put it all together: alpha*phi + div(beta(grad(phi))) = alpha*phi + beta*lap(phi) + grad(beta).dot.grad(phi)
+        dbgphi = alphaphiplusbetalapphi
+        dbgphi = dbgphi + gradbetadotgradphi
+
+        return
+        end
+
+        subroutine getbetapoint(
+     &    chf_real[beta],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[x],
+     &    chf_const_real[time])
+
+
+        beta = CH_SPACEDIM+2
+     &       +chf_dterm[sin(two*PI*x(0));
+     &                + sin(two*PI*x(1));
+     &                + sin(two*PI*x(2))]
+c        beta = chf_dterm[x(0)*x(0);
+c     &                 + x(1)*x(1);
+c     &                 + x(2)*x(2)]
+c        if(x(1).gt.0.5) then
+c           beta = 1.0
+c        else
+c           beta = 1000.0
+c        endif
+
+        return
+        end
+
+        subroutine getgradbetapoint(
+     &    chf_realvect[gradbeta],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[x],
+     &    chf_const_real[time])
+
+        integer idir
+c
+c       set gradbeta to grad(beta)
+c
+
+
+        do idir = 0, CH_SPACEDIM-1
+            gradbeta(idir) = two*PI*cos(two*PI*x(idir))
+c            gradbeta(idir) = two*x(idir)
+c            gradbeta(idir) = zero
+        enddo
+
+        return
+        end
+
+        subroutine getbetagradphipoint(
+     &    chf_realvect[gradphi],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[x],
+     &    chf_const_real[time])
+
+        integer idir
+        real_t beta
+c
+c       set gradphi to beta*grad(a trig function at the spatial coordinates)
+c
+        call getbetapoint(beta,freq,x,time)
+        call getgradphipoint(gradphi,freq,x,time)
+
+        do idir = 0, CH_SPACEDIM-1
+           gradphi(idir) = gradphi(idir)*beta
+        enddo
+
+        return
+        end
+
+        subroutine getbetagradshphipoint(
+     &    chf_realvect[gradphi],
+     &    chf_const_realvect[lmp],
+     &    chf_const_realvect[x],
+     &    chf_const_real[time])
+
+        integer idir
+        real_t beta
+c
+c       set gradphi to beta*grad(a trig function at the spatial coordinates)
+c
+        call getbetapoint(beta,lmp,x,time)
+        call getgradshphipoint(gradphi,lmp,x,time)
+
+        do idir = 0, CH_SPACEDIM-1
+           gradphi(idir) = gradphi(idir)*beta
+        enddo
+
+        return
+        end
+
+
+        subroutine getsrc(
+     &    chf_fra1[src],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[dx],
+     &    chf_const_real[time],
+     &    chf_const_real[diffconst],
+     &    chf_const_realvect[problo],
+     &    chf_const_realvect[probhi],
+     &    chf_box[box])
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+c
+c       set src to a trig function at the spatial coordinates
+c
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getsrcpoint(src(chf_ix[i;j;k]),freq,x,time,diffconst)
+        chf_enddo
+
+        return
+        end
+
+
+        subroutine getsrcpoint(
+     &    chf_real[src],
+     &    chf_const_realvect[freq],
+     &    chf_const_realvect[x],
+     &    chf_const_real[time],
+     &    chf_const_real[diffconst])
+
+        real_t fac,phi
+c
+c       set src to a trig function at the spatial coordinates
+c
+        fac = -(chf_dterm[freq(0)**2;
+     &                  + freq(1)**2;
+     &                  + freq(2)**2])
+
+        phi = (chf_dterm[sin(freq(0)*x(0));
+     &                 * sin(freq(1)*x(1));
+     &                 * sin(freq(2)*x(2))])
+
+        src = (-fac*diffconst*cos(time) - sin(time))*phi
+c        src = -fac*diffconst*phi
+c        src = 2.0*time
+
+c     debug
+c        src = -4.0*diffconst
+c        src = -2.0*diffconst
+c     end debug
+
+        return
+        end
+
+
+        subroutine getshsrc(
+     &    chf_fra1[src],
+     &    chf_const_realvect[lmp],
+     &    chf_const_realvect[dx],
+     &    chf_const_real[time],
+     &    chf_const_real[diffconst],
+     &    chf_const_realvect[problo],
+     &    chf_const_realvect[probhi],
+     &    chf_box[box])
+
+        integer chf_ddecl[i;j;k]
+
+        real_t x(0:CH_SPACEDIM-1)
+c
+c       set src to a spherical harmonic function at the spatial coordinates
+c
+        chf_multido[box;i;j;k]
+          chf_dterm[
+          x(0) = (i+half)*dx(0) + problo(0);
+          x(1) = (j+half)*dx(1) + problo(1);
+          x(2) = (k+half)*dx(2) + problo(2)]
+
+          call getshsrcpoint(src(chf_ix[i;j;k]),lmp,x,time,diffconst)
+        chf_enddo
+
+        return
+        end
+
+
+        subroutine getshsrcpoint(
+     &    chf_real[src],
+     &    chf_const_realvect[lmp],
+     &    chf_const_realvect[x],
+     &    chf_const_real[time],
+     &    chf_const_real[diffconst])
+
+        external normalization
+        real_t normalization
+        external algndr
+        real_t algndr
+        external bessel
+        real_t bessel
+        external trigphi
+        real_t trigphi
+
+        real_t chf_ddecl[rad;z;phase]
+        real_t r(0:CH_SPACEDIM-1)
+
+        integer l,m
+
+        call convert_spherical(x,r)
+
+        rad = r(0)
+        l = int(lmp(0))
+#if CH_SPACEDIM == 1
+        m = 0
+        src = -diffconst*normalization(l,m)*
+     &                   bessel(l,rad)
+#elif CH_SPACEDIM == 2
+        m = 0
+        z = cos(r(1))
+        src = -diffconst*normalization(l,m)*
+     &                   bessel(l,rad)*
+     &                   algndr(l,m,z)
+#elif CH_SPACEDIM == 3
+        m = int(lmp(1))
+        phase = PI*lmp(2)
+        z = cos(r(1))
+        src = -diffconst*normalization(l,m)*
+     &                   bessel(l,rad)*
+     &                   algndr(l,m,z)*
+     &                   trigphi(m,r(2),phase)
+#else
+        bogus_spacedim()
+#endif
+
+        return
+        end
+
+
+        real_t  function normalization(l,m)
+        implicit none
+        integer l,m
+
+        external factorial
+        integer factorial
+
+#if CH_SPACEDIM == 1
+        normalization = 1./(four*PI)
+#elif CH_SPACEDIM == 2
+        normalization = (2*l+1.)*factorial(l)*0.5/factorial(l)/
+     &                  (two*PI)
+#elif CH_SPACEDIM == 3
+        normalization = (2*l+1.)*factorial(l-m)*0.5/factorial(l+m)/
+     &                  (two*PI)
+        if (m.gt.0) then
+           normalization = two*normalization
+        endif
+#else
+        bogus_spacedim()
+#endif
+        normalization = sqrt(normalization)
+
+        return
+        end
+
+        real_t  function algndr(l,m,z)
+        implicit none
+        integer l,m
+        real_t z
+
+        integer i,ll
+        real_t fac,pll,pmm,pmmp1,somz2
+c
+c       l and m are integers, and 0<=m<=l
+c
+        if (l.lt.0 .or. m.lt.0 .or. m.gt.l) call MayDay_Error()
+
+        pmm=1.
+        if (m.gt.0) then
+           somz2 = sqrt((1.-z)*(1.+z))
+           fac = 1.
+           do i=1,m
+              pmm = -pmm*fac*somz2
+              fac = fac+2.
+           enddo
+        endif
+        if (l.eq.m) then
+           algndr = pmm
+        else
+           pmmp1 = z*(2*m+1)*pmm
+           if (l.eq.m+1) then
+              algndr = pmmp1
+           else
+              do ll=m+2,l
+                 pll = (z*(2*ll-1)*pmmp1-(ll+m-1)*pmm)/(ll-m)
+                 pmm = pmmp1
+                 pmmp1 = pll
+              enddo
+              algndr = pll
+           endif
+        endif
+
+        return
+        end
+
+        real_t  function d_algndr(l,m,z)
+        implicit none
+        external algndr
+        real_t algndr
+        integer l,m
+        real_t z
+
+        if (z.eq.1) then
+           if (l.eq.0) then
+              d_algndr = 0.
+           elseif (l.eq.1) then
+              if (m.eq.0) then
+                 d_algndr = 0.
+              elseif (m.eq.1) then
+                 d_algndr = -1.
+              else
+                 call MayDay_Error()
+              endif
+           elseif (l.eq.2) then
+              if (m.eq.0) then
+                 d_algndr = 0.
+              elseif (m.eq.1) then
+                 d_algndr = -3.
+              elseif (m.eq.2) then
+                 d_algndr = 0.
+              else
+                 call MayDay_Error()
+              endif
+           elseif (l.eq.3) then
+              if (m.eq.0) then
+                 d_algndr = 0.
+              elseif (m.eq.1) then
+                 d_algndr = -6.
+              elseif (m.eq.2) then
+                 d_algndr = 0.
+              elseif (m.eq.3) then
+                 d_algndr = 0.
+              else
+                 call MayDay_Error()
+              endif
+           else
+              call MayDay_Error()
+           endif
+        else
+           d_algndr = l*z*algndr(l,m,z)
+           if (l.gt.0 .and. l.gt.m) then
+              d_algndr = d_algndr - (l+m)*algndr(l-1,m,z)
+           endif
+           d_algndr = d_algndr/sqrt(1.-z**2)
+        endif
+
+        return
+        end
+
+        subroutine convert_spherical(
+     &    chf_const_realvect[x],
+     &    chf_realvect[r])
+
+#if CH_SPACEDIM == 1
+        r(0) = abs(x(0))
+#elif CH_SPACEDIM == 2
+        r(0) = sqrt(x(0)**2 + x(1)**2)
+        r(1) = 0.
+        if (x(0).ne.0. .or. x(1).ne.0.) then
+           r(1) = atan2(x(1),x(0))
+           if (r(1).lt.0.) r(1) = r(1) + two*PI
+        endif
+#elif CH_SPACEDIM == 3
+        r(0) = sqrt(x(0)**2 + x(1)**2 + x(2)**2)
+        if (r(0)>0.) then
+           r(1) = acos(x(2)/r(0))
+        else
+           r(1) = 0.
+        endif
+        r(2) = 0.
+        if (x(0).ne.0. .or. x(1).ne.0.) then
+           r(2) = atan2(x(1),x(0))
+           if (r(2).lt.0.) r(2) = r(2) + two*PI
+        endif
+#else
+
+#endif
+
+        return
+        end
+
+        integer  function factorial(n)
+        implicit none
+        integer n
+
+        integer i
+
+        factorial=1
+        do i=n,2,-1
+           factorial = factorial*i
+        enddo
+
+        return
+        end
+
+        real_t  function trigphi(m, azphi, phase)
+        implicit none
+        integer m
+        real_t azphi, phase
+
+        trigphi = cos(m*azphi - phase)/sqrt(PI)
+
+        return
+        end
+
+        real_t  function d_trigphi(m, azphi, phase)
+        implicit none
+        integer m
+        real_t azphi, phase
+
+        d_trigphi = -m*sin(m*azphi - phase)/sqrt(PI)
+
+        return
+        end
+
+        real_t  function bessel(l, r)
+        implicit none
+        integer l
+        real_t r
+
+        real_t ir,s,c
+
+        if (r.eq.0.) then
+           if (l.eq.0) then
+              bessel = 1.
+           elseif (l.ge.1 .and. l.le.3) then
+              bessel = 0.
+           else
+              call MayDay_Error()
+           endif
+        else
+           ir = 1./r
+           s = sin(r)
+           if (l.eq.0) then
+              bessel = s*ir
+           else
+              c = cos(r)
+              if (l.eq.1) then
+                 bessel = s*(ir**2) - c*ir
+              elseif (l.eq.2) then
+                 bessel = (3.*ir**2-1.)*s*ir - 3.*c*(ir**2)
+              elseif (l.eq.3) then
+                 bessel = (15.*ir**2-6.)*s*(ir**2) -
+     &                                 (15.*ir**2-1.)*c*ir
+              else
+                 call MayDay_Error()
+              endif
+           endif
+        endif
+
+        return
+        end
+
+        real_t  function d_bessel(l, r)
+        implicit none
+        integer l
+        real_t r
+
+        real_t ir,irsq,s,c
+
+        if (r.eq.0.) then
+           if (l.eq.0) then
+              d_bessel = 0.
+           elseif (l.eq.1) then
+              d_bessel = 1./3.
+           elseif (l.eq.2) then
+              d_bessel = 0.
+           elseif (l.eq.3) then
+              d_bessel = 2.
+           else
+              call MayDay_Error()
+           endif
+        else
+           ir = 1./r
+           irsq = ir**2
+           s = sin(r)
+           c = cos(r)
+           if (l.eq.0) then
+              d_bessel = -s*irsq + c*ir
+           elseif (l.eq.1) then
+              d_bessel = (-2.*irsq+1.)*s*ir + 2.*c*irsq
+           elseif (l.eq.2) then
+              d_bessel = (-9.*irsq+4.)*s*irsq +
+     &                                ( 9.*irsq-1.)*c*ir
+           elseif (l.eq.3) then
+              d_bessel = (-60.*irsq**2+15.*irsq-1.)*s*ir +
+     &                                (60.*irsq-7.)*c*irsq
+           else
+              call MayDay_Error()
+           endif
+        endif
+
+        return
+        end

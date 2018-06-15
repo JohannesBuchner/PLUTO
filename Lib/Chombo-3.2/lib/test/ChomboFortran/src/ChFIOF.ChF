@@ -1,0 +1,152 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+! This routine tests file input/output.
+
+! It returns:
+!  0 if the test completes successfully
+!  -12345678 if an I/O operation took an exception but had a 0 iostat value
+!  -1234567 if a READ operation does not produce the same result
+!           as the previous WRITE operation
+!  <anything else> is the iostat value of an I/O operation that took an exception
+
+#include "CONSTANTS.H"
+
+      subroutine CHF_FIO( CHF_CONST_INT[ Int1 ],
+     &     CHF_CONST_REAL[ Real1 ],
+     &     CHF_CONST_INT[ proc ],
+     &     CHF_INT[status])
+
+      integer unit
+      integer int2
+      REAL_T  real2
+      integer curdigit
+      integer curnum
+      CHARACTER*11 digit
+      CHARACTER*100 procstr
+      integer num
+      integer index
+      CHARACTER*100 filename
+
+      ! a string with single digits
+      digit = '0123456789'
+
+      ! count the number of digits in 'proc'
+      num = 0
+      curnum = proc
+
+100   curdigit = mod(curnum,10) + 1
+      num = num + 1
+
+      curnum = curnum / 10
+      if (curnum.gt.0 .and. num.lt.100) goto 100
+
+      ! generate the string representing 'proc'
+      index = num
+      curnum = proc
+
+200   curdigit = mod(curnum,10) + 1
+      procstr(index:index) = digit(curdigit:curdigit)
+      index = index - 1
+
+      curnum = curnum / 10
+      if (curnum.gt.0) goto 200
+
+      ! generate a unique filename using the processor number string
+      filename = 'CHFIOtest' // procstr(1:num) // '.dat'
+
+      ! pick a unique unit number and open a scratch file
+      unit = 19 + proc
+      ! can open without worrying if it existed
+      open( unit ,file=filename ,FORM='FORMATTED'
+     &     ,iostat=status  )
+      if( status .NE. 0 )then
+        write(*,*) 'error: CHF_FIO: open failed, status = ',status
+        return
+      endif
+
+      ! write to the scratch file
+      write( unit,*,iostat=status ) Int1 ,' is the integer.'
+      write( unit,*,iostat=status ) Real1 ,' is the real.'
+
+      ! close and reopen the scratch file
+      close( unit ,status='KEEP' ,iostat=status  )
+      open( unit ,file=filename ,status='OLD' ,FORM='FORMATTED'
+     &     ,iostat=status )
+
+      if( status .NE. 0 )then
+        write(*,*) 'error: CHF_FIO: open/old failed, status = ',status
+        return
+      endif
+
+      ! read from the scratch file
+      read( unit,*,iostat=status) int2
+      read( unit,*,iostat=status) real2
+
+      if( int2 .NE. Int1 ) then
+         status = 3
+         return
+      endif
+      if( real2 .NE. Real1 ) then
+         status = 4
+         return
+      endif
+
+      ! close and delete the scratch file
+      close( unit ,status='DELETE' ,iostat=status  )
+
+      ! Successful completion
+      status =  0
+      return
+      !error stuff
+c 99
+      status = 5
+      return
+      end
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! This routine tests standard input/output.
+
+! It returns:
+!  0 if the test completes
+!
+! The most likely failure mode is the code core dumps or writes
+! to somewhere besides standard output.
+
+      subroutine CHF_STDIO( CHF_CONST_INT[ Int1 ]
+     &     ,CHF_CONST_REAL[ Real1 ], CHF_INT[status] )
+
+      character indent*4
+      indent = '    '
+
+      ! first, just try to write something to the standard output unit
+      print*,indent,'CHF_STDIO: test 1, integer, real values = ' ,Int1 ,Real1
+
+      status = 0
+
+      return
+      end
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! This routine tests access to the C++ MayDay routines
+
+! It returns:
+!  -123456 if neither of the Mayday routines stops the program.
+!  <otherwise> it should not return
+
+      subroutine CHF_MAYDAY(CHF_INT[status] )
+
+      ! Call the error routine.  If that returns (which it shouldn't) call
+      ! the abort routine.  If that returns, return to caller.
+      call MAYDAY_ERROR()
+      call MAYDAY_ABORT()
+
+      status = -123456
+
+      return
+      end

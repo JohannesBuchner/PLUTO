@@ -1,0 +1,37 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+!=======================================================
+!     subroutine BASEFABINTPLUS
+!     Add piece to sum.
+!
+!     => inputs,  <= outputs
+!     sum <=> NODE-centered integer array
+!     piece => NODE-centered integer array to add to sum
+!     bx => NODE-centered box on which piece lives
+!
+!     petermc, 12 Dec 2005
+      subroutine basefabintplus(
+     &     CHF_FIA[sum],
+     &     CHF_CONST_FIA[piece],
+     &     CHF_BOX[bx])
+      integer CHF_AUTODECL[i]
+      integer var
+
+      do var = 0, CHF_NCOMP[sum]-1
+         CHF_AUTOMULTIDO[bx;i]
+
+            sum(CHF_AUTOIX[i], var) = sum(CHF_AUTOIX[i], var) +
+     &        piece(CHF_AUTOIX[i], var)
+
+         CHF_ENDDO
+      enddo
+
+      return
+      end
+

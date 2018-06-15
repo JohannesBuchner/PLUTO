@@ -1,0 +1,234 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+C
+C     Implement solid wall conserved variable boundary fluxes and primitive
+C     variable boundary slopes
+C
+
+#include "CONSTANTS.H"
+#include "EBLGIntegrator.H"
+
+      subroutine SOLIDBC(
+     &     CHF_FRA[F],
+     &     CHF_CONST_FRA[Wextrap],
+     &     CHF_CONST_INT[lohisign],
+     &     CHF_CONST_REAL[dx],
+     &     CHF_CONST_INT[dir],
+     &     CHF_BOX[box])
+
+      real_t p,rho,unorm,speed
+      integer CHF_DDECL[i;j;k]
+
+#include "EBEOSCommon.fh"
+      CHF_MULTIDO[box;i;j;k]
+
+c     input box is cell centered so the
+c     input flux needs to be shifted to cell centers
+c     this is why wextrap and F can be accessed by the
+c     same indicies
+      p = Wextrap(CHF_IX[i;j;k],QPRES)
+      rho = max(Wextrap(CHF_IX[i;j;k],QRHO),smallr)
+      unorm = Wextrap(CHF_IX[i;j;k],QVELX + dir)
+      speed = sqrt(gamma*p/rho)
+
+      F(CHF_IX[i;j;k],CRHO) = zero
+      F(CHF_IX[i;j;k],CENG) = zero
+
+      CHF_DTERM[
+      F(CHF_IX[i;j;k],CMOMX) = zero;
+      F(CHF_IX[i;j;k],CMOMY) = zero;
+      F(CHF_IX[i;j;k],CMOMZ) = zero]
+
+      F(CHF_IX[i;j;k],CMOMX + dir) =
+     &     p + lohisign*rho*unorm*speed
+
+      CHF_ENDDO
+
+      return
+      end
+
+      subroutine SOLIDBCRZ(
+     &     CHF_FRA[F],
+     &     CHF_CONST_FRA[Wextrap],
+     &     CHF_CONST_INT[lohisign],
+     &     CHF_CONST_REAL[dx],
+     &     CHF_CONST_INT[dir],
+     &     CHF_BOX[box])
+
+      real_t p,rho,unorm,speed
+      integer CHF_DDECL[i;j;k]
+
+#include "EBEOSCommon.fh"
+      CHF_MULTIDO[box;i;j;k]
+
+c     input box is cell centered so the
+c     input flux needs to be shifted to cell centers
+c     this is why wextrap and F can be accessed by the
+c     same indicies
+      p = Wextrap(CHF_IX[i;j;k],QPRES)
+      rho = max(Wextrap(CHF_IX[i;j;k],QRHO),smallr)
+      unorm = Wextrap(CHF_IX[i;j;k],QVELX + dir)
+      speed = sqrt(gamma*p/rho)
+
+      F(CHF_IX[i;j;k],CRHO) = zero
+      F(CHF_IX[i;j;k],CENG) = zero
+
+      CHF_DTERM[
+      F(CHF_IX[i;j;k],CMOMX) = zero;
+      F(CHF_IX[i;j;k],CMOMY) = zero;
+      F(CHF_IX[i;j;k],CMOMZ) = zero]
+
+      F(CHF_IX[i;j;k],CPRES) =p
+c     non pressure flux is zero at axis
+      if(((dir.eq.0).and.(i.ne.0)).or.(dir.eq.1)) then
+
+         F(CHF_IX[i;j;k],CMOMX + dir) =
+     &        lohisign*rho*unorm*speed
+
+      endif
+
+      CHF_ENDDO
+
+      return
+      end
+
+      subroutine SLOPEBCS(
+     &     CHF_FRA[dW],
+     &     CHF_CONST_FRA[W],
+     &     CHF_CONST_REAL[dx],
+     &     CHF_CONST_INT[dir],
+     &     CHF_BOX[loBox],
+     &     CHF_CONST_INT[hasLo],
+     &     CHF_BOX[hiBox],
+     &     CHF_CONST_INT[hasHi])
+
+      integer CHF_DDECL[i;j;k],CHF_DDECL[ioff;joff;koff]
+      integer CHF_DDECL[inorm;itan1;itan2],spacedim
+      real_t dvhi,dvlo,dvmin
+
+      spacedim = CH_SPACEDIM
+
+      CHF_DTERM[
+      ioff = CHF_ID(0,dir);
+      joff = CHF_ID(1,dir);
+      koff = CHF_ID(2,dir)]
+
+      CHF_DTERM[
+      inorm = QVELX + dir;
+      itan1 = QVELX + mod(dir + 1,spacedim);
+      itan2 = QVELX + mod(dir + 2,spacedim)]
+
+      if (hasLo .eq. 1) then
+         CHF_MULTIDO[loBox;i;j;k]
+         dW(CHF_IX[i;j;k],QRHO) = zero
+         dW(CHF_IX[i;j;k],QPRES) = zero
+
+         dvhi = W(CHF_IX[i + ioff;j + joff;k + koff],inorm) -
+     &        W(CHF_IX[i       ;j       ;k       ],inorm)
+         dvlo = W(CHF_IX[i       ;j       ;k       ],inorm)*two
+
+         dvmin = min(two*abs(dvhi),abs(dvlo))*sign(one,dvlo)
+
+         if (dvlo*dvhi .lt. zero) dvmin = zero
+
+         CHF_DTERM[
+         dW(CHF_IX[i;j;k],inorm) = dvmin;
+         dW(CHF_IX[i;j;k],itan1) = zero;
+         dW(CHF_IX[i;j;k],itan2) = zero]
+         CHF_ENDDO
+      endif
+
+      if (hasHi .eq. 1) then
+         CHF_MULTIDO[hiBox;i;j;k]
+         dW(CHF_IX[i;j;k],QRHO) = zero
+         dW(CHF_IX[i;j;k],QPRES) = zero
+
+         dvhi = W(CHF_IX[i       ;j       ;k       ],inorm) -
+     &        W(CHF_IX[i - ioff;j - joff;k - koff],inorm)
+         dvlo = -W(CHF_IX[i       ;j       ;k       ],inorm)*two
+
+         dvmin = min(two*abs(dvhi),abs(dvlo))*sign(one,dvlo)
+
+         if (dvlo*dvhi .lt. zero) dvmin = zero
+
+         CHF_DTERM[
+         dW(CHF_IX[i;j;k],inorm) = dvmin;
+         dW(CHF_IX[i;j;k],itan1) = zero;
+         dW(CHF_IX[i;j;k],itan2) = zero]
+         CHF_ENDDO
+      endif
+
+      return
+      end
+
+      subroutine extrapbc(
+     &     chf_fra[flux],
+     &     chf_const_fra[wextrap],
+     &     chf_const_real[dx],
+     &     chf_const_int[facedir],
+     &     chf_box[box])
+
+      integer chf_ddecl[i;j;k], ivar
+      real_t primitive(0:QNUM-1)
+      real_t   fluxvec(0:FNUM-1)
+      integer fnum, qnum
+#include "EBEOSCommon.fh"
+      fnum = FNUM-1
+      qnum = QNUM-1
+      chf_multido[box;i;j;k]
+
+      do ivar = 0, QNUM-1
+         primitive(ivar)  = wextrap(chf_ix[i;j;k], ivar)
+      enddo
+
+      call pointgetflux(fluxvec, fnum, primitive, qnum, facedir)
+
+c     momenflux already correct for rz coords
+      do ivar = 0, FNUM-1
+         flux(chf_ix[i;j;k], ivar) = fluxvec(ivar)
+      enddo
+
+      chf_enddo
+
+      return
+      end
+
+      subroutine extrapbcrz(
+     &     chf_fra[flux],
+     &     chf_const_fra[wextrap],
+     &     chf_const_real[dx],
+     &     chf_const_int[facedir],
+     &     chf_box[box])
+
+      integer chf_ddecl[i;j;k], ivar
+      real_t primitive(0:QNUM-1)
+      real_t   fluxvec(0:FNUM-1)
+      real_t  radius
+      integer fnum, qnum
+#include "EBEOSCommon.fh"
+      fnum = FNUM-1
+      qnum = QNUM-1
+      chf_multido[box;i;j;k]
+
+      radius = i*dx
+      do ivar = 0, QNUM-1
+         primitive(ivar)  = wextrap(chf_ix[i;j;k], ivar)
+      enddo
+
+      call pointgetfluxrz(fluxvec, fnum, primitive, qnum, facedir, radius)
+
+      do ivar = 0, FNUM-1
+         flux(chf_ix[i;j;k], ivar) = fluxvec(ivar)
+      enddo
+
+c     fluxes at axis are all zero except press
+c     already done in getfluxrz
+
+      chf_enddo
+
+      return
+      end

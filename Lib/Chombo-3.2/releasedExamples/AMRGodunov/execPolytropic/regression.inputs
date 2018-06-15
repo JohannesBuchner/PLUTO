@@ -1,0 +1,75 @@
+# Do the explosion problem
+godunov.problem = explosion
+
+# Gas gamma and initial conditions
+godunov.gamma = 1.4
+godunov.shock_mach = 10.0
+godunov.initial_center = 0.4 0.5 0.6
+godunov.initial_size = 0.25
+godunov.initial_velocity = 0.0 0.0 0.0
+
+# Turn on some output
+godunov.verbosity = 1
+
+# Number of steps, final time, and time step
+godunov.max_step = 2
+godunov.max_time = 100.0
+# godunov.fixed_dt = 0.002
+
+# Size of the domain's longest dimension
+godunov.domain_length = 1.0
+
+# Coarsest grid
+godunov.num_cells = 32 32 32
+godunov.is_periodic = 1 1 1
+
+# Grid refinement
+godunov.max_level = 0
+# For 2D
+godunov.ref_ratio = 4 4 4 4 4
+# For 3D
+# godunov.ref_ratio = 2 2 2 2 2
+
+# Regridding parameters
+godunov.regrid_interval = 2 2 2 2 2 2
+godunov.tag_buffer_size = 3
+godunov.refine_thresh = 0.17
+
+# Grid generation parameters
+godunov.block_factor = 4
+godunov.max_grid_size = 16
+godunov.fill_ratio = 0.75
+
+# Normal predictor method - PLM or PPM
+godunov.normal_predictor = PPM
+
+# Slope computation parameters
+godunov.use_fourth_order_slopes = 1
+godunov.use_prim_limiting = 1
+godunov.use_char_limiting = 0
+godunov.use_flattening = 1
+
+# Artificial viscosity
+godunov.use_artificial_viscosity = 1
+godunov.artificial_viscosity = 0.1
+
+# Plot file information
+godunov.plot_interval = -10
+# godunov.plot_interval = 1
+godunov.plot_prefix  = explosion.
+
+# Checkpoint file information
+godunov.checkpoint_interval = -1
+# godunov.checkpoint_interval = 1
+# godunov.chk_prefix = check.
+
+# Restart file information
+# godunov.restart_file = check.20.2d.hdf5
+
+# CFL multipliers
+godunov.cfl = 0.8
+godunov.initial_cfl = 0.3
+
+# Variable time step parameters
+godunov.max_dt_growth = 1.1
+godunov.dt_tolerance_factor = 1.1

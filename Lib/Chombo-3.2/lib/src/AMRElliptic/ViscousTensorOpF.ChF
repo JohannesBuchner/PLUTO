@@ -1,0 +1,489 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+      subroutine prolongvtop(
+     &    chf_fra[phi],
+     &    chf_const_fra[coarse],
+     &    chf_box[region],
+     &    chf_const_int[m])
+
+      integer ncomp, n
+      integer chf_ddecl[i;j;k]
+      integer chf_ddecl[ii;jj;kk]
+
+      ncomp = chf_ncomp[phi]
+      do n = 0, ncomp-1
+          chf_multido[region; i; j; k]
+          chf_dterm[
+          ii = (i-abs(mod(i,m)))/m;
+          jj = (j-abs(mod(j,m)))/m;
+          kk = (k-abs(mod(k,m)))/m]
+          phi(chf_ix[i;j;k],n) =  phi(chf_ix[i;j;k],n) +
+     &        coarse(chf_ix[ii;jj;kk],n)
+         chf_enddo
+      enddo
+
+      return
+
+      end
+      subroutine restrictresvtop(
+     &     chf_fra[res],
+     &     chf_const_fra[resfine],
+     &     chf_box[region],
+     $     chf_const_int[ncomp])
+
+      real_t denom
+      integer n
+
+      integer chf_ddecl[i;j;k]
+      integer chf_ddecl[ii;jj;kk]
+
+      denom = chf_dterm[two; *two; *two]
+
+      do n = 0, ncomp-1
+         chf_multido[region; i; j; k]
+         chf_dterm[
+         ii = (i-abs(mod(i,2)))/2;
+         jj = (j-abs(mod(j,2)))/2;
+         kk = (k-abs(mod(k,2)))/2]
+         res(chf_ix[ii;jj;kk],n) = res(chf_ix[ii;jj;kk],n) + resfine(chf_ix[i;j;k],n)/denom
+
+         chf_enddo
+      enddo
+
+      return
+      end
+      subroutine cellgradvtop(
+     $     chf_fra1[grad],
+     $     chf_const_fra1[vel],
+     $     chf_box[grid],
+     $     chf_const_real[dx],
+     $     chf_const_int[divdir])
+
+      integer chf_ddecl[ii,i;jj,j;kk,k]
+
+      chf_dterm[
+      ii = chf_id(divdir, 0);
+      jj = chf_id(divdir, 1);
+      kk = chf_id(divdir, 2)]
+
+      chf_multido[grid;i;j;k]
+
+      grad(chf_ix[i;j;k]) =
+     $     (    vel(chf_ix[i+ii;j+jj;k+kk])
+     $     -    vel(chf_ix[i-ii;j-jj;k-kk]) )/(two*dx)
+
+      chf_enddo
+
+      return
+      end
+
+      subroutine addgradtofluxvtop(
+     $     chf_fra[flux],
+     $     chf_const_fra1[eta],
+     $     chf_const_int[fluxcomp],
+     $     chf_const_fra[grad],
+     $     chf_const_int[gradcomp],
+     $     chf_const_int[gradtran],
+     $     chf_box[regionface])
+
+      integer chf_ddecl[i;j;k]
+      real_t gradcontrib, trancontrib, etafac
+      chf_multido[regionface;i;j;k]
+
+      etafac      = eta(chf_ix[i;j;k])
+      gradcontrib = grad(chf_ix[i;j;k], gradcomp)
+      trancontrib = grad(chf_ix[i;j;k], gradtran)
+
+      flux(chf_ix[i;j;k], fluxcomp) =  flux(chf_ix[i;j;k], fluxcomp) +
+     $     eta(chf_ix[i;j;k])*
+     $     ( grad(chf_ix[i;j;k], gradcomp)
+     $     + grad(chf_ix[i;j;k], gradtran) )
+
+      chf_enddo
+
+      return
+      end
+
+      subroutine getfacegradvtop(
+     $     chf_fra1[gradvelface],
+     $     chf_const_fra1[gradvelcell],
+     $     chf_const_fra1[velcomp],
+     $     chf_box[region],
+     $     chf_box[centerbox],
+     $     chf_box[lobox],
+     $     chf_const_int[haslo],
+     $     chf_box[hibox],
+     $     chf_const_int[hashi],
+     $     chf_const_real[dx],
+     $     chf_const_int[facedir],
+     $     chf_const_int[divdir]
+     $     )
+
+      integer chf_ddecl[ii,i;jj,j;kk,k]
+
+      chf_dterm[
+      ii = chf_id(facedir, 0);
+      jj = chf_id(facedir, 1);
+      kk = chf_id(facedir, 2)]
+
+      if (facedir .eq. divdir) then
+
+         chf_multido[region;i;j;k]
+
+         gradvelface(chf_ix[i;j;k]) =
+     $        ( velcomp(chf_ix[i   ;j   ;k   ])
+     $        - velcomp(chf_ix[i-ii;j-jj;k-kk]) )/dx
+
+         chf_enddo
+
+      else
+
+         chf_multido[centerbox;i;j;k]
+
+         gradvelface(chf_ix[i;j;k]) =
+     $        ( gradvelcell(chf_ix[i   ;j   ;k   ])
+     $        + gradvelcell(chf_ix[i-ii;j-jj;k-kk]) )/two
+
+         chf_enddo
+
+         if(haslo .eq. 1) then
+
+            chf_multido[lobox;i;j;k]
+
+            gradvelface(chf_ix[i;j;k]) =
+     $           (three*gradvelcell(chf_ix[i   ;j   ;k   ])
+     $           -      gradvelcell(chf_ix[i+ii;j+jj;k+kk]))/two
+
+            chf_enddo
+
+         endif
+
+         if(hashi .eq. 1) then
+
+            chf_multido[hibox;i;j;k]
+
+            gradvelface(chf_ix[i;j;k]) =
+     $           (three*gradvelcell(chf_ix[i-  ii;j-  jj;k-  kk])
+     $           -      gradvelcell(chf_ix[i-2*ii;j-2*jj;k-2*kk]))/two
+
+            chf_enddo
+
+         endif
+      endif
+
+      return
+      end
+
+      subroutine celldivincrvtop(
+     $     chf_fra1[divvel],
+     $     chf_const_fra[vel],
+     $     chf_const_real[dx],
+     $     chf_const_int[divdir],
+     $     chf_box[region])
+
+      integer chf_ddecl[ii,i;jj,j;kk,k]
+
+      chf_dterm[
+      ii = chf_id(divdir, 0);
+      jj = chf_id(divdir, 1);
+      kk = chf_id(divdir, 2)]
+
+      chf_multido[region;i;j;k]
+
+      divvel(chf_ix[i;j;k]) = divvel(chf_ix[i;j;k]) +
+     $     (    vel(chf_ix[i+ii;j+jj;k+kk],divdir)
+     $     -    vel(chf_ix[i-ii;j-jj;k-kk],divdir) )/(two*dx)
+
+      chf_enddo
+
+      return
+      end
+
+      subroutine facedivincrvtop(
+     $     chf_fra1[divvel],
+     $     chf_const_fra[vel],
+     $     chf_const_fra[gradvel],
+     $     chf_box[region],
+     $     chf_box[centerbox],
+     $     chf_box[lobox],
+     $     chf_const_int[haslo],
+     $     chf_box[hibox],
+     $     chf_const_int[hashi],
+     $     chf_const_real[dx],
+     $     chf_const_int[facedir],
+     $     chf_const_int[divdir],
+     $     chf_const_int[gradcomp])
+
+      integer chf_ddecl[ii,i;jj,j;kk,k]
+
+      chf_dterm[
+      ii = chf_id(facedir, 0);
+      jj = chf_id(facedir, 1);
+      kk = chf_id(facedir, 2)]
+
+      if (facedir .eq. divdir) then
+
+         chf_multido[region;i;j;k]
+
+         divvel(chf_ix[i;j;k]) = divvel(chf_ix[i;j;k]) +
+     $        (    vel(chf_ix[i   ;j   ;k   ],facedir)
+     $        -    vel(chf_ix[i-ii;j-jj;k-kk],facedir) )/dx
+
+         chf_enddo
+
+      else
+c     remember this is partial vdivdir/partial xdivdir
+         chf_multido[centerbox;i;j;k]
+
+         divvel(chf_ix[i;j;k]) = divvel(chf_ix[i;j;k]) +
+     $        ( gradvel(chf_ix[i   ;j   ;k   ], gradcomp)
+     $        + gradvel(chf_ix[i-ii;j-jj;k-kk], gradcomp) )/two
+
+         chf_enddo
+
+         if(haslo .eq. 1) then
+            chf_multido[lobox;i;j;k]
+
+            divvel(chf_ix[i;j;k]) = divvel(chf_ix[i;j;k]) +
+     $           (three*gradvel(chf_ix[i   ;j   ;k   ], gradcomp)
+     $           -      gradvel(chf_ix[i+ii;j+jj;k+kk], gradcomp))/two
+
+            chf_enddo
+         endif
+
+         if(hashi .eq. 1) then
+            chf_multido[hibox;i;j;k]
+
+            divvel(chf_ix[i;j;k]) = divvel(chf_ix[i;j;k]) +
+     $           (three*gradvel(chf_ix[i-  ii;j-  jj;k-  kk], gradcomp)
+     $           -      gradvel(chf_ix[i-2*ii;j-2*jj;k-2*kk], gradcomp))/two
+
+            chf_enddo
+         endif
+      endif
+
+      return
+      end
+
+      subroutine decrinvrelcoefvtop(
+     &     chf_fra[relcoef],
+     &     chf_fra[eta],
+     &     chf_fra[lambda],
+     &     chf_const_real[beta],
+     &     chf_box[box],
+     $     chf_real[dx],
+     $     chf_int[idir],
+     $     chf_int[ncomp])
+
+      integer chf_ddecl[ii;jj;kk]
+      integer chf_ddecl[i;j;k]
+      integer icomp
+      real_t lamh, laml,etah, etal, relcoold, relconew, incr
+      chf_dterm[
+      ii = chf_id(idir, 0);
+      jj = chf_id(idir, 1);
+      kk = chf_id(idir, 2)]
+
+      do icomp = 0, ncomp-1
+         chf_multido[box;i;j;k]
+
+         relcoold = relcoef(chf_ix[i;j;k],icomp)
+         etah =    eta(chf_ix[i+ii;j+jj;k+kk],0)
+         etal =    eta(chf_ix[i   ;j   ;k   ],0)
+
+         lamh = lambda(chf_ix[i+ii;j+jj;k+kk],0)
+         laml = lambda(chf_ix[i   ;j   ;k   ],0)
+
+         if(icomp .eq. idir) then
+
+            incr =
+     $         beta*(
+     $        two*eta(chf_ix[i+ii;j+jj;k+kk],0) +
+     $        lambda (chf_ix[i+ii;j+jj;k+kk],0) +
+     $        two*eta(chf_ix[i   ;j   ;k   ],0) +
+     $        lambda (chf_ix[i   ;j   ;k   ],0)
+     $        )/(dx*dx)
+
+         else
+            incr =
+     $         beta*(
+     $        eta(chf_ix[i+ii;j+jj;k+kk],0) +
+     $        eta(chf_ix[i   ;j   ;k   ],0)
+     $        )/(dx*dx)
+
+         endif
+
+         relcoef(chf_ix[i;j;k], icomp) = relcoef(chf_ix[i;j;k],icomp) - incr
+         relconew = relcoef(chf_ix[i;j;k],icomp)
+
+         chf_enddo
+      enddo
+
+      return
+      end
+
+C     initialize lambda = alpha*acoef
+      subroutine initializerelaxcoef(
+     &     chf_fra[relcoef],
+     &     chf_fra1[acoef],
+     $     chf_real[alpha],
+     $     chf_box[box],
+     $     chf_int[ncomp])
+
+      integer chf_ddecl[i;j;k]
+      integer icomp
+
+      do icomp = 0, ncomp-1
+         chf_multido[box;i;j;k]
+
+         relcoef(chf_ix[i;j;k], icomp) = alpha*acoef(chf_ix[i;j;k])
+
+         chf_enddo
+      enddo
+
+      return
+      end
+
+      subroutine invertlambdavtop(
+     &     chf_fra[lambda],
+     $     chf_real[safety],
+     &     chf_box[box],
+     $     chf_int[ncomp])
+
+      integer chf_ddecl[i;j;k]
+      integer icomp,jcomp
+c      real_t maxval
+      real_t zeroval
+
+      zeroval = 1.0e-20
+
+         chf_multido[box;i;j;k]
+c         maxval = lambda(chf_ix[i;j;k],0)
+c         do jcomp = 1, ncomp-1
+c            if(lambda(chf_ix[i;j;k],jcomp) .gt. maxval) then
+c               maxval = lambda(chf_ix[i;j;k],jcomp)
+c            endif
+c         enddo
+
+         do icomp = 0, ncomp-1
+            lambda(chf_ix[i;j;k], icomp) = safety/lambda(chf_ix[i;j;k], icomp)
+c remove hardwired zero value since it can cause problems in cases where
+c the coefficients are very large (DFM -- 6/13/2001)
+c            if (abs(lambda(chf_ix[i;j;k], icomp)).le. zeroval) then
+c               call MAYDAY_ERROR();
+c            endif
+         enddo
+
+         chf_enddo
+
+      return
+      end
+
+      subroutine gsrbvtop(
+     &     chf_fra[phi],
+     &     chf_const_fra[lphi],
+     &     chf_const_fra[rhs],
+     &     chf_const_fra[lambda],
+     &     chf_box[coloredbox],
+     $     chf_int[ncomp])
+
+      integer chf_ddecl[i;j;k]
+      integer icomp
+      REAL_T phio, lamo, rhso, lphio
+
+      do icomp = 0, ncomp-1
+         chf_multido[coloredbox;i;j;k;2]
+
+         phio = phi(   chf_ix[i;j;k],icomp)
+         lamo = lambda(chf_ix[i;j;k],icomp)
+         rhso = rhs(   chf_ix[i;j;k],icomp)
+         lphio = lphi(  chf_ix[i;j;k],icomp)
+
+         phi(chf_ix[i;j;k], icomp) =
+     $        phi(   chf_ix[i;j;k],icomp) +
+     &        lambda(chf_ix[i;j;k],icomp)*(
+     $        rhs(   chf_ix[i;j;k],icomp) -
+     $        lphi(  chf_ix[i;j;k],icomp))
+
+         chf_enddo
+      enddo
+
+      return
+      end
+
+      subroutine adddivfluxdirvtop(
+     &     chf_fra[lhs],
+     &     chf_const_fra[flux],
+     &     chf_box[region],
+     &     chf_const_real[dx],
+     $     chf_const_int[ncomp],
+     $     chf_const_int[facedir])
+
+      integer chf_ddecl[ii,i;jj,j;kk,k]
+      integer icomp
+
+      chf_dterm[
+      ii = chf_id(facedir, 0);
+      jj = chf_id(facedir, 1);
+      kk = chf_id(facedir, 2)]
+
+c     flux already has beta
+
+      do icomp = 0, ncomp-1
+         chf_multido[region; i; j; k]
+
+         lhs(chf_ix[i;j;k], icomp) = lhs(chf_ix[i;j;k], icomp)
+     $        +
+     $        (flux(chf_ix[i+ii;j+jj;k+kk], icomp)
+     $        -flux(chf_ix[i   ;j   ;k   ], icomp))/dx
+
+         chf_enddo
+      enddo
+
+      return
+      end
+
+      subroutine linearextrapvtop(CHF_FRA[phi],
+     &                            CHF_BOX[ghostBox],
+     &                            CHF_INT[dir],
+     &                            CHF_INT[hiLo])
+
+      integer n
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+
+      CHF_AUTOID[ii; dir; hiLo]
+
+      do n=0, CHF_NCOMP[phi]-1
+         CHF_AUTOMULTIDO[ghostBox; i]
+           phi(CHF_AUTOIX[i],n) = two*phi(CHF_OFFSETIX[i;-ii],n)
+     &                              - phi(CHF_OFFSETIX[i;-2*ii],n)
+         CHF_ENDDO
+      enddo
+
+      return
+      end
+
+      subroutine SLOPESVTOP(CHF_FRA[slopes],
+     &                      CHF_CONST_FRA[coarse],
+     &                      CHF_BOX[cBox],
+     &                      CHF_INT[dir])
+
+      integer n, CHF_AUTODECL[i], CHF_AUTODECL[ii]
+
+      CHF_AUTOID[ii; dir; 1]
+
+      do n=0, CHF_NCOMP[coarse]-1
+         CHF_AUTOMULTIDO[cBox;i]
+         slopes(CHF_AUTOIX[i],n) = 0.5*(coarse(CHF_OFFSETIX[i;+ii],n)
+     &                                 -coarse(CHF_OFFSETIX[i;-ii],n))
+         CHF_ENDDO
+      enddo
+
+      return
+      end

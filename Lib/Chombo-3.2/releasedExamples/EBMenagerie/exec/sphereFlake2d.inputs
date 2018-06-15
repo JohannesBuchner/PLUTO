@@ -1,0 +1,37 @@
+# Grid size
+# n_cell =   64   64   64
+# n_cell =  128  128  128
+# n_cell =  256  256  256
+n_cell =  512  512  512
+# n_cell = 1024 1024 1024
+
+# Maximum box size
+maxboxsize = 64
+
+# Domain domain - physical coordinates
+# prob_lo is the origin of the coordinate system
+prob_lo = -0.5 -0.5 -0.5
+# prob_hi is the high point of the domain in the x direction
+# Note:  dx = dy = dz
+prob_hi =  0.5
+
+# Center of the biggest sphere
+center = 0.0 0.0 0.0
+# Radius of the biggest sphere
+radius =  0.2
+
+# insideRegular != 0 -> Domain is on the inside
+# insideRegular == 0 -> Domain is on the outside
+insideRegular = 0
+
+#distance of child sphere center from parent sphere edge, normalized by smaller sphere radius 
+# 1.0=just touching
+# 0.0=~hemispheres
+distance = 0.75
+
+#number of sphere iterations (levels)
+#0=one sphere; 1=1+2*D spheres...
+numIters = 4
+
+#factor to shrink the radius by for each iteration
+shrinkRadius = 0.45

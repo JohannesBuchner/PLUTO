@@ -1,0 +1,7 @@
+#!/bin/sh
+
+## make symbolic links for the machines in the ANAG network
+
+for s in bergman bogart flynn fonda ford grant grable harlow hepburn karloff lake loren lorre lugosi madonna rogers rooney spencer stewart ; do
+  ln -s Make.defs.ANAG Make.defs.$s.lbl.gov
+done

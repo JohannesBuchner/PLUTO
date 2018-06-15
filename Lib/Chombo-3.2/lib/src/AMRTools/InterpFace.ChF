@@ -1,0 +1,322 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+c
+c piecewise constant interpolation -- this only fills in
+c data on faces which overlie coarse faces.  Intermediate
+c faces will be filled in later.  This is actually exactly
+c the same as interp_constant, i think!
+c
+c In this case, b should either be the lo or high
+      subroutine interpfaceconstant(
+     &     CHF_FRA[fine],
+     &     CHF_CONST_FRA[coarse],
+     &     CHF_BOX[b],
+     &     CHF_CONST_INT[ref_ratio],
+     &     CHF_BOX[bref],
+     &     CHF_CONST_INT[dir]
+     &     )
+
+      integer var
+      integer CHF_AUTODECL[ic]
+      integer CHF_AUTODECL[ifine]
+      integer CHF_AUTODECL[ii]
+
+
+c compute on the refined face of each coarse face
+      do var = 0, CHF_NCOMP[coarse] - 1
+         CHF_AUTOMULTIDO[ b; ic ]
+            CHF_AUTOMULTIDO[ bref; ii ]
+            CHF_DTERM[
+               ifine0 = ic0*ref_ratio + ii0;
+               ifine1 = ic1*ref_ratio + ii1;
+               ifine2 = ic2*ref_ratio + ii2;
+               ifine3 = ic3*ref_ratio + ii3;
+               ifine4 = ic4*ref_ratio + ii4;
+               ifine5 = ic5*ref_ratio + ii5]
+
+               fine(CHF_AUTOIX[ifine],var) = coarse(CHF_AUTOIX[ic],var)
+            CHF_ENDDO
+         CHF_ENDDO
+      end do
+
+      return
+      end
+
+
+c
+c piecewise bi-(tri-)linear interpolation to "fine" assuming that
+c piecewise constant interpolation has already been done
+c this is probably also the same as the basic interp_linear subroutine
+c
+      subroutine interplinearface (
+     &     CHF_FRA [ fine ],
+     &     CHF_CONST_FRA [ slope ],
+     &     CHF_BOX [ b ],
+     &     CHF_CONST_INT [ dir ],
+     &     CHF_CONST_INT [ ref_ratio ],
+     &     CHF_BOX[brefface]
+     &     )
+
+      integer CHF_AUTODECL[ ic ]
+      integer CHF_AUTODECL[ ifine ]
+      integer CHF_AUTODECL[ ii ]
+      integer var, id
+
+      REAL_T dxf
+c this is a box that will go from (0,0,0) to (ref_ratio-1)*(1,1,1)
+
+c compute on the refined edges of each coarse edge
+      do var = 0, CHF_NCOMP[fine] - 1
+         CHF_AUTOMULTIDO[ b; ic ]
+
+              CHF_AUTOMULTIDO[ brefface; ii ]
+
+              CHF_DTERM[
+                  ifine0 = ic0*ref_ratio + ii0;
+                  ifine1 = ic1*ref_ratio + ii1;
+                  ifine2 = ic2*ref_ratio + ii2;
+                  ifine3 = ic3*ref_ratio + ii3;
+                  ifine4 = ic4*ref_ratio + ii4;
+                  ifine5 = ic5*ref_ratio + ii5]
+
+
+              CHF_DTERM[
+                  if (dir .eq. 0) then
+                      id = ii0;
+                  else if (dir .eq. 1) then
+                      id = ii1;
+                  else if (dir .eq. 2) then
+                      id = ii2;
+                  else if (dir .eq. 3) then
+                      id = ii3;
+                  else if (dir .eq. 4) then
+                      id = ii4;
+                  else if (dir .eq. 5) then
+                      id = ii5]
+                  endif
+                  dxf = -half + ( (id+half) / ref_ratio )
+                  fine( CHF_AUTOIX[ifine],var) =
+     &                 fine( CHF_AUTOIX[ifine],var) +
+     &                 dxf * slope ( CHF_AUTOIX [ ic ], var )
+              CHF_ENDDO
+          CHF_ENDDO
+      end do
+
+      return
+      end
+
+c --------------------------------------------------------------
+c  this subroutine will do linear interpolation in the normal
+c  direction for interior faces (faces which do not overlie a
+c  coarse face).  assumes that "exterior" face interpolation
+c  has already been done.
+c
+      subroutine interplinearinteriorface(
+     &    CHF_FRA[fine],
+     &    CHF_BOX[bcoarse],
+     &    CHF_CONST_INT[ref_ratio],
+     &    CHF_CONST_INT[facedir],
+     &    CHF_BOX[interiorrefbox]
+     &    )
+
+      integer CHF_AUTODECL[ic]
+      integer CHF_AUTODECL[ifine]
+      integer CHF_AUTODECL[ii]
+      integer CHF_AUTODECL[iloface]
+      integer CHF_AUTODECL[ihiface]
+      integer var, id
+
+      REAL_T dxf, diff
+      REAL_T loval, hival
+
+      do var=0, CHF_NCOMP[fine] -1
+         CHF_AUTOMULTIDO[bcoarse; ic]
+            CHF_AUTOMULTIDO[interiorrefbox; ii]
+
+            CHF_DTERM[
+              ifine0 = ic0*ref_ratio + ii0;
+              ifine1 = ic1*ref_ratio + ii1;
+              ifine2 = ic2*ref_ratio + ii2;
+              ifine3 = ic3*ref_ratio + ii3;
+              ifine4 = ic4*ref_ratio + ii4;
+              ifine5 = ic5*ref_ratio + ii5]
+
+
+c             this will be the coordinates of the low "exterior" face
+              CHF_DTERM[
+              iloface0 = ic0*ref_ratio + (1-CHF_ID(0,facedir))*ii0;
+              iloface1 = ic1*ref_ratio + (1-CHF_ID(1,facedir))*ii1;
+              iloface2 = ic2*ref_ratio + (1-CHF_ID(2,facedir))*ii2;
+              iloface3 = ic3*ref_ratio + (1-CHF_ID(3,facedir))*ii3;
+              iloface4 = ic4*ref_ratio + (1-CHF_ID(4,facedir))*ii4;
+              iloface5 = ic5*ref_ratio + (1-CHF_ID(5,facedir))*ii5]
+
+
+c             this will be the coordinates of the hi "exterior" face
+              CHF_DTERM[
+              ihiface0 = iloface0 + ref_ratio*CHF_ID(0,facedir);
+              ihiface1 = iloface1 + ref_ratio*CHF_ID(1,facedir);
+              ihiface2 = iloface2 + ref_ratio*CHF_ID(2,facedir);
+              ihiface3 = iloface3 + ref_ratio*CHF_ID(3,facedir);
+              ihiface4 = iloface4 + ref_ratio*CHF_ID(4,facedir);
+              ihiface5 = iloface5 + ref_ratio*CHF_ID(5,facedir)]
+
+
+              CHF_DTERM[
+              if (facedir .eq. 0) then
+                 id = ii0;
+              else if (facedir .eq. 1) then
+                 id = ii1;
+              else if (facedir .eq. 2) then
+                 id = ii2;
+              else if (facedir .eq. 3) then
+                 id = ii3;
+              else if (facedir .eq. 4) then
+                 id = ii4;
+              else if (facedir .eq. 5) then
+                 id = ii5]
+              endif
+
+              dxf = float(id)/ref_ratio
+              diff = fine(CHF_AUTOIX[ihiface],var)
+     &                -fine(CHF_AUTOIX[iloface],var)
+
+              fine( CHF_AUTOIX[ifine],var) =
+     &            fine(CHF_AUTOIX[iloface],var)
+     &           +dxf*diff
+
+            CHF_ENDDO
+          CHF_ENDDO
+
+       enddo
+
+       return
+       end
+
+
+c
+c multidimensional limiting, same as interp_limit except that we
+c don't even touch slopes in normal direction (just along faces)
+c
+c Also need to make sure that all faces are w/in physical domain
+c
+c bn is a box of the neighbors on this face
+c
+      subroutine interplimitface (
+     &     CHF_FRA [ islope ],
+     &     CHF_FRA [ jslope ],
+     &     CHF_FRA [ kslope ],
+     &     CHF_FRA [ lslope ],
+     &     CHF_FRA [ mslope ],
+     &     CHF_FRA [ nslope ],
+     &     CHF_CONST_FRA [ state ],
+     &     CHF_BOX [ b ],
+     &     CHF_BOX [ bn ],
+     &     CHF_BOX [validBox],
+     &     CHF_CONST_INT[normaldir]
+     &     )
+
+      integer CHF_AUTODECL [ i ], var
+      integer CHF_AUTODECL [ ii ]
+      integer CHF_AUTODECL [ in ]
+      REAL_T statemax, statemin, deltasum, etamax, etamin, eta
+      REAL_T tempone, tempzero
+
+      tempone = one
+      tempzero = 0
+
+
+      do var = 0, CHF_NCOMP[ islope ] - 1
+         CHF_AUTOMULTIDO [ b; i]
+             statemax = state ( CHF_AUTOIX[i], var )
+             statemin = state ( CHF_AUTOIX[i], var )
+
+             CHF_AUTOMULTIDO [ bn; ii]
+
+             CHF_DTERM[
+                 in0 = i0 + ii0;
+                 in1 = i1 + ii1;
+                 in2 = i2 + ii2;
+                 in3 = i3 + ii3;
+                 in4 = i4 + ii4;
+                 in5 = i5 + ii5]
+
+
+                 if (
+                 CHF_DTERM[
+     &                in0 .ge. CHF_LBOUND[ validBox; 0 ] .and.
+     &                in0 .le. CHF_UBOUND[ validBox; 0 ] ;
+     &                .and.
+     &                in1 .ge. CHF_LBOUND[ validBox; 1 ] .and.
+     &                in1 .le. CHF_UBOUND[ validBox; 1 ] ;
+     &                .and.
+     &                in2 .ge. CHF_LBOUND[ validBox; 2 ] .and.
+     &                in2 .le. CHF_UBOUND[ validBox; 2 ] ;
+     &                .and.
+     &                in3 .ge. CHF_LBOUND[ validBox; 3 ] .and.
+     &                in3 .le. CHF_UBOUND[ validBox; 3 ] ;
+     &                .and.
+     &                in4 .ge. CHF_LBOUND[ validBox; 4 ] .and.
+     &                in4 .le. CHF_UBOUND[ validBox; 4 ] ;
+     &                .and.
+     &                in5 .ge. CHF_LBOUND[ validBox; 5 ] .and.
+     &                in5 .le. CHF_UBOUND[ validBox; 5 ] ]
+     &                )
+     &        then
+                    statemax = max ( statemax, state(CHF_AUTOIX[in],var))
+                    statemin = min ( statemin, state(CHF_AUTOIX[in],var))
+                 endif
+             CHF_ENDDO
+
+c ::: note that we filter out the slopes in the normal direction
+             deltasum = half * (
+                CHF_DTERM[
+     &            (1-CHF_ID(normaldir,0))*abs(islope(CHF_AUTOIX[i],var));
+     &            +
+     &            (1-CHF_ID(normaldir,1))*abs(jslope(CHF_AUTOIX[i],var));
+     &            +
+     &            (1-CHF_ID(normaldir,2))*abs(kslope(CHF_AUTOIX[i],var));
+     &            +
+     &            (1-CHF_ID(normaldir,3))*abs(lslope(CHF_AUTOIX[i],var));
+     &            +
+     &            (1-CHF_ID(normaldir,4))*abs(mslope(CHF_AUTOIX[i],var));
+     &            +
+     &            (1-CHF_ID(normaldir,5))*abs(nslope(CHF_AUTOIX[i],var))]
+     &            )
+             if ( deltasum .gt. 0 ) then
+                etamax = ( statemax - state ( CHF_AUTOIX[i], var ) )
+     &               / deltasum
+                etamin = ( state ( CHF_AUTOIX[i], var ) - statemin )
+     &               / deltasum
+                eta = max ( min ( etamin, etamax, tempone ), tempzero )
+
+                CHF_DTERM[
+                islope ( CHF_AUTOIX[i], var ) =
+     &               eta * islope ( CHF_AUTOIX[i], var ) ;
+                jslope ( CHF_AUTOIX[i], var ) =
+     &               eta * jslope ( CHF_AUTOIX[i], var ) ;
+                kslope ( CHF_AUTOIX[i], var ) =
+     &               eta * kslope ( CHF_AUTOIX[i], var ) ;
+                lslope ( CHF_AUTOIX[i], var ) =
+     &               eta * lslope ( CHF_AUTOIX[i], var ) ;
+                mslope ( CHF_AUTOIX[i], var ) =
+     &               eta * mslope ( CHF_AUTOIX[i], var ) ;
+                nslope ( CHF_AUTOIX[i], var ) =
+     &               eta * nslope ( CHF_AUTOIX[i], var )  ]
+             end if
+         CHF_ENDDO
+      end do
+
+      return
+      end
+
+
+
+
+

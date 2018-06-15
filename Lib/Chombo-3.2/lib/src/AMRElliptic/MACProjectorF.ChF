@@ -1,0 +1,103 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+      subroutine regcorrecttanvel(
+     $     chf_fra1[vel],
+     $     chf_const_fra1[grad],
+     $     chf_box[interiorbox],
+     $     chf_int[veldir],
+     $     chf_int[graddir])
+
+      integer chf_ddecl[ioffvel ; joffvel ; koffvel]
+      integer chf_ddecl[ioffgrad; joffgrad; koffgrad]
+      integer chf_ddecl[i;j;k]
+
+      real_t correction, factor
+      chf_dterm[
+      ioffvel = chf_id(0,veldir);
+      joffvel = chf_id(1,veldir);
+      koffvel = chf_id(2,veldir)]
+
+      chf_dterm[
+      ioffgrad = chf_id(0,graddir);
+      joffgrad = chf_id(1,graddir);
+      koffgrad = chf_id(2,graddir)]
+
+      factor = one/four
+      chf_multido[interiorbox;i;j;k]
+
+      correction = factor*
+     $     ( grad(chf_ix[i                 ;j                 ;k                 ])
+     $     + grad(chf_ix[i+ioffgrad-ioffvel;j+joffgrad-joffvel;k+koffgrad-koffvel])
+     $     + grad(chf_ix[i         -ioffvel;j         -joffvel;k         -koffvel])
+     $     + grad(chf_ix[i+ioffgrad        ;j+joffgrad        ;k+koffgrad        ]))
+
+      vel(chf_ix[i;j;k]) = vel(chf_ix[i;j;k]) - correction
+
+      chf_enddo
+
+      return
+      end
+      subroutine macdivergef(
+     &     chf_box[dcalc],
+     &     chf_fra[divf],
+     &     chf_const_fra[flux],
+     &     chf_const_int[facedir],
+     &     chf_const_int[nconserved],
+     &     chf_const_real[dx])
+
+      integer chf_ddecl[i; j; k]
+      integer chf_ddecl[ioff; joff; koff]
+      integer spacedim,iv
+
+      chf_dterm[
+      ioff = chf_id(0,facedir);
+      joff = chf_id(1,facedir);
+      koff = chf_id(2,facedir)]
+
+      spacedim = CH_SPACEDIM
+
+      do iv = 0,nconserved - 1
+
+         chf_multido[dcalc;i;j;k]
+
+         divf(chf_ix[i;j;k],iv) = divf(chf_ix[i;j;k],iv) +
+     &        (flux(chf_ix[i+ioff;j+joff;k+koff],iv)
+     &        -flux(chf_ix[i     ;j     ;k     ],iv))/dx
+
+         chf_enddo
+
+      enddo
+
+      return
+      end
+      subroutine macgradphi(
+     &     chf_fra1[gradphi],
+     &     chf_const_fra1[phi],
+     &     chf_const_int[facedir],
+     &     chf_const_real[dx],
+     &     chf_box[facebox])
+
+      integer chf_ddecl[i;j;k]
+      integer chf_ddecl[ioff;joff;koff]
+
+      chf_dterm[
+      ioff = chf_id(0,facedir);
+      joff = chf_id(1,facedir);
+      koff = chf_id(2,facedir)]
+
+      chf_multido[facebox;i;j;k]
+
+      gradphi(chf_ix[i;j;k]) =
+     &     ( phi(chf_ix[i     ;j     ;k     ])
+     &     - phi(chf_ix[i-ioff;j-joff;k-koff])
+     &     )/dx
+
+      chf_enddo
+
+      return
+      end

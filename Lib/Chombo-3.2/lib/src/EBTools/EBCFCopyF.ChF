@@ -1,0 +1,35 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+        subroutine copycffab(
+     &     chf_fra1[finelevel],
+     &     chf_const_fra1[coarlevel],
+     &     chf_box[coarbox],
+     &     chf_box[refbox],
+     &     chf_const_int[reftocoar])
+
+        integer chf_ddecl[iic;jjc;kkc]
+        integer chf_ddecl[iie;jje;kke]
+        integer chf_ddecl[iif;jjf;kkf]
+
+        real_t coarval
+
+        chf_multido[coarbox;iic;jjc;kkc]
+          coarval = coarlevel(chf_ix[iic;jjc;kkc])
+
+          chf_multido[refbox;iie;jje;kke]
+            chf_dterm[
+            iif  =  reftocoar*iic  + iie;
+            jjf  =  reftocoar*jjc  + jje;
+            kkf  =  reftocoar*kkc  + kke
+            ]
+
+            finelevel(chf_ix[iif;jjf;kkf]) = coarval
+          chf_enddo
+        chf_enddo
+
+        return
+        end

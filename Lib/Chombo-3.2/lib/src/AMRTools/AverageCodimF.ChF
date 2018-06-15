@@ -1,0 +1,108 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+c----------------------------------------------------------------------c
+c This is the same as in AverageF.ChF except that we always respect
+c 'bref' (hence, no loop unrolling) and the refDim is input.
+c
+c  INPUTS/OUTPUTS:
+c  coarse   <=  coarse data
+c  fine      => fine-grid data
+c  box       => box over which to average
+c  refRatio  => refinement ratio
+c  refFactor => determines scaling factor
+c  refDim    => number of dimensions over which fine cells are averaged
+c  bref      => defines stepping on the fine mesh (within 1 coarse
+c               codimensional element).  Ranges from 0 to refRatio-1
+c               in all directions not orthogonal to the orientation of
+c               the codimension
+c----------------------------------------------------------------------c
+
+      subroutine averagecodim(
+     &     CHF_FRA[coarse],
+     &     CHF_CONST_FRA[fine],
+     &     CHF_BOX[box],
+     &     CHF_CONST_INT[refRatio],
+     &     CHF_CONST_INT[refFactor],
+     &     CHF_CONST_INT[refDim],
+     &     CHF_BOX[bref])
+
+      integer var
+      integer CHF_AUTODECL[ic]
+      integer CHF_AUTODECL[ip]
+      integer CHF_AUTODECL[ii]
+
+      real_t refScale,coarseSum
+
+      refScale = one/(refFactor**refDim)
+
+      do var = 0, CHF_NCOMP[coarse] - 1
+         CHF_AUTOMULTIDO[box;ic]
+            CHF_DTERM[
+               ip0 = ic0*refRatio;
+               ip1 = ic1*refRatio;
+               ip2 = ic2*refRatio;
+               ip3 = ic3*refRatio;
+               ip4 = ic4*refRatio;
+               ip5 = ic5*refRatio]
+
+            coarseSum = 0
+
+            CHF_AUTOMULTIDO[ bref; ii ]
+               coarseSum = coarseSum + fine(CHF_OFFSETIX[ip;+ii],var)
+            CHF_ENDDO
+
+            coarse(CHF_AUTOIX[ic],var) = coarseSum*refScale
+         CHF_ENDDO
+      enddo
+
+      return
+      end
+
+
+      subroutine averagecodimharmonic(
+     &     CHF_FRA[coarse],
+     &     CHF_CONST_FRA[fine],
+     &     CHF_BOX[box],
+     &     CHF_CONST_INT[refRatio],
+     &     CHF_CONST_INT[refFactor],
+     &     CHF_CONST_INT[refDim],
+     &     CHF_BOX[bref])
+
+      integer var
+      integer CHF_AUTODECL[ic]
+      integer CHF_AUTODECL[ip]
+      integer CHF_AUTODECL[ii]
+
+      real_t refScale,coarseSum
+
+      refScale = one/(refFactor**refDim)
+
+      do var = 0, CHF_NCOMP[coarse] - 1
+         CHF_AUTOMULTIDO[box;ic]
+            CHF_DTERM[
+               ip0 = ic0*refRatio;
+               ip1 = ic1*refRatio;
+               ip2 = ic2*refRatio;
+               ip3 = ic3*refRatio;
+               ip4 = ic4*refRatio;
+               ip5 = ic5*refRatio]
+
+            coarseSum = 0
+
+            CHF_AUTOMULTIDO[ bref; ii]
+               coarseSum = coarseSum + one/
+     &            fine(CHF_OFFSETIX[ip;+ii],var)
+            CHF_ENDDO
+
+            coarse(CHF_AUTOIX[ic],var) = one/(coarseSum*refScale)
+         CHF_ENDDO
+      enddo
+
+      return
+      end

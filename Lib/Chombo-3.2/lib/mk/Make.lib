@@ -1,0 +1,17 @@
+# -*- Mode: Makefile;  -*-
+
+makefiles+=lib_src_$(lbase)
+
+usage:
+	@echo "This makefile supports targets:"
+	@echo "     all lib $(lbase) clean realclean usage"
+
+include $(CHOMBO_HOME)/mk/Make.defs
+
+# The `all-lib', `lib-only', `$(lbase)', `clean' and `realclean' targets are defined in `Make.rules'
+.PHONY: all lib usage
+
+all: all-lib
+lib: lib-only
+
+include $(CHOMBO_HOME)/mk/Make.rules

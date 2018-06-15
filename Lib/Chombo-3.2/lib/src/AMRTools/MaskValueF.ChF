@@ -1,0 +1,50 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+!=======================================================
+!     subroutine MASKFROMTHRESHOLD
+!     Set mask to 1. or 0. depending on whether test == val.
+!
+!     => inputs,  <= outputs
+!     mask <= NODE-centered mask array
+!     test => NODE-centered integer array to add to sum
+!     bx => NODE-centered box on which arrays live
+!     val => special value
+!     onoff => if 1, then set mask to 1. where test == val;
+!              if 0, then set mask to 0. where test == val.
+!
+!     petermc, 12 Dec 2005
+      subroutine maskvalue(
+     &     CHF_FRA1[mask],
+     &     CHF_CONST_FIA1[test],
+     &     CHF_BOX[bx],
+     &     CHF_CONST_INT[val],
+     &     CHF_CONST_INT[onoff])
+      integer CHF_AUTODECL[i]
+
+      if (onoff .eq. 1) then
+         CHF_AUTOMULTIDO[bx;i]
+         if (test(CHF_AUTOIX[i]) .eq. val) then
+            mask(CHF_AUTOIX[i]) = one
+         else
+            mask(CHF_AUTOIX[i]) = 0
+         endif
+         CHF_ENDDO
+      else
+         CHF_AUTOMULTIDO[bx;i]
+         if (test(CHF_AUTOIX[i]) .eq. val) then
+            mask(CHF_AUTOIX[i]) = 0
+         else
+            mask(CHF_AUTOIX[i]) = one
+         endif
+         CHF_ENDDO
+      endif
+
+      return
+      end
+

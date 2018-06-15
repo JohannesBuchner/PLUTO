@@ -1,0 +1,29 @@
+###
+verbose = 1	
+
+maxboxsize = 16
+ref_ratio  = 2
+#n_cell     = 16 16 16
+n_cell     = 32 32 32
+# n_cell     = 64 64 64
+# n_cell     = 128 128 128
+# n_cell     = 256 256 256
+
+## domain params
+## prob_lo is the origin of the coord system
+## dx=dy=dz
+prob_lo     = 0.0 0.0 0.0 
+## prob_hi is the high point of the box in the 0 direction
+# prob_hi   = 32.0 
+prob_hi     =  1.0
+# start_pt  =  4.0
+start_pt    =  0.123456789
+
+up_dir      = 1
+indep_var   = 0
+ramp_slope  = 0.5
+
+sphere_center = 0.5 0.5 0.5
+sphere_radius = 0.1
+# 0 for all regular, 1 for ramp
+which_geom = 5

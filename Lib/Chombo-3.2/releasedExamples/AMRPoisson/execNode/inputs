@@ -1,0 +1,65 @@
+#main parameters
+#iprob == 0, const rhs within r<rno, zero outside        
+#iprob == 1, cubic rhs within r<rno, zero outside        
+#iprob == 2, wacky sine function thing
+iprob              = 2   
+domain_length      = 1.0 1.0 1.0
+#number of times to solve (for benchmarking)    
+iterations          = 1
+refine_threshold = 0.85
+buffer_size =1
+#coefficient of rhs
+rhono              = 0.9
+#radius input to rhs 
+rno                = 0.5    
+num_smooth = 4
+num_mg     = 1
+max_iterations = 100
+tolerance  = 1.0e-12
+norm_thresh  = 1.0e-13
+hang       = 1.0e-10
+block_factor = 8
+alpha = 0.0
+beta= 1.0
+#iprob = 0 const rho in center, zero outside
+#iprob = 1 cubic rho in center, zero outside
+#bcs for lfaces 1==const neumann, 0 == const dirc
+bc_lo              = 0 0 0   
+bc_hi              = 0 0 0   
+#bc_lo              = 1 1 1    
+#bc_hi              = 1 1 1  
+bc_value = 0.0  
+
+# maximum level number
+#max_level          = 2
+max_level          = 1
+#max_level          = 0        
+# maximum linear size of boxes
+max_grid_size         = 1024
+#max_grid_size         = 16
+# refinement ratio
+#ref_ratio          = 4 4 4 4 4 4 4    
+ref_ratio          = 2 2 2 2 2 2 2 2  
+#ref_ratio          = 2 4 4 4 4 
+# num. cells in base grid dirs
+n_cells             = 16 16 16 
+#n_cells             = 32 32 32
+#n_cells             =  64 64 64
+prob_lo            = 0.0 0.0 0.0 # coords. of lower left. 
+prob_hi            = 1.0 1.0 1.0 # coords. of upper right.
+lbase              = 0          #lbase for solves
+verbose            = 1          #if this is == 1, verbose is true
+fill_ratio         = 0.5     #fill ratio for meshrefine
+use_eb_grids       = false
+read_in_grids       = true
+level_0_box_count   = 1
+level_0_box_0_lo   = 0 0 0
+level_0_box_0_hi   = 15 15 15
+level_1_box_count   = 1
+level_1_box_0_lo   = 8 8 8
+level_1_box_0_hi   = 23 23 23
+level_2_box_count   = 1
+level_2_box_0_lo   = 24 24 24
+level_2_box_0_hi   = 39 39 39
+
+

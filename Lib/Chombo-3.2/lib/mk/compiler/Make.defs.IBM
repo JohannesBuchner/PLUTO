@@ -1,0 +1,133 @@
+### This is a compiler-specific definitions file for IBM AIX compilers (xl*)
+
+## It sets values for the defaults variables ($def*), which will be used
+## if the calling makefile doesn't set the corresponding variables.
+## The corresponding variables are the ones without the "def" prefix.
+
+## Compiler defaults variables:
+##  defcxxcomflags = C++ compiler/linker options
+##  defcxxdbgflags : for C++ compiling and linking when DEBUG=TRUE
+##  defcxxoptflags : for C++ compiling and linking when OPT=TRUE or HIGH
+##  defcxxprofflags: for C++ compiling and linking when PROFILE=TRUE
+##  deffcomflags   = Fortran compiler options
+##  deffdbgflags   : for Fortran compiling when DEBUG=TRUE
+##  deffoptflags   : for Fortran compiling when OPT=TRUE or HIGH
+##  deffprofflags  : for Fortran compiling when PROFILE=TRUE
+##  defflibflags   : library options needed to link the Fortran code
+##  defldflags     : options for linking
+##  cppcallsfort: preprocessor macro as used in FORT_PROTO.H to specify
+##                    how the C++ code should construct names for calling Fortran
+##
+## Special variables (default):
+##  USE_EXTNAME (TRUE)    Compile Fortran names with trailing underscores
+##  USE_64      (system-dependent)   Compile/link with 64bit pointers.
+##
+## Notes:
+##  The IBM C/C++ compilers set the preprocessor macros:
+##   __IBMC__         == (int) C compiler (version number)
+##   __IBMCPP__       == (int) C++ compiler (version number)
+##  only the '*_r' versions of the compilers set this macro:
+##   __VACPP_MULTI__  == (int) thread-safe C or C++ compilers (1)
+
+ifeq ($(system),AIX)
+  cxxname := $(notdir $(firstword $(CXX)))
+  fname   := $(notdir $(firstword $(FC)))
+
+  ## IBM compiler has many names
+  ifneq ($(findstring $(cxxname),xlC xlC_r CC CC_r mpCC_r),)
+    # this is known to work for versions 6, 7 and 8, but not for v5.
+    _xlcversion := $(subst ., ,$(shell $(CXX) -qversion | awk '/ V[0-9]/{gsub("V","");print $$6;exit}/version/{print $$5}'))
+    _xlcmajorver:= $(word 1,$(_xlcversion))
+    _xlcminorver:= $(word 2,$(_xlcversion))
+
+    # -qrtti=dynamiccast turns on the real-time-type-identification --
+    #  who knows why it's NOT on by default...  the C++ standard requires it.  (ndk)
+    # -O4 is too much, -O3 works fine.  (ndk)
+    # -qstaticinline takes care of some warnings. (ndk)
+    # -qarch=auto will optimize for the machine where compilation occurs. (ndk)
+    # -qtune will by default take on the value of -qarch (ndk)
+    # -qstrict is strongly recommended to prevent the compiler from messing up the code <dbs>
+    # -qsuppress suppresses messages: 1091 complains about friend declarations
+    # -qsuppress suppresses messages: 2907 complains about array bounds-checking    
+    defcxxcomflags = -qsuppress=1540-1091 -qsuppress=1540-2907 -qrtti=dynamiccast
+    defcxxoptflags = -O3 -qstrict -qarch=auto -qsmp=omp:noauto # -qstaticinline -qinlglue -qlargepage
+    defcxxdbgflags = -g -qflttrap -qfullpath -qdbxextra -qcheck=nullptr -qstatsym -qsmp=omp:noauto
+
+    # these flags are important to allow code access to all available memory.
+    # Apparently, the default for AIX (the linker) is pretty small.
+    # See 'man xlf' for more details.
+    defldcomflags = -Wl,-bmaxdata:0x70000000 -Wl,-bmaxstack:0x10000000
+
+    # compile with 64bit pointers and large address space
+    ifeq ($(USE_64),TRUE)
+      #[NOTE: could use the -qwarn64 option, but it complains too much. <dbs>]
+      defcxxcomflags += -q64
+      # in 64bit mode, you don't need the maxdata/stack options
+      defldcomflags =
+      # but you do need a special option to 'ar'
+      CH_AR = ar -X64 -r
+    endif
+
+    # xl* compile uses "-P" for output to file, so don't use it.
+    # -C disables stripping "//" comments because they are valid Fortran code
+    # -qsuppress suppresses messages: 234 complains about "0.0D0" float constants
+    ifeq ($(_xlcmajorver),8)
+      CH_CPP = $(CXX) -E -C -qnoppline -qsourcetype=c -qsuppress=1506-234
+    else ifeq ($(_xlcmajorver),10) # for bluefire.ucar.edu (DFM - 4/14/11)
+      CH_CPP = $(CXX) -E -C -qnoppline -qsourcetype=c -qsuppress=1506-234
+    else
+      CH_CPP = $(CXX) -E -C
+    endif
+
+    # xlC appears to be OK with MT again...
+    USE_MT = TRUE
+  endif
+
+  ## IBM Fortran compiler has many names (dbs)
+  ifneq ($(findstring $(fname),xlf xlf90 xlf_r xlf90_r f77 f90 mpxlf_r),)
+    # this is known to work for version 9.1 but nothing earlier
+    _xlfversion := $(subst ., ,$(shell $(FC) -qversion | awk '/ V[0-9]/{gsub("V","");print $$6}'))
+    _xlfmajorver:= $(word 1,$(_xlcversion))
+    _xlfminorver:= $(word 2,$(_xlcversion))
+
+    # set a cpp macro to indicate we're compiling with the xlf compiler
+    defcppcomflags += -DCH_XLF
+    # -qhot will cause compile failure on one file in SPLAT...
+    # -qextname puts an underscore suffix on all external routine names (ndk)
+    # -qmaxmem=99999 essentially all this does it get rid of compiler warnings. (ndk)
+    # -qarch=auto will optimize for the machine where compilation occurs. (ndk)
+    # -qtune will by default take on the value of -qarch (ndk)
+    # -qstrict makes sure the compiler optimizer doesn't change the results <dbs>
+    # -qsuppress suppresses messages: 510 is the "compilation successful" msg
+    deffcomflags = -qsuppress=1501-510
+    deffoptflags = -O3 -qarch=auto -qfixed -qmaxmem=99999 -qhot -qstrict
+    deffdbgflags = -g -C -qfullpath # -qextchk
+    deffprofflags = -pg
+    ifneq ($(USE_EXTNAME),FALSE)
+      deffcomflags += -qextname
+      # tell Chombo to put the underscore after all the Fortran names in the C++ code
+      cppcallsfort := -DCH_FORT_UNDERSCORE
+    else
+      cppcallsfort := -DCH_FORT_NOUNDERSCORE
+    endif
+
+    # compile with 64bit pointers and large address space
+    ifeq ($(USE_64),TRUE)
+      #[NOTE: could use the -qwarn64 option, but it complains too much. <dbs>]
+      deffcomflags += -q64
+    endif
+
+    # define the library flags needed to link the Fortran code.
+    # Note: if the reentrant Fortran compiler is used, the reentrant C++ compiler should be used too.
+    # If the C++ compiler is not xl*, then get the directory for the xlf libraries,
+    # which may be in a non-standard place.
+    ifeq ($(findstring $(cxxname),xlC xlC_r CC CC_r),)
+      _xlfdirflag := -L$(dir $(shell which $(FC)))/../lib
+    endif
+    ifeq ($(findstring _r,$(FC)),_r)
+      defflibflags := $(_xlfdirflag) -lxlf90_r -lxlopt -lm_r
+    else
+      defflibflags := $(_xlfdirflag) -lxlf90 -lxlopt -lm
+    endif
+  endif
+endif

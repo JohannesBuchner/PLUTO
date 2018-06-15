@@ -1,0 +1,12 @@
+This example demonstrates the Chombo node-centered AMR Poisson solver, which uses the AMRNodeOp linear operator and geometric multigrid. The simple example problem solved is an RHS = 1 everywhere, with Homogeneous Dirichlet boundary conditions. 
+
+To build the example:
+
+To build the example:
+make all DIM=<1,2,3> DEBUG=<TRUE,FALSE> OPT=<TRUE,FALSE,HIGH> MPI=<TRUE,FALSE>
+
+To run the example:
+testNodePoisson<config>.ex inputs
+
+if compiled with HDF5, rhs.hdf5 will be written containing the RHS, and phi.rhs will be written with the solution.
+

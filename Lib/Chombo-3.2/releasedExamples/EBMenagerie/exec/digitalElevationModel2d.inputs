@@ -1,0 +1,104 @@
+# Maximum box size
+maxboxsize = 32
+
+# Number of Levels
+numLevels = 2
+
+# Refinement ratio between levels
+ref_ratio = 2 2 2 2
+
+# Fill ratio
+fill_ratio = 0.9
+
+# Block factor
+block_factor = 4
+
+# buffer size
+buffer_size = 2
+
+# interpType = 1 -> bilinear interpolation
+# interpType = 3 -> bicubic interpolation type1 (this performs cubic interpolation in 1D, matching all value)
+# interpType = 4 -> bicubic interpolation type2 (this performs cubic interpolation in 1D, matching values and derivatives)
+interpType = 4
+
+# load dem.ebis?
+loadEBISFile = 0
+
+##############################
+#### 2D Cross-Section Example 
+##############################
+
+# Grid size
+#n_cell = 4096 256 256
+#n_cell = 2048 128 128
+n_cell = 1024 64 64
+#n_cell = 512 32 32
+#n_cell = 128 8 8
+
+# Domain domain - physical coordinates
+# prob_lo is the origin of the coordinate system
+prob_lo = 230.0 0.0 0.0 
+# prob_hi is the high point of the domain in the x direction
+prob_hi = 422.0 12.0 0.0 
+
+# Digital Elevation Model data file
+DEM_file = digitalElevationModel.2d_slice.dat
+
+#bottomBuffer is space added below the bathymetry, 
+#  (the distance from the deepest spot to the domain box)
+bottomBuffer = 12.0
+
+#highGround is the elevation given for nodata points with all land neighbors (useful for higher order interpolation)
+highGround = 11.2
+
+#verticalScale is used for testing anisotropic vs isotropic geometry, if verticalScale=1.0 then this is the true geometry;
+#   if verticalScale is 100 then all elevations are multiplied by 100...
+verticalScale = 1.0
+
+# box 1 for tagging a refinement region (lo and high corners in physical coordinates)
+# bump
+tag_box1_lo = 275.0  3.0 0.0
+tag_box1_hi = 300.0  9.0 0.0
+
+# box 2 for tagging a refinement region (lo and high corners in physical coordinates)
+# left side
+tag_box2_lo = 230.0  9.0   0.0
+tag_box2_hi = 250.0 12.0 0.0
+
+##############################
+#### Simple 2D Example
+##############################
+
+##### Grid size
+#####n_cell = 32 32 32
+####n_cell = 64 64 64
+#####n_cell = 128 128 128
+#####n_cell = 256 256 256
+####
+##### Domain domain - physical coordinates
+##### prob_lo is the origin of the coordinate system
+####prob_lo = 0.0 0.0 0.0
+##### prob_hi is the high point of the domain in the x direction
+####prob_hi = 1.0 1.0 1.0
+####
+##### Digital Elevation Model data file
+####DEM_file = digitalElevationModel.2d.dat
+####
+#####bottomBuffer is space added below the bathymetry, 
+#####  (the distance from the deepest spot to the domain box)
+####bottomBuffer = 0.0
+####
+#####highGround is the elevation given for nodata points with all land neighbors (useful for higher order interpolation)
+####highGround = 10.0
+####
+#####verticalScale is used for testing anisotropic vs isotropic geometry, if verticalScale=1.0 then this is the true geometry;
+#####   if verticalScale is 100 then all elevations are multiplied by 100...
+####verticalScale = 1.0
+##### box 1 for tagging a refinement region (lo and high corners in physical coordinates)
+####tag_box1_lo = 0.00  0.00 0.0
+####tag_box1_hi = 0.25  0.25 0.0
+####
+##### box 2 for tagging a refinement region (lo and high corners in physical coordinates)
+####tag_box2_lo = 0.75  0.75 0.0
+####tag_box2_hi = 1.00  1.00 0.0
+

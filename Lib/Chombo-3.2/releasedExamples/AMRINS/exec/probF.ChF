@@ -1,0 +1,729 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+#define MAX_NUM_VORT 5
+
+c define problem types
+
+#define SINGLEVORTEX 1
+#define PEROTVORTEXINBOX 2
+#define CUBICVORTICES 3
+#define CHANNELFLOW 4
+#define TANHVORTICES 5
+#define VORTEXRING 6
+#define TAYLORGREEN 7
+#define QUADVEL 8
+#define SINVORTEX 9
+#define COLELLAPAO 10
+#define SHEARLAYER 11
+
+c ------------------------------------------------------------
+c this function initializes the velocity field
+c
+c INPUTS/OUTPUTS:
+c vel <=  velocity field
+c dx   => cell spacing
+c ------------------------------------------------------------
+      subroutine INITVEL(CHF_FRA[vel], CHF_REAL[dx])
+
+c ::: local variables
+      integer CHF_DDECL[i;j;k]
+      integer n, dir
+      integer probtype
+      REAL_T CHF_DDECL[x;y;z]
+      REAL_T vorcenter(0:CH_SPACEDIM-1, MAX_NUM_VORT), omega0, r0
+      REAL_T small, umagin, umagout, dist
+      REAL_T sinth, costh, absu
+      REAL_T eps
+
+      REAL_T deltashear, yshear, rhoshear, ydelta
+      REAL_T xvel, yvel, zvel
+
+      integer num_vort
+      REAL_T omega(MAX_NUM_VORT), radVort(MAX_NUM_VORT)
+
+c     set default value to something reasonable
+      do i = 1, MAX_NUM_VORT
+         radVort(i) = 0.0625
+      enddo
+
+      CHF_DTERM[
+c  1-D
+      probtype = CHANNELFLOW;
+c 2-D
+c      probtype = QUADVEL;
+c      probtype = CUBICVORTICES;
+c      probtype = COLELLAPAO;
+      probtype = SHEARLAYER;
+c  3-D
+c      probtype = CHANNELFLOW
+      probtype = SHEARLAYER
+      ]
+
+      if (probtype.eq.SINGLEVORTEX) then
+c     :: parameters for single-vortex test problem
+         CHF_DTERM[
+         vorcenter(0,1)=0.5;
+         vorcenter(1,1)=0.5;
+         vorcenter(2,1)=0.5 ]
+
+         omega0 = one
+         r0 = 2.0d-1
+         small=1.0d-6
+
+         CHF_MULTIDO[vel;i;j;k]
+
+         CHF_DTERM[
+         vel(CHF_IX[i;j;k],0)=0.0;
+         vel(CHF_IX[i;j;k],1)=0.0;
+         vel(CHF_IX[i;j;k],2)=0.0 ]
+
+         CHF_ENDDO
+
+         CHF_MULTIDO[vel;i;j;k]
+
+         CHF_DTERM[
+         x = dx*(float(i) + half);
+         y = dx*(float(j)+half);
+         z = dx*(float(k)+half) ]
+
+c   this problem is inherently two-dimensional
+c   (in 3d, it's a spinning cylinder)
+      dist = CHF_DTERM[x**2; +y**2;+0]
+      dist = sqrt(dist)
+
+      umagin = 0.5d0 *(dist*(0.25d0 /r0) - 4.0d0 *((
+     %              dist* 0.25d0 /r0)** 3.0d0 ))
+
+      umagout=(r0/dist)*(0.5d0 *(r0*(0.25d0
+     %     /r0)- 4.0d0 *((r0* 0.25d0 /r0)**three)))
+
+      if (dist.gt.r0) then
+         absu=umagout
+      else
+         absu=umagin
+      endif
+
+      CHF_DTERM[
+      costh = omega0*x/max(dist,small);
+      sinth = omega0*y/max(dist,small); ]
+
+      CHF_DTERM[
+      vel(CHF_IX[i;j;k],0)=vel(CHF_IX[i;j;k],0)-absu*sinth;
+      vel(CHF_IX[i;j;k],1)=vel(CHF_IX[i;j;k],1)+absu*costh;
+      vel(CHF_IX[i;j;k],2)=0.0 ]
+
+      CHF_ENDDO
+
+      else if (probtype.eq.PEROTVORTEXINBOX) then
+
+         eps = 0.1
+
+         CHF_MULTIDO[vel;i;j;k]
+
+            CHF_DTERM[
+            x = dx*(i + half);
+            y = dx*(j+half);
+            z = dx*(k+half) ]
+
+c     sample vortex-in-a-box from Perot paper
+            CHF_DTERM[
+            x=two*Pi*x;
+            y=two*Pi*y;
+            z=two*Pi*z ]
+
+#if CH_SPACEDIM > 1
+            CHF_DTERM[
+            vel(CHF_IX[i;j;k],0)=(one-cos(x))*sin(y);
+            vel(CHF_IX[i;j;k],1)=(cos(y)-one)*sin(x);
+            vel(CHF_IX[i;j;k],2)=0.0 ]
+#endif
+
+         CHF_ENDDO
+
+      else if (probtype.eq.CUBICVORTICES) then
+c   vorticies -- parameters read in from file called vortex.dat
+c :::         format is:
+c :::         number of vortices
+c :::      then, for each vortex:
+c :::         vorcenter_x, vorcenter_y
+c :::         omega
+
+#ifdef CH_MPI
+c :: this needs to be done a bit differently for MPI world
+c :: since we don't want to be doing a bunch of file I/O
+         num_vort = 4
+         CHF_DTERM[
+         vorcenter(0,1) = half;
+         vorcenter(1,1) = half; ]
+         omega(1) = -150
+         CHF_DTERM[
+         vorcenter(0,2) = 0.68d0 ;
+         vorcenter(1,2) = 0.5d0; ]
+         omega(2) = 50.0
+         CHF_DTERM[
+         vorcenter(0,3) = 0.455d0 ;
+         vorcenter(1,3) = 0.65588457d0; ]
+         omega(3) = 50.0
+         CHF_DTERM[
+         vorcenter(0,4) = 0.455d0 ;
+         vorcenter(1,4) = 0.34411543d0 ; ]
+         omega(4) = 50.0
+
+#else
+c  :: first read in vortex info
+         open(unit = 33, file = 'vortex.dat', status = 'old')
+         read(33,*) num_vort
+         do n=1,num_vort
+            read(33,*) CHF_DTERM[vorcenter(0,n);, vorcenter(1,n); ]
+            read(33,*) omega(n)
+         enddo
+         rewind(33)
+         close(33)
+#endif
+
+c ::: first set velocities to 0, then increment with vorticities
+         do dir=0, CH_SPACEDIM-1
+            CHF_MULTIDO[vel; i;j;k]
+              vel(CHF_IX[i;j;k],dir) = 0.0
+            CHF_ENDDO
+         enddo
+
+c ::: use point values for now (maybe implement cell-average integration
+c ::: later?)
+c ::: also note that these vortices are inherently 2D (columns in 3D)
+         do n=1, num_vort
+
+            small = 1.0d-8
+
+            CHF_MULTIDO[vel;i;j;k]
+              CHF_DTERM[
+              x = dx*(float(i) + half) - vorcenter(0,n);
+              y = dx*(float(j) + half) - vorcenter(1,n); ]
+
+              dist = sqrt(CHF_DTERM[x**2; + y**2; ])
+              umagin = half*dist - four*dist**three
+              umagout = radVort(n)*(half*radVort(n) - four*radVort(n)**three)/dist
+              if (dist.gt.radVort(n)) then
+                 absu = umagout
+              else
+                 absu = umagin
+              endif
+              CHF_DTERM[
+              costh = omega(n)*x/max(dist, small);
+              sinth = omega(n)*y/max(dist, small); ]
+              CHF_DTERM[
+              vel(CHF_IX[i;j;k],0) = vel(CHF_IX[i;j;k],0) - absu*sinth;
+              vel(CHF_IX[i;j;k],1) = vel(CHF_IX[i;j;k],1) + absu*costh;
+c          this is essentially a 2d problem
+              vel(CHF_IX[i;j;k],2) = 0.0 ]
+
+            CHF_ENDDO
+         enddo
+
+      else if (probtype.eq.CHANNELFLOW) then
+c ::: simple channel plug flow problem
+         CHF_MULTIDO[vel;i;j;k]
+           CHF_DTERM[
+           vel(CHF_IX[i;j;k],0) = 1.0;
+           vel(CHF_IX[i;j;k],1) = 0.0;
+           vel(CHF_IX[i;j;k],2) = 0.0 ]
+         CHF_ENDDO
+
+      else if (probtype.eq.TAYLORGREEN) then
+         CHF_MULTIDO[vel;i;j;k]
+           CHF_DTERM[
+             x = dx*(float(i)+half);
+             y = dx*(float(j)+half);
+             z = dx*(float(k)+half)]
+
+           CHF_DTERM[
+             x = two*Pi*x;
+             y = two*Pi*y;
+             z = two*Pi*z]
+
+             vel(CHF_IX[i;j;k],0) = CHF_DTERM[-sin(x);*cos(y);*sin(z)]
+             vel(CHF_IX[i;j;k],1) =  CHF_DTERM[cos(x);*sin(y);*sin(z)]
+
+c   have to do it this way because we can't nest DTERM's
+#if (CH_SPACEDIM == 3)
+             vel(CHF_iX[i;j;k],2) = 0
+#endif
+         CHF_ENDDO
+
+      else if (probtype.eq.QUADVEL) then
+c ::: quadratic velocity test problem
+         CHF_MULTIDO[vel;i;j;k]
+           CHF_DTERM[
+             x = dx*(float(i)+half);
+             y = dx*(float(j)+half);
+             z = dx*(float(k)+half)]
+
+c this doesn't make sense for 1-D anyway
+#if CH_SPACEDIM > 1
+         CHF_DTERM[
+         vel(CHF_IX[i;j;k],0) = x*(one-x)*(two*y-1);
+         vel(CHF_IX[i;j;k],1) = -one*(two*x-1)*y*(1-y);
+         vel(CHF_IX[i;j;k],2) = 0.0 ]
+#endif
+
+         CHF_ENDDO
+      else if (probtype.eq.SINVORTEX) then
+c :::  divergence-free sinusoidal test problem
+         CHF_MULTIDO[vel;i;j;k]
+           CHF_DTERM[
+             x = dx*(float(i)+half);
+             y = dx*(float(j)+half);
+             z = dx*(float(k)+half)]
+
+           CHF_DTERM[
+             x = Pi*x;
+             y = Pi*y;
+             z = Pi*z]
+
+c this doesn't make sense for 1-D anyway
+#if CH_SPACEDIM > 1
+           CHF_DTERM[
+           vel(CHF_IX[i;j;k],0) = sin(x)*cos(y);
+           vel(CHF_IX[i;j;k],1) = -cos(x)*sin(y);
+           vel(CHF_IX[i;j;k],2) = 0.0 ]
+#endif
+         CHF_ENDDO
+
+      else if (probtype.eq.COLELLAPAO) then
+c :::  divergence-free sinusoidal test problem
+         CHF_MULTIDO[vel;i;j;k]
+           CHF_DTERM[
+             x = dx*(float(i)+half);
+             y = dx*(float(j)+half);
+             z = dx*(float(k)+half)]
+
+           CHF_DTERM[
+             x = Pi*x;
+             y = Pi*y;
+             z = Pi*z]
+
+c this doesn't make sense for 1-D anyway
+#if CH_SPACEDIM > 1
+           CHF_DTERM[
+           vel(CHF_IX[i;j;k],0) = TWO*((SIN(x))**TWO)
+     &        *SIN(y)*COS(y);
+           vel(CHF_IX[i;j;k],1) = -TWO*SIN(x)
+     &        *COS(x)*((SIN(y))**TWO);
+           vel(CHF_IX[i;j;k],2) = 0.0 ]
+#endif
+         CHF_ENDDO
+      else if (probtype.eq.SHEARLAYER) then
+         small=1.0d-6
+
+         deltashear = 0.05d0
+         yshear = 0.50d0
+         rhoshear = 40.0d0
+
+         eps = 0.0025d0
+
+
+         CHF_MULTIDO[vel;i;j;k]
+
+           CHF_DTERM[
+             x = dx*(float(i)+half);
+             y = dx*(float(j)+half);
+             z = dx*(float(k)+half)]
+
+             ydelta = zero
+#if CH_SPACEDIM > 2
+             ydelta = cos(eight*Pi*z)*eps
+#endif
+
+#if CH_SPACEDIM > 1
+             y = y + ydelta
+#endif
+
+c  this is the pointwise value
+c        yvel = deltashear * sin(two*Pi*x)
+c  this is the integrated cell-average value
+         yvel = (deltashear/dx/Pi)*sin(two*Pi*x)*sin(Pi*dx)
+
+c  this problem really doesn't make sense in 1d, but do this so
+c it will compile
+#if (CH_SPACEDIM == 1)
+        xvel = 0.0
+#else
+        if (y.le.half) then
+           xvel = tanh(rhoshear*(y-fourth))
+        else
+           xvel = tanh(rhoshear*(0.75d0 - y))
+        endif
+#endif
+        zvel = zero
+
+        CHF_DTERM[
+      vel(CHF_IX[i;j;k],0)=xvel;
+      vel(CHF_IX[i;j;k],1)=yvel;
+      vel(CHF_IX[i;j;k],2)=zvel]
+
+      CHF_ENDDO
+
+
+      else
+         write(*,*) 'Bad probtype = ', probtype
+         call MAYDAY_ERROR()
+      endif
+
+      return
+      end
+
+c -----------------------------------------------------------
+c  this subroutine initializes advected/diffused scalars
+c  INPUTS/OUTPUTS:
+c  scal <=  scalars (initialized to facilitate Lagrangian tracking
+c           scalar0 = x
+c           scalar1 = y
+c           scalar2 = z (if 3d)
+c  dx    => cell spacing
+c  time  => current time (useful when computing exact solutions at later
+c           times)
+c  isEC  => 0 if cell-centered, 1 if edge-centeredX, 2 if ECy, 3 if ECz
+c -----------------------------------------------------------
+      subroutine INITSCAL(CHF_FRA[scal], CHF_FRA[vel],
+     &                    CHF_REAL[dx], CHF_REAL[time],
+     &                    CHF_INT[comp],
+     &                    CHF_BOX[domain], CHF_INT[isEC])
+
+c ::: local variables
+      integer CHF_DDECL[i;j;k]
+      integer n
+      REAL_T CHF_DDECL[x; y; z]
+      REAL_T corr
+      REAL_T CHF_DDECL[xOffset; yOffset; zOffset]
+
+c ::: scalar testing
+
+c ::: corr is extra piece needed to turn point-values into cell-avg
+      corr = -dx*dx/(12.0d0)
+
+      CHF_DTERM[
+      xOffset = half;
+      yOffset = half;
+      zOffset = half ]
+
+      if (isEC.eq.1) then
+      CHF_DTERM[
+         xOffset = 0.0;
+      else if (isEC.eq.2) then
+         yOffset = 0.0;
+      else if (isEC.eq.3) then
+         zOffset = 0.0 ]
+      endif
+
+      do n=0, CHF_NCOMP[scal]-1
+         CHF_MULTIDO[scal;i;j;k]
+           CHF_DTERM[
+           x=(float(i)+xOffset)*dx;
+           y=(float(j)+yOffset)*dx;
+           z=(float(k)+zOffset)*dx ]
+
+           scal(CHF_IX[i;j;k],n)=CHF_DTERM[CHF_ID(comp,0)*x; +CHF_ID(comp,1)*y; +CHF_ID(comp,2)*z]
+           scal(CHF_IX[i;j;k],n)= scal(CHF_IX[i;j;k],n) + corr
+
+c special marker for use with shear-layer problem
+           if (comp.eq.1) then
+              if (vel(CHF_IX[i;j;k],0).gt.zero) then
+                 scal(CHF_IX[i;j;k],n)= one
+              else
+                 scal(CHF_IX[i;j;k],n)= -one
+              endif
+           endif
+
+         CHF_ENDDO
+      enddo
+
+      return
+      end
+
+c ---------------------------------------------------------------------
+c initialize vorticity
+c INPUTS/OUTPUTS:
+c
+c vort <=  vorticity
+c comp  => vorticity component
+c dx    => cell spacing
+c ---------------------------------------------------------------------
+      subroutine INITVORT(CHF_FRA1[vort], CHF_INT[comp],CHF_REAL[dx])
+
+c ::: local variables
+      integer CHF_DDECL[i;j;k]
+      integer n, probtype
+
+      REAL_T CHF_DDECL[x;y;z]
+      REAL_T localVort, dist
+      REAL_T vorcenter(0:CH_SPACEDIM-1, MAX_NUM_VORT)
+      CHF_DTERM[
+      REAL_T xVort(MAX_NUM_VORT);
+      REAL_T yVort(MAX_NUM_VORT);
+      REAL_T zVort(MAX_NUM_VORT) ]
+      REAL_T rhoVort(MAX_NUM_VORT)
+      REAL_T localRad, sinTheta, cosTheta
+      REAL_T theta, perturbation
+      REAL_T sigma, a, exponent
+
+      integer num_vort, wavenumber(MAX_NUM_VORT)
+      REAL_T omega(MAX_NUM_VORT), radVort(MAX_NUM_VORT)
+      REAL_T epsilon(MAX_NUM_VORT)
+
+      REAL_T max_allowable_distance, tiny_value
+
+      CHF_DTERM[
+      REAL_T xctr ;
+      REAL_T yctr ;
+                  ]
+
+      if (CH_SPACEDIM.eq.3) then
+         probtype = VORTEXRING
+      else
+         probtype = TANHVORTICES
+      endif
+
+      if (probtype.eq.TANHVORTICES) then
+
+#ifdef CH_MPI
+c ::: need to do this a little differently here to avoid file I/O
+c ::: this is the test problem from ABCHW paper
+         num_vort = 4
+         CHF_DTERM[
+         vorcenter(0,1) = 0.5;
+         vorcenter(1,1) = 0.5; ]
+         omega(1) = -150
+
+         CHF_DTERM[
+         vorcenter(0,2) = 0.68d0;
+         vorcenter(1,2) = .5d0; ]
+         omega(2) = 50.0
+
+         CHF_DTERM[
+         vorcenter(0,3) = 0.455d0;
+         vorcenter(1,3) = 0.65588457d0; ]
+         omega(3) = 50.0
+
+         CHF_DTERM[
+         vorcenter(0,4) = 0.455d0;
+         vorcenter(1,4) = 0.34411543d0; ]
+         omega(4) = 50.0
+
+#else
+c ::: vortices -- parameters read in from file called vortex.dat
+c :::         format is:
+c :::         number of vortices
+c :::      then, for each vortex:
+c :::         vorcenter_x, vorcenter_y
+c :::         omega, r0
+
+c     :: first read in vortex info
+         open(unit = 33, file = 'vortex.dat', status = 'old')
+         read(33,*) num_vort
+         do n=1,num_vort
+            read(33,*) CHF_DTERM[vorcenter(0,n);, vorcenter(1,n);]
+            read(33,*) omega(n)
+         enddo
+         rewind(33)
+         close(33)
+#endif
+
+c     ::: first set vort to 0, then increment with vorticities
+         CHF_MULTIDO[vort; i;j;k]
+         vort(CHF_IX[i;j;k]) = 0.0
+         CHF_ENDDO
+
+c     ::: now loop over vortices
+
+         do n=1,num_vort
+            CHF_MULTIDO[vort;i;j;k]
+              CHF_DTERM[
+              x = dx*(float(i) + half) - vorcenter(0,n);
+              y = dx*(float(j) + half) - vorcenter(1,n);
+c   ::: this is a 2D problem
+              z = 0 ]
+
+              dist = sqrt(CHF_DTERM[x**2; + y**2;])
+              localVort = half*(one + tanh(100.0d0*(0.03d0-dist)))
+              localVort = omega(n)*localVort
+
+c     ::: use point values for now
+              vort(CHF_IX[i;j;k]) = vort(CHF_IX[i;j;k]) + localVort
+            CHF_ENDDO
+         enddo
+      else if (probtype.eq.VORTEXRING) then
+
+#ifdef CH_MPI
+c ::: in MPI world, don't want to be doing all of this file stuff
+c ::: this is the specification for the benchmark vortex rings problem
+      num_vort = 1
+
+c ::: first vortex ring
+      CHF_DTERM[
+        xVort(1) = 0.5d0;
+        yVort(1) = 0.5d0;
+        zVort(1) = 0.40d0 ]
+      radVort(1) = 0.2d0
+      RhoVort(1) = 0.05d0
+      omega(1) = 1.5d0
+      wavenumber(1) = 0
+      epsilon(1) = 0.0d0
+
+c ::: second vortex ring
+      CHF_DTERM[
+        xVort(2) = 0.5d0;
+        yVort(2) = 0.5d0;
+        zVort(2) = 0.65d0 ]
+      radVort(2) = 0.25d0
+      RhoVort(2) = 0.05d0
+      omega(2) = 1.0d0
+      wavenumber(2) = 0
+      epsilon(2) = 0.0d0
+#else
+c ::: first read in vortex ring info
+c ::: format is:
+c :::    number of rings
+c :::    for each vortex ring:
+c :::    x,y,z of center,
+c :::    radius of ring from x,y=0, radius of vorticity support, strength
+c :::    wavenumber of perturbation, magnitude of perturbation
+         open(unit=33, file='vortexring.dat', status='old')
+         read(33,*) num_vort
+         do n=1,num_vort
+            read(33,*) CHF_DTERM[xVort(n);, yVort(n);, zVort(n)]
+            read(33,*) radVort(n), RhoVort(n), omega(n)
+            read(33,*) wavenumber(n), epsilon(n)
+         enddo
+         rewind(33)
+         close(33)
+#endif
+
+c :::   first set vort to 0, then increment with vorticities
+         CHF_MULTIDO[vort;i;j;k]
+           vort(CHF_IX[i;j;k]) = zero
+         CHF_ENDDO
+
+c ::: for now, no vorticity in the z-direction
+         if (comp.ne.2) then
+            do n=1, num_vort
+              CHF_MULTIDO[vort;i;j;k]
+                CHF_DTERM[
+                  x = dx*(float(i) + half) - xVort(n);
+                  y = dx*(float(j) + half) - yVort(n);
+                  z = dx*(float(k) + half) - zVort(n) ]
+
+c :::  this is the distance from the z-axis
+                localRad = sqrt(CHF_DTERM[x**2; + y**2;])
+                CHF_DTERM[
+                cosTheta = x/localRad;
+                sinTheta = y/localRad; ]
+c ::: this is the perturbation
+                if (wavenumber(n).gt.0) then
+                  theta = acos(cosTheta)
+c     ::: handle the "other" quadrants
+                  if (sinTheta.lt.0) then
+                    theta = -theta
+                  endif
+
+                  perturbation = epsilon(n)*sin(wavenumber(n)*theta)
+                else
+                  perturbation = zero
+                endif
+
+c ::: find local center of ring along theta
+                CHF_DTERM[
+                xctr = xVort(n) + radVort(n)*(1+perturbation)*cosTheta;
+                yctr = yVort(n) + radVort(n)*(1+perturbation)*sinTheta; ]
+
+                dist = sqrt((CHF_DTERM[x+xVort(n)-xctr)**2;
+     &                               +(y+yVort(n)-yctr)**2; + z**2] )
+
+c ::: for now, use tanh profile
+c               localVort = half*(one + tanh(100.0d0*(0.03d0-dist)))
+c ::: vorticity distribution from ann almgren's thesis
+c     (also from knio and ghoniem)
+
+c     In an attempt to prevent exponent from being too large
+c     and causing an underflow at localVort = exp(-exponent**3),
+c     We can pick a smallest-allowable value and then solve for
+c     the maximum dist.  If we pick the smallest value to be
+c     1.0e-300 then the dist value must be less than some value,
+c     otherwise we are essentially computing zero -- and prevent
+c     underflows on the machines that are picky about such things.
+c     exp(-(dist/sigma)**3)/(sigma*sigma*a) = 1.0e-300,
+c        solve for dist.  (ndk)
+
+c   i was unable to find the right way to obtain the smallest
+c   number.  i tried using DBL_MIN from float.h, but had
+c   compile problems on AIX, and the values in float.h are in
+c   1.0e-300 format instead of 1.0d-300.  So for now i'm using
+c   a hard-coded value of 1.0d-300. (ndk)
+
+                sigma = 0.0275d0
+                a = 2268.85d0
+c                tiny_value = 1.0d-300
+                tiny_value = 1.0d-100
+
+                max_allowable_distance =
+     $               (-(sigma**3*log(sigma*sigma*a*tiny_value)))**third
+c                write(6,'(d30.20)') max_allowable_distance
+
+c             Currently this value is:  0.24303294718039164524E+00
+
+                if (dist .lt. max_allowable_distance) then
+                  exponent = dist/sigma
+                  exponent = exponent**3
+                  localVort = exp(-exponent)
+                  localVort = localVort/(sigma*sigma*a)
+                  localVort = omega(n)*localVort
+
+c     ::: now take component of vorticity in comp direction
+                  if (comp.eq.0) then
+                    localVort = -localVort*sinTheta
+                  else if (comp.eq.1) then
+                    localVort = localVort*cosTheta
+                  else
+                    write(*,*) 'INITVORT: bad vorticity component = ',
+     $                   comp
+                    call MAYDAY_ERROR()
+                  endif
+
+                  vort(CHF_IX[i;j;k]) = vort(CHF_IX[i;j;k]) + localVort
+                else
+c                 do nothing -- add zero...
+                endif
+              CHF_ENDDO
+            enddo
+         endif
+      else
+         write(*,*) 'Bad Probtype = ', probtype
+         call MAYDAY_ERROR()
+      endif
+
+      return
+      end
+
+c ---------------------------------------------------------
+c  This is just here for compatibility purposes
+c  Computes exact solution (if there is one)
+c
+c  INPUTS/OUTPUTS:
+c  exact <=  exact solution
+c  nu     => viscosity
+c  time   => solution time
+c  dx     => cell spacing
+c ---------------------------------------------------------
+      subroutine computeexact(CHF_FRA[exact],
+     &                        CHF_CONST_REAL[nu],
+     &                        CHF_CONST_REAL[time],
+     &                        CHF_CONST_REAL[dx])
+
+c  at the moment, no need for any code here
+      return
+      end

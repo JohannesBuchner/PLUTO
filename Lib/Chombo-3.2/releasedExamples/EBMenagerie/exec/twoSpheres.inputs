@@ -1,0 +1,29 @@
+# Grid size
+n_cell =  64  64  64
+# n_cell = 128 128 128
+# n_cell = 256 256 256
+# n_cell = 512 256 256
+
+# Maximum box size
+maxboxsize = 16
+
+# Domain domain - physical coordinates
+# prob_lo is the origin of the coordinate system
+prob_lo = -1.0 -1.0 -1.0
+# prob_hi is the high point of the domain in the x direction
+# Note:  dx = dy = dz
+prob_hi =  1.0
+
+# Center of the 1st sphere
+center1 = -0.5 0.0 0.0
+# Radius of the 1st sphere
+radius1 =  0.7
+
+# Center of the 2nd sphere
+center2 =  0.5 0.0 0.0
+# Radius of the 2nd sphere
+radius2 =  0.7
+
+# insideRegular != 0 -> Domain is on the inside
+# insideRegular == 0 -> Domain is on the outside
+insideRegular = 1

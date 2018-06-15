@@ -1,0 +1,787 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+#include "LGintegrator.H"
+
+        subroutine MAGNITUDEF(
+     &    CHF_FRA1[magdata],
+     &    CHF_CONST_FRA[data],
+     &    CHF_BOX[box])
+
+        integer CHF_DDECL[i;j;k]
+        integer iv
+        real_t cur,sum
+
+        CHF_MULTIDO[box;i;j;k]
+          sum = zero
+
+          do iv = 0,CHF_NCOMP[data]-1
+            cur = data(CHF_IX[i;j;k],iv)
+            sum = sum + cur*cur
+          enddo
+
+          magdata(CHF_IX[i;j;k]) = sqrt(sum)
+        CHF_ENDDO
+
+        return
+        end
+
+        subroutine MAXWAVESPEEDF(
+     &    CHF_REAL[cmax],
+     &    CHF_CONST_FRA[U],
+     &    CHF_BOX[box])
+
+#include "EosCommon.fh"
+
+        integer CHF_DDECL[i;j;k]
+        real_t  CHF_DDECL[uu;vv;ww]
+        real_t  umax,cspeed,ke,re,rho,invrho
+
+        cmax = zero
+
+        CHF_MULTIDO[box;i;j;k]
+          rho = max(U(CHF_IX[i;j;k],URHO),smallr)
+          invrho = one/rho
+
+          CHF_DTERM[
+          uu = U(CHF_IX[i;j;k],UMOMX)*invrho;
+          vv = U(CHF_IX[i;j;k],UMOMY)*invrho;
+          ww = U(CHF_IX[i;j;k],UMOMZ)*invrho]
+
+          ke = half*(CHF_DTERM[uu*uu; + vv*vv; + ww*ww])
+
+          re = U(CHF_IX[i;j;k],UENG) - ke*rho
+          cspeed = sqrt(gamma*re*(gamma - one)*invrho)
+
+          CHF_DTERM[
+          umax =     abs(uu)      ;
+          umax = max(abs(vv),umax);
+          umax = max(abs(ww),umax)]
+
+          cmax = max(umax + cspeed,cmax)
+        CHF_ENDDO
+
+        return
+        end
+
+        subroutine SOUNDSPEEDF(
+     &    CHF_FRA1[c],
+     &    CHF_CONST_FRA[U],
+     &    CHF_BOX[box])
+
+#include "EosCommon.fh"
+
+        integer CHF_DDECL[i;j;k]
+        real_t  CHF_DDECL[uu;vv;ww]
+        real_t  ke,re,rho,invrho
+
+        CHF_MULTIDO[box;i;j;k]
+          rho = max(U(CHF_IX[i;j;k],URHO),smallr)
+          invrho = one/rho
+
+          CHF_DTERM[
+          uu = U(CHF_IX[i;j;k],UMOMX)*invrho;
+          vv = U(CHF_IX[i;j;k],UMOMY)*invrho;
+          ww = U(CHF_IX[i;j;k],UMOMZ)*invrho]
+
+          ke = half*(CHF_DTERM[uu*uu; + vv*vv; + ww*ww])
+
+          re = U(CHF_IX[i;j;k],UENG) - ke*rho
+          c(CHF_IX[i;j;k]) = sqrt(gamma*re*(gamma - one)*invrho)
+
+        CHF_ENDDO
+
+        return
+        end
+
+        subroutine SOUNDSPEEDPRIMF(
+     &    CHF_FRA1[c],
+     &    CHF_CONST_FRA[W],
+     &    CHF_BOX[box])
+
+#include "EosCommon.fh"
+
+        integer CHF_AUTODECL[i]
+        real_t  rho
+
+        CHF_AUTOMULTIDO[box;i]
+          rho = max(W(CHF_AUTOIX[i],WRHO),smallr)
+          c(CHF_AUTOIX[i]) = sqrt(gamma*W(CHF_AUTOIX[i],WPRES)/rho)
+        CHF_ENDDO
+
+        return
+        end
+
+        subroutine CONSTOPRIMF(
+     &    CHF_FRA[W],
+     &    CHF_CONST_FRA[U],
+     &    CHF_BOX[box])
+
+#include "EosCommon.fh"
+
+        integer CHF_DDECL[i;j;k]
+        real_t CHF_DDECL[uu;vv;ww]
+        real_t rho,p,re,ke
+
+        CHF_MULTIDO[box;i;j;k]
+          rho = max(U(CHF_IX[i;j;k],URHO),smallr)
+
+          CHF_DTERM[
+          uu = U(CHF_IX[i;j;k],UMOMX)/rho;
+          vv = U(CHF_IX[i;j;k],UMOMY)/rho;
+          ww = U(CHF_IX[i;j;k],UMOMZ)/rho]
+
+          ke = half*(CHF_DTERM[uu*uu; + vv*vv; + ww*ww])
+
+          re = U(CHF_IX[i;j;k],UENG) - rho*ke
+
+          p = (gamma - one)*re
+          p = max(p,smallp)
+
+          CHF_DTERM[
+          W(CHF_IX[i;j;k],WVELX) = uu;
+          W(CHF_IX[i;j;k],WVELY) = vv;
+          W(CHF_IX[i;j;k],WVELZ) = ww]
+
+          W(CHF_IX[i;j;k],WRHO)  = rho
+          W(CHF_IX[i;j;k],WPRES) = p
+        CHF_ENDDO
+
+        return
+        end
+
+        subroutine PRIMTOCONSF(
+     &    CHF_FRA[U],
+     &    CHF_CONST_FRA[W],
+     &    CHF_BOX[box])
+
+#include "EosCommon.fh"
+
+        integer CHF_DDECL[i ;j ;k ]
+        real_t  CHF_DDECL[uu;vv;ww]
+        real_t  p,rho,ke
+
+        CHF_MULTIDO[box;I;J;K]
+          rho = max(W(CHF_IX[i;j;k],WRHO),smallr)
+
+          CHF_DTERM[
+          uu = W(CHF_IX[i;j;k],WVELX);
+          vv = W(CHF_IX[i;j;k],WVELY);
+          ww = W(CHF_IX[i;j;k],WVELZ)]
+
+          ke = half * (CHF_DTERM[uu*uu; + vv*vv; + ww*ww])
+
+          p = W(CHF_IX[i;j;k],WPRES)
+
+          U(CHF_IX[i;j;k],URHO) = rho
+
+          CHF_DTERM[
+          U(CHF_IX[i;j;k],UMOMX) = rho*uu;
+          U(CHF_IX[i;j;k],UMOMY) = rho*vv;
+          U(CHF_IX[i;j;k],UMOMZ) = rho*ww]
+
+          U(CHF_IX[i;j;k],UENG) = rho*ke + p/(gamma - one)
+        CHF_ENDDO
+
+        return
+        end
+
+        subroutine CHARANALYSISF(
+     &    CHF_FRA[dW],
+     &    CHF_CONST_FRA[W],
+     &    CHF_CONST_INT[normdir],
+     &    CHF_BOX[box])
+
+#include "EosCommon.fh"
+
+        integer CHF_DDECL[inorm;itan1;itan2]
+        integer CHF_DDECL[i;j;k]
+        real_t CHF_DDECL[dun;dut1;dut2]
+        real_t p,rho,dp,drho,c
+        integer spacedim
+
+        spacedim = CH_SPACEDIM
+c
+c       Constant gamma characteristic expansion.
+c
+        CHF_DTERM[
+        inorm = WVELX +     normdir              ;
+        itan1 = WVELX + mod(normdir + 1,spacedim);
+        itan2 = WVELX + mod(normdir + 2,spacedim)]
+
+        CHF_MULTIDO[box;i;j;k]
+          p   = max(W(CHF_IX[i;j;k],WPRES),smallp)
+          rho = max(W(CHF_IX[i;j;k],WRHO ),smallr)
+
+          dp   = dW(CHF_IX[i;j;k],WPRES)
+          drho = dW(CHF_IX[i;j;k],WRHO )
+
+          CHF_DTERM[
+          dun  = dW(CHF_IX[i;j;k],inorm);
+          dut1 = dW(CHF_IX[i;j;k],itan1);
+          dut2 = dW(CHF_IX[i;j;k],itan2)]
+
+          c = sqrt(gamma*p/rho)
+
+          dW(CHF_IX[i;j;k],PWAVE) = half*( rho*dun/c + dp/c**2)
+          dW(CHF_IX[i;j;k],MWAVE) = half*(-rho*dun/c + dp/c**2)
+
+          CHF_DTERM[
+          dW(CHF_IX[i;j;k],ZWAVE) = drho - dp/c**2;
+          dW(CHF_IX[i;j;k],ZWAVE+1) = dut1          ;
+          dW(CHF_IX[i;j;k],ZWAVE+2) = dut2          ]
+        CHF_ENDDO
+
+        return
+        end
+
+        subroutine CHARSYNTHESISF(
+     &    CHF_FRA[dW],
+     &    CHF_CONST_FRA[W],
+     &    CHF_CONST_INT[normdir],
+     &    CHF_BOX[box])
+
+#include "EosCommon.fh"
+
+        integer CHF_DDECL[inorm;itan1;itan2]
+        integer CHF_DDECL[i;j;k]
+        real_t p,rho, c
+        real_t alphap,alpham
+        real_t CHF_DDECL[alpha0r;alpha0v1;alpha0v2]
+        integer spacedim
+
+        spacedim = CH_SPACEDIM
+
+c       Constant gamma predictor step.
+
+        CHF_DTERM[
+        inorm = WVELX +     normdir              ;
+        itan1 = WVELX + mod(normdir + 1,spacedim);
+        itan2 = WVELX + mod(normdir + 2,spacedim)]
+
+        CHF_MULTIDO[box;i;j;k]
+
+          alphap = dW(CHF_IX[i;j;k],PWAVE)
+          alpham = dW(CHF_IX[i;j;k],MWAVE)
+
+          CHF_DTERM[
+          alpha0r  = dW(CHF_IX[i;j;k],ZWAVE);
+          alpha0v1 = dW(CHF_IX[i;j;k],ZWAVE + 1);
+          alpha0v2 = dW(CHF_IX[i;j;k],ZWAVE + 2)]
+
+          p   = max(W(CHF_IX[i;j;k],WPRES),smallp)
+          rho = max(W(CHF_IX[i;j;k],WRHO ),smallr)
+
+          c = sqrt(gamma*p/rho)
+
+          dW(CHF_IX[i;j;k],WPRES) = (alphap + alpham)*c*c
+          dW(CHF_IX[i;j;k],WRHO) = alphap + alpham + alpha0r
+
+          CHF_DTERM[
+          dW(CHF_IX[i;j;k],inorm) = (alphap - alpham)*c/rho;
+          dW(CHF_IX[i;j;k],itan1) = alpha0v1;
+          dW(CHF_IX[i;j;k],itan2) = alpha0v2]
+        CHF_ENDDO
+
+        return
+        end
+
+        subroutine CHARVALUESF(
+     &    CHF_FRA[lambda],
+     &    CHF_CONST_FRA[W],
+     &    CHF_CONST_INT[normdir],
+     &    CHF_BOX[box])
+
+#include "EosCommon.fh"
+
+        integer CHF_DDECL[inorm;itan1;itan2]
+        integer CHF_DDECL[i;j;k]
+        real_t p,rho,c,upc,umc
+        integer spacedim
+        real_t CHF_DDECL[un;ut1;ut2]
+
+        spacedim = CH_SPACEDIM
+
+c       Characteristic values for constant-gamma gas dynamics.
+
+        CHF_DTERM[
+        inorm = WVELX +     normdir              ;
+        itan1 = WVELX + mod(normdir + 1,spacedim);
+        itan2 = WVELX + mod(normdir + 2,spacedim)]
+
+        CHF_MULTIDO[box;i;j;k]
+          p   = max(W(CHF_IX[i;j;k],WPRES),smallp)
+          rho = max(W(CHF_IX[i;j;k],WRHO ),smallr)
+
+          CHF_DTERM[
+          un  = W(CHF_IX[i;j;k],inorm);
+          ut1 = W(CHF_IX[i;j;k],itan1);
+          ut2 = W(CHF_IX[i;j;k],itan2)]
+
+          c = sqrt(gamma*p/rho)
+          upc = un + c
+          umc = un - c
+
+          lambda(CHF_IX[i;j;k],PWAVE) = upc
+          lambda(CHF_IX[i;j;k],MWAVE) = umc
+
+          CHF_DTERM[
+          lambda(CHF_IX[i;j;k],ZWAVE) = un;
+          lambda(CHF_IX[i;j;k],ZWAVE+1) = un;
+          lambda(CHF_IX[i;j;k],ZWAVE+2) = un]
+        CHF_ENDDO
+
+        return
+        end
+
+        subroutine GETADWDXF(
+     &    CHF_FRA[adwdx],
+     &    CHF_CONST_FRA[WHalf],
+     &    CHF_CONST_FRA[W],
+     &    CHF_CONST_REAL[scale],
+     &    CHF_CONST_INT[normdir],
+     &    CHF_BOX[box])
+
+#include "EosCommon.fh"
+
+        integer CHF_DDECL[inorm;itan1;itan2]
+        integer CHF_DDECL[i;j;k]
+        integer CHF_DDECL[ioff;joff;koff]
+        real_t rhol,pl,rhor,pr,rhoc,pc,fluxel,fluxer
+        real_t rhocnew,pcnew
+        real_t CHF_DDECL[unl;ut1l;ut2l]
+        real_t CHF_DDECL[unc;ut1c;ut2c]
+        real_t CHF_DDECL[uncnew;ut1cnew;ut2cnew]
+        real_t CHF_DDECL[unr;ut1r;ut2r]
+        integer spacedim
+
+        spacedim = CH_SPACEDIM
+
+c       Quasilinear update in the normdir direction.
+
+        CHF_DTERM[
+        ioff = CHF_ID(0,normdir);
+        joff = CHF_ID(1,normdir);
+        koff = CHF_ID(2,normdir)]
+
+        CHF_DTERM[
+        inorm = WVELX +     normdir              ;
+        itan1 = WVELX + mod(normdir + 1,spacedim);
+        itan2 = WVELX + mod(normdir + 2,spacedim)]
+
+        CHF_MULTIDO[box;i;j;k]
+          rhol = WHalf(CHF_IX[i;j;k],WRHO)
+          rhoc = W    (CHF_IX[i;j;k],WRHO)
+          rhor = WHalf(CHF_IX[i+ioff;j+joff;k+koff],WRHO)
+          pl   = WHalf(CHF_IX[i;j;k],WPRES)
+          pc   = W    (CHF_IX[i;j;k],WPRES)
+          pr   = WHalf(CHF_IX[i+ioff;j+joff;k+koff],WPRES)
+
+          CHF_DTERM[
+          unl  = WHalf(CHF_IX[i;j;k],inorm);
+          ut1l = WHalf(CHF_IX[i;j;k],itan1);
+          ut2l = WHalf(CHF_IX[i;j;k],itan2)]
+
+          CHF_DTERM[
+          unc  = W(CHF_IX[i;j;k],inorm);
+          ut1c = W(CHF_IX[i;j;k],itan1);
+          ut2c = W(CHF_IX[i;j;k],itan2)]
+
+          CHF_DTERM[
+          unr  = WHalf(CHF_IX[i+ioff;j+joff;k+koff],inorm);
+          ut1r = WHalf(CHF_IX[i+ioff;j+joff;k+koff],itan1);
+          ut2r = WHalf(CHF_IX[i+ioff;j+joff;k+koff],itan2)]
+
+          rhocnew = rhoc + scale*(rhor*unr - rhol*unl)
+          pcnew = half*rhoc*(CHF_DTERM[unc*unc;+ut1c*ut1c;+ut2c*ut2c])
+     &            + pc/(gamma - one)
+
+          CHF_DTERM[
+          uncnew = unc*rhoc + scale*(rhor*unr*unr + pr - rhol*unl*unl - pl);
+          ut1cnew = ut1c*rhoc + scale*(rhor*ut1r*unr - unl*ut1l*rhol);
+          ut2cnew = ut2c*rhoc + scale*(rhor*ut2r*unr - unl*ut2l*rhol)]
+
+          fluxel = (half*rhol*(CHF_DTERM[unl*unl;+ut1l*ut1l;+ut2l*ut2l])
+     &          + pl*gamma/(gamma-one))*unl
+          fluxer = (half*rhor*(CHF_DTERM[unr*unr;+ut1r*ut1r;+ut2r*ut2r])
+     &          + pr*gamma/(gamma-one))*unr
+
+          pcnew = pcnew + scale*(fluxer - fluxel)
+
+          CHF_DTERM[
+          uncnew = uncnew/rhocnew;
+          ut1cnew = ut1cnew/rhocnew;
+          ut2cnew = ut2cnew/rhocnew]
+
+          pcnew = (-half*rhocnew*(CHF_DTERM[uncnew*uncnew;+ut1cnew*ut1cnew;
+     &            +ut2cnew*ut2cnew])
+     &            + pcnew)*(gamma - one)
+          CHF_DTERM[
+          adwdx(CHF_IX[i;j;k],inorm) = uncnew - unc;
+          adwdx(CHF_IX[i;j;k],itan1) = ut1cnew - ut1c;
+          adwdx(CHF_IX[i;j;k],itan2) = ut2cnew - ut2c]
+          adwdx(CHF_IX[i;j;k],WPRES) = pcnew - pc;
+          adwdx(CHF_IX[i;j;k],WRHO) = rhocnew - rhoc;
+        CHF_ENDDO
+
+        return
+        end
+
+        subroutine RIEMANNF(
+     &    CHF_FRA[Wgdnv],
+     &    CHF_CONST_FRA[WLeft],
+     &    CHF_CONST_FRA[WRight],
+     &    CHF_CONST_INT[idir],
+     &    CHF_BOX[box])
+
+#include "EosCommon.fh"
+
+        integer CHF_DDECL[i; j; k]
+        integer CHF_DDECL[inorm; itan1; itan2]
+        real_t pl,rhol,pr,rhor,cl,cr,wl,wr,wstar
+        real_t pstar,ustar,ro,po,uno,co,sgnm
+        real_t rstar,cstar,spout,spin,ushock,frac
+        real_t unl,unr
+
+        integer spacedim
+
+        spacedim = CH_SPACEDIM
+
+c       Constant gamma Riemann solver.
+
+        CHF_DTERM[
+        inorm = WVELX + idir;
+        itan1 = WVELX + mod(idir + 1,spacedim);
+        itan2 = WVELX + mod(idir + 2,spacedim)]
+
+        CHF_MULTIDO[box;i;j;k]
+          pl   = max(smallp,WLeft(CHF_IX[i;j;k],WPRES))
+          rhol = max(smallr,WLeft(CHF_IX[i;j;k],WRHO))
+          unl  = WLeft(CHF_IX[i;j;k],inorm)
+
+          pr   = max(smallp,WRight(CHF_IX[i;j;k],WPRES))
+          rhor = max(smallr,WRight(CHF_IX[i;j;k],WRHO) )
+          unr  = WRight(CHF_IX[i;j;k],inorm)
+
+          cl = sqrt(gamma*pl/rhol)
+          cr = sqrt(gamma*pr/rhor)
+
+          wl = rhol*cl
+          wr = rhor*cr
+
+          pstar = (wr*pl + wl*pr + wl*wr*(unl - unr))/(wl + wr)
+          ustar = (wl*unl + wr*unr + pl - pr)/(wl + wr)
+
+          if (ustar .gt. zero) then
+            ro = rhol
+            po = pl
+
+            CHF_DTERM[
+            uno = unl;
+            Wgdnv(CHF_IX[i;j;k],itan1) = WLeft(CHF_IX[i;j;k],itan1);
+            Wgdnv(CHF_IX[i;j;k],itan2) = WLeft(CHF_IX[i;j;k],itan2)]
+
+            co = cl
+            sgnm = one
+          else
+            ro = rhor
+            po = pr
+
+            CHF_DTERM[
+            uno = unr;
+            Wgdnv(CHF_IX[i;j;k],itan1) = WRight(CHF_IX[i;j;k],itan1);
+            Wgdnv(CHF_IX[i;j;k],itan2) = WRight(CHF_IX[i;j;k],itan2)]
+
+            co = cr
+            sgnm = -one
+          endif
+
+          rstar = ro + (pstar - po)/co**2
+          rstar = max(rstar,smallr)
+
+          cstar = sqrt(abs(gamma*pstar/rstar))
+          wstar = half*(cstar*rstar + co*ro)
+
+          spout = co    - sgnm*uno
+          spin  = cstar - sgnm*ustar
+
+          ushock = wstar/rstar - sgnm*ustar
+
+          if (pstar.gt.po) then
+            spout = ushock
+            spin  = ushock
+          endif
+
+          frac = ((one + (spout + spin)/max(spout-spin,small))/two)
+          frac = max(zero,min(one,frac))
+
+          Wgdnv(CHF_IX[i;j;k],WRHO)  = ro  + frac*(rstar - ro)
+          Wgdnv(CHF_IX[i;j;k],inorm) = uno + frac*(ustar - uno)
+          Wgdnv(CHF_IX[i;j;k],WPRES) = po  + frac*(pstar - po)
+
+          if (spout.le.zero) then
+            Wgdnv(CHF_IX[i;j;k],WRHO)  = ro
+            Wgdnv(CHF_IX[i;j;k],inorm) = uno
+            Wgdnv(CHF_IX[i;j;k],WPRES) = po
+          endif
+
+          if (spin.gt.zero) then
+            Wgdnv(CHF_IX[i;j;k],WRHO)  = rstar
+            Wgdnv(CHF_IX[i;j;k],inorm) = ustar
+            Wgdnv(CHF_IX[i;j;k],WPRES) = pstar
+          endif
+
+          Wgdnv(CHF_IX[i;j;k],WRHO)  = max(Wgdnv(CHF_IX[i;j;k],WRHO) ,smallr)
+          Wgdnv(CHF_IX[i;j;k],WPRES) = max(Wgdnv(CHF_IX[i;j;k],WPRES),smallp)
+        CHF_ENDDO
+
+        return
+        end
+
+        subroutine GETFLUXF(
+     &    CHF_FRA[F],
+     &    CHF_CONST_FRA[Wgdnv],
+     &    CHF_CONST_INT[idir],
+     &    CHF_BOX[box])
+
+#include "EosCommon.fh"
+
+        integer CHF_DDECL[i     ;j     ;k    ]
+        integer CHF_DDECL[inorm ;itan1 ;itan2]
+        integer CHF_DDECL[inormc;itanc1;itanc2]
+        real_t r,p,CHF_DDECL[u;v;w],e,ke
+        integer spacedim
+
+        spacedim = CH_SPACEDIM
+
+        CHF_DTERM[
+        inorm = WVELX + idir;
+        itan1 = WVELX + mod(idir + 1,spacedim);
+        itan2 = WVELX + mod(idir + 2,spacedim)]
+
+        CHF_DTERM[
+        inormc = UMOMX + idir;
+        itanc1 = UMOMX + mod(idir + 1,spacedim);
+        itanc2 = UMOMX + mod(idir + 2,spacedim)]
+
+        CHF_MULTIDO[box;i;j;k]
+          r = max(smallr,Wgdnv(CHF_IX[i;j;k],WRHO))
+
+          CHF_DTERM[
+          u = Wgdnv(CHF_IX[i;j;k],inorm);
+          v = Wgdnv(CHF_IX[i;j;k],itan1);
+          w = Wgdnv(CHF_IX[i;j;k],itan2)]
+
+          p = max(smallp,Wgdnv(CHF_IX[i;j;k],WPRES))
+          e = p/r/(gamma - one)
+
+          F(CHF_IX[i;j;k],URHO) = r*u
+
+          CHF_DTERM[
+          F(CHF_IX[i;j;k],inormc) = r*u*u+p;
+          F(CHF_IX[i;j;k],itanc1) = r*u*v;
+          F(CHF_IX[i;j;k],itanc2) = r*u*w]
+
+          ke = half*(CHF_DTERM[u*u; + v*v; + w*w])
+
+          F(CHF_IX[i;j;k],UENG) = u*r*(e+ke) + u*p
+        CHF_ENDDO
+
+        return
+        end
+
+        subroutine POSTNORMALPREDF(
+     &    CHF_FRA[dWMinus],
+     &    CHF_FRA[dWPlus],
+     &    CHF_CONST_FRA[W],
+     &    CHF_BOX[box])
+
+#include "EosCommon.fh"
+
+        integer CHF_DDECL[i;j;k]
+        real_t drho,dp
+
+        CHF_MULTIDO[box;i;j;k]
+          drho = smallr - W(CHF_IX[i;j;k],WRHO)
+          dp   = smallp - W(CHF_IX[i;j;k],WPRES)
+
+          dWMinus(CHF_IX[i;j;k],WRHO)  = max(drho, dWMinus(CHF_IX[i;j;k],WRHO))
+          dWMinus(CHF_IX[i;j;k],WPRES) = max(dp  , dWMinus(CHF_IX[i;j;k],WPRES))
+
+          dWPlus (CHF_IX[i;j;k],WRHO)  = max(drho, dWPlus (CHF_IX[i;j;k],WRHO))
+          dWPlus (CHF_IX[i;j;k],WPRES) = max(dp  , dWPlus (CHF_IX[i;j;k],WPRES))
+        CHF_ENDDO
+
+        return
+        end
+
+        subroutine UPDATECONSF(
+     &    CHF_FRA[U],
+     &    CHF_CONST_FRA[F],
+     &    CHF_CONST_REAL[dtbydx],
+     &    CHF_CONST_INT[idir],
+     &    CHF_BOX[box])
+
+        integer CHF_DDECL[i   ;j   ;k   ]
+        integer CHF_DDECL[ioff;joff;koff]
+
+        integer iv
+
+        CHF_DTERM[
+        ioff = CHF_ID(0,idir);
+        joff = CHF_ID(1,idir);
+        koff = CHF_ID(2,idir)]
+
+        do iv = 0,CHF_NCOMP[U] - 1
+          CHF_MULTIDO[box;i;j;k]
+            U(CHF_IX[i;j;k],iv) = U(CHF_IX[i;j;k],iv)
+     &        - dtbydx * (F(CHF_IX[i+ioff;j+joff;k+koff],iv)
+     &                  - F(CHF_IX[i     ;j     ;k     ],iv))
+          CHF_ENDDO
+        enddo
+
+        return
+        end
+
+        subroutine GETRELGRADF(
+     &    CHF_FRA1[du],
+     &    CHF_CONST_FRA1[u],
+     &    CHF_CONST_INT[idir],
+     &    CHF_BOX[loBox],
+     &    CHF_CONST_INT[hasLo],
+     &    CHF_BOX[hiBox],
+     &    CHF_CONST_INT[hasHi],
+     &    CHF_BOX[centerBox])
+
+        integer CHF_DDECL[i   ;j   ;k   ]
+        integer CHF_DDECL[ioff;joff;koff]
+        real_t diff,aver
+
+        CHF_DTERM[
+        ioff = CHF_ID(0,idir);
+        joff = CHF_ID(1,idir);
+        koff = CHF_ID(2,idir)]
+
+c       Perform first difference calculation in the interior.
+
+        CHF_MULTIDO[centerBox;i;j;k]
+          diff = half*(u(CHF_IX[i+ioff;j+joff;k+koff])
+     &                -u(CHF_IX[i-ioff;j-joff;k-koff]))
+          aver = half*(u(CHF_IX[i+ioff;j+joff;k+koff])
+     &                +u(CHF_IX[i-ioff;j-joff;k-koff]))
+          du(CHF_IX[i;j;k]) = diff / aver
+        CHF_ENDDO
+
+c       Perform calculation on the cells adjacent to the domain boundary in
+c       current direction, if required.
+
+        if (hasLo .eq. 1) then
+          CHF_MULTIDO[loBox;i;j;k]
+            diff = (u(CHF_IX[i+ioff;j+joff;k+koff])
+     &             -u(CHF_IX[i     ;j     ;k     ]))
+            aver = half*(u(CHF_IX[i+ioff;j+joff;k+koff])
+     &                  +u(CHF_IX[i     ;j     ;k     ]))
+            du(CHF_IX[i;j;k]) = diff / aver
+          CHF_ENDDO
+        endif
+
+        if (hasHi .eq. 1) then
+          CHF_MULTIDO[hiBox;i;j;k]
+            diff = (u(CHF_IX[i     ;j     ;k     ])
+     &             -u(CHF_IX[i-ioff;j-joff;k-koff]))
+            aver = half*(u(CHF_IX[i     ;j     ;k     ])
+     &                  +u(CHF_IX[i-ioff;j-joff;k-koff]))
+            du(CHF_IX[i;j;k]) = diff / aver
+          CHF_ENDDO
+        endif
+
+        return
+        end
+
+        subroutine SETSOURCECONS(
+     &    CHF_FRA[source],
+     &    CHF_CONST_FRA[U],
+     &    CHF_CONST_REAL[ksource],
+     &    CHF_BOX[box])
+
+#include "EosCommon.fh"
+
+        integer CHF_DDECL[i;j;k]
+        real_t e00
+        real_t ke,e
+        real_t rho,invrho
+        real_t CHF_DDECL[uu;vv;ww]
+
+        e00 = gamma - one
+
+        CHF_MULTIDO[box;i;j;k]
+          rho = max(U(CHF_IX[i;j;k],URHO),smallr)
+          invrho = one / rho
+
+          CHF_DTERM[
+          uu = U(CHF_IX[i;j;k],UMOMX) * invrho;
+          vv = U(CHF_IX[i;j;k],UMOMY) * invrho;
+          ww = U(CHF_IX[i;j;k],UMOMZ) * invrho]
+
+          ke = half*(CHF_DTERM[uu*uu; + vv*vv; + ww*ww])
+
+          e = U(CHF_IX[i;j;k],UENG) * invrho - ke
+
+          source(CHF_IX[i;j;k],URHO)  = zero
+
+          CHF_DTERM[
+          source(CHF_IX[i;j;k],UMOMX) = zero ;
+          source(CHF_IX[i;j;k],UMOMY) = zero ;
+          source(CHF_IX[i;j;k],UMOMZ) = zero ]
+
+          source(CHF_IX[i;j;k],UENG)  = -ksource * rho * (e - e00)
+        CHF_ENDDO
+
+        return
+        end
+
+        subroutine SETSOURCEPRIM(
+     &    CHF_FRA[source],
+     &    CHF_CONST_FRA[U],
+     &    CHF_CONST_REAL[ksource],
+     &    CHF_BOX[box])
+
+#include "EosCommon.fh"
+
+        integer CHF_DDECL[i;j;k]
+        real_t e00
+        real_t ke,e
+        real_t rho,invrho
+        real_t CHF_DDECL[uu;vv;ww]
+
+        e00 = gamma - one
+
+        CHF_MULTIDO[box;i;j;k]
+          rho = max(U(CHF_IX[i;j;k],URHO),smallr)
+          invrho = one / rho
+
+          CHF_DTERM[
+          uu = U(CHF_IX[i;j;k],UMOMX) * invrho;
+          vv = U(CHF_IX[i;j;k],UMOMY) * invrho;
+          ww = U(CHF_IX[i;j;k],UMOMZ) * invrho]
+
+          ke = half*(CHF_DTERM[uu*uu; + vv*vv; + ww*ww])
+
+          e = U(CHF_IX[i;j;k],UENG) * invrho - ke
+
+          source(CHF_IX[i;j;k],WRHO)  = zero
+
+          CHF_DTERM[
+          source(CHF_IX[i;j;k],WVELX) = zero ;
+          source(CHF_IX[i;j;k],WVELY) = zero ;
+          source(CHF_IX[i;j;k],WVELZ) = zero ]
+
+          source(CHF_IX[i;j;k],WPRES) = -ksource * (gamma - one) * rho * (e - e00)
+        CHF_ENDDO
+
+        return
+        end

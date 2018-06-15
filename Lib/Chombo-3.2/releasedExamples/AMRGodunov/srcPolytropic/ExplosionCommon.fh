@@ -1,0 +1,30 @@
+#ifdef CH_LANG_CC
+/*
+ *      _______              __
+ *     / ___/ /  ___  __ _  / /  ___
+ *    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+ *    \___/_//_/\___/_/_/_/_.__/\___/
+ *    Please refer to Copyright.txt, in Chombo's root directory.
+ */
+#endif
+
+C
+C   Fortran parameters for the explosion example:
+C
+C     ms          - Mach shock number of the discontinuity
+C     center[xyz] - Center of the explosion
+C     size        - Initial radius of the explosion
+C     vel[xyz]    - Initial velocity of the gas
+C     artvisc     - Artificial viscosity coefficient
+C
+        real_t ms
+        real_t centerx,centery,centerz
+        real_t size
+        real_t velx,vely,velz
+        real_t artvisc
+        common /explosioncm/
+     &                       ms,
+     &                       centerx,centery,centerz,
+     &                       size,
+     &                       velx,vely,velz,
+     &                       artvisc

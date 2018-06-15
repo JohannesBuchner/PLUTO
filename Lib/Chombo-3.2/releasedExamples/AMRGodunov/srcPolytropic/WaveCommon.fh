@@ -1,0 +1,35 @@
+#ifdef CH_LANG_CC
+/*
+ *      _______              __
+ *     / ___/ /  ___  __ _  / /  ___
+ *    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+ *    \___/_//_/\___/_/_/_/_.__/\___/
+ *    Please refer to Copyright.txt, in Chombo's root directory.
+ */
+#endif
+
+C
+C   Fortran parameters for the sine plane-wave density distribution example:
+C
+C     ambientdensity - Ambient density add to the plane-wave
+C     deltadensity   - Mean of the plane-wave
+C     center[xyz]    - Position of a maximum of the plane-wave
+C     vel[xyz]       - Initial velocity of the gas
+C     artvisc        - Artificial viscosity coefficient
+C     [ijk]wave      - The wave number of the plane-wave
+C     pressure       - If 0, use isentropic pressure
+C                      if 1, use the constant pressure of 1.0
+C
+        real_t ambientdensity,deltadensity
+        real_t centerx,centery,centerz
+        real_t velx,vely,velz
+        real_t artvisc
+        integer iwave,jwave,kwave
+        integer pressure
+        common /wavecm/
+     &                  ambientdensity,deltadensity,
+     &                  centerx,centery,centerz,
+     &                  velx,vely,velz,
+     &                  artvisc,
+     &                  iwave,jwave,kwave,
+     &                  pressure

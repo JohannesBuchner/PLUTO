@@ -46,16 +46,16 @@ def check(pluto_dir, get_arch):
  #  print a short system summary 
  # ------------------------------
  
- print "User.......................",user
- print "System name................",PLATFORM[0]
- print "Node name..................",PLATFORM[1]
- print "Release....................",PLATFORM[2]
- print "Arch.......................",PLATFORM[4]
- print "Byteorder..................",sys.byteorder
- print "Version....................",PLATFORM[3]
- print "Working_dir................",work_dir
- print "PLUTO main dir.............",pluto_dir
- print "PLUTO version..............",vers
+ print("User.......................",user)
+ print("System name................",PLATFORM[0])
+ print("Node name..................",PLATFORM[1])
+ print("Release....................",PLATFORM[2])
+ print("Arch.......................",PLATFORM[4])
+ print("Byteorder..................",sys.byteorder)
+ print("Version....................",PLATFORM[3])
+ print("Working_dir................",work_dir)
+ print("PLUTO main dir.............",pluto_dir)
+ print("PLUTO version..............",vers)
 
 # --------------------------------------
 #  Check for gcc or another c compiler
@@ -66,12 +66,12 @@ def check(pluto_dir, get_arch):
  
  for x in compiler_list:
    if (CHECK_FOR(x) == 'YES'):
-     print "C Compiler................. "+x
+     print("C Compiler................. "+x)
      COMPILER_NAME = x
      break
 
  if (COMPILER_NAME == ''):
-   print "! Can not find a C compiler       !"
+   print("! Can not find a C compiler       !")
 
 # -----------------
 #  check for mpi 
@@ -82,19 +82,19 @@ def check(pluto_dir, get_arch):
 
  for x in mpi_compiler_list:
    if (CHECK_FOR(x) == 'YES'):
-     print "MPI Compiler .............. "+x
+     print("MPI Compiler .............. "+x)
      MPI_COMPILER_NAME = x
      break
    
  if (MPI_COMPILER_NAME == ''):
-   print "MPI Compiler............... NOT FOUND"
+   print("MPI Compiler............... NOT FOUND")
 
 
  if (get_arch):
-   print "\n"
-   print "Proposed makefile names: \n"
-   print "> "+PLATFORM[0]+"."+PLATFORM[4]+"."+COMPILER_NAME+".defs"
-   print "> "+PLATFORM[0]+"."+PLATFORM[4]+"."+MPI_COMPILER_NAME+".defs"
+   print("\n")
+   print("Proposed makefile names: \n")
+   print("> "+PLATFORM[0]+"."+PLATFORM[4]+"."+COMPILER_NAME+".defs")
+   print("> "+PLATFORM[0]+"."+PLATFORM[4]+"."+MPI_COMPILER_NAME+".defs")
 
 
 # ---------------------------------------------------
@@ -119,7 +119,7 @@ def check(pluto_dir, get_arch):
  #    check for online updates
  #  ----------------------------
  
- print "\n> Checking for updates (canceled)...\n"
+ print("\n> Checking for updates (canceled)...\n")
 # try:
 #   urllib.urlretrieve("http://plutocode.ph.unito.it/updates.txt","updates.txt")
 #   scrh = file.word_find ("updates.txt","release")
@@ -155,9 +155,9 @@ def check(pluto_dir, get_arch):
      os.chdir(work_dir)
      return
    else:
-     print "\n> System configuration file is not up to date. Updating..."
+     print("\n> System configuration file is not up to date. Updating...")
  else:
-   print "\n> System configuration file not found, creating one..."
+   print("\n> System configuration file not found, creating one...")
    pf = pfIO.PlutoFiles(log_file)
    pf.List2File(log)
 

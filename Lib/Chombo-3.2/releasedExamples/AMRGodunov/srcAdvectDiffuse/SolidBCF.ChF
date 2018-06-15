@@ -1,0 +1,29 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+      subroutine solidbcf(
+C
+C     Implement solid wall conserved variable boundary fluxes and primitive
+C     variable boundary slopes
+C
+     &     CHF_FRA[Wgdnv],
+     &     CHF_CONST_FRA[Wextrap],
+     &     CHF_CONST_FRA[W],
+     &     CHF_CONST_INT[lohisign],
+     &     CHF_CONST_INT[dir],
+     &     CHF_BOX[box])
+
+      real_t s
+      integer CHF_AUTODECL[i]
+
+      CHF_AUTOMULTIDO[box; i]
+         Wgdnv(CHF_AUTOIX[i], 0) = Wextrap(CHF_AUTOIX[i], 0)
+      CHF_ENDDO
+
+      return
+      end

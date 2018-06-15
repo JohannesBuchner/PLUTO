@@ -1,0 +1,45 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+c -------------------------------------------------------
+c  this subroutine averages the cell-centered cellData to the
+c  edge-centered edgeData in the direction dir
+c
+c  INPUTS/OUTPUTS:
+c  cellData  => cell-centered field
+c  edgeData <=  edge-centered field
+c  edgeBox   => box which defines edgeData valid region
+c  dir       => direction in which to average
+c --------------------------------------------------------
+      subroutine CELLTOEDGE(CHF_CONST_FRA1[cellData],
+     &                      CHF_FRA1[edgeData],
+     &                      CHF_BOX[edgeBox],
+     &                      CHF_CONST_INT[dir])
+
+c ::: local variables
+      integer CHF_DDECL[i;j;k;l;m;n]
+      integer CHF_DDECL[ii;jj;kk;ll;mm;nn]
+
+      CHF_MULTIDO[edgeBox; i;j;k;l;m;n]
+
+      CHF_DTERM[
+        ii = i-CHF_ID(0,dir);
+        jj = j-CHF_ID(1,dir);
+        kk = k-CHF_ID(2,dir);
+        ll = l-CHF_ID(3,dir);
+        mm = m-CHF_ID(4,dir);
+        nn = n-CHF_ID(5,dir)]
+
+        edgeData(CHF_IX[i;j;k;l;m;n]) = half*(
+     &           cellData(CHF_IX[ii;jj;kk;ll;mm;nn])
+     &         + cellData(CHF_IX[i;j;k;l;m;n]) )
+
+        CHF_ENDDO
+
+        return
+        end

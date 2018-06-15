@@ -1,0 +1,90 @@
+#ifndef _INJECTION_H_TRANSDIM_
+#define _INJECTION_H_TRANSDIM_
+
+#include "BoxToolsTraits.H.transdim"
+
+using namespace Chombo;
+
+namespace CH_MultiDim {
+
+/**
+  Makes a_to like a_from, only one dimension higher.  The "new" transverse
+  dimension is a_spec.direction, and the value at that dimension is
+  a_spec.position.
+*/
+template<typename IntVectT>
+void injectIntVect(
+  IntVectT&    a_to,
+  const typename ObjTraits< DimTraits<IntVectT>::dim - 1 >::IntVect& a_from,
+  const typename ObjTraits< DimTraits<IntVectT>::dim >::SliceSpec& a_spec );
+
+
+/**
+  Arg a_to is a_from with an extra dimension -- a_slicespec.direction --
+  in which it's just one cell thick and has coordinate value
+  a_slicespec.position.
+*/
+template<typename BoxT> void
+injectBox( BoxT& a_to,
+           const typename ObjTraits< DimTraits<BoxT>::dim - 1 >::Box& a_from,
+           const typename ObjTraits< DimTraits<BoxT>::dim >::SliceSpec& a_slicespec );
+    
+
+/**
+  Arg a_to is a_from with an extra dimension -- a_slicespec.direction --
+  in which it's just one cell thick and has coordinate value
+  a_slicespec.position.
+*/
+template<typename BaseFabT> void
+injectBaseFab(
+  BaseFabT& a_to,
+  const typename BaseFabTraits<BaseFabT>::OneDimLessBaseFab& a_from,
+  const typename ObjTraits< DimTraits<BaseFabT>::dim >::SliceSpec& a_slicespec );
+
+
+/**
+  Arg a_to is a_from with an extra dimension -- a_slicespec.direction --
+  in which it's just one cell thick and has coordinate value
+  a_slicespec.position.
+*/
+template<typename DBL_T> void
+injectDisjointBoxLayout(
+  DBL_T& a_to,
+  const typename ObjTraits< DimTraits<DBL_T>::dim - 1 >::DisjointBoxLayout& a_from,
+  const typename ObjTraits< DimTraits<DBL_T>::dim >::SliceSpec& a_slicespec);
+
+
+/**
+  Arg a_to is a_from with an extra dimension -- a_slicespec.direction --
+  in which it's just one cell thick and has coordinate value
+  a_slicespec.position.
+  If a_to is defined, we use its DisjointBoxLayout, otherwise we give it a
+  DisjointBoxLayout with the same assignment-to-processors as a_from has.
+*/
+template<typename LD_T> void
+injectLevelData( 
+  LD_T& a_to,
+  const typename ObjTraits< DimTraits<LD_T>::dim - 1 >::LevelData& a_from,
+  const typename ObjTraits< DimTraits<LD_T>::dim >::SliceSpec& a_slicespec );
+
+
+/**
+  Version of injection for LevelData<FluxBox>;
+  Arg a_to is a_from with an extra dimension -- a_slicespec.direction --
+  in which it's just one cell thick and has coordinate value
+  a_slicespec.position.
+  If a_to is defined, we use its DisjointBoxLayout, otherwise we give it a
+  DisjointBoxLayout with the same assignment-to-processors as a_from has.
+*/
+template<typename LD_T> void
+injectLevelFlux( 
+  LD_T& a_to,
+  const typename ObjTraits< DimTraits<LD_T>::dim - 1 >::LevelFlux& a_from,
+  const typename ObjTraits< DimTraits<LD_T>::dim >::SliceSpec& a_slicespec );
+
+
+} // namespace CH_MultiDim
+
+#include "InjectionI.H.transdim"
+
+#endif // include guard

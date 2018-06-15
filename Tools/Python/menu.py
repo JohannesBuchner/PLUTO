@@ -325,7 +325,7 @@ def Print_no_curses(message, sleep, row):
 
   global xglb
 #  if (row == 1): os.system("clear")
-  print message
+  print(message)
   time.sleep(sleep)
 
 ######################################################
@@ -335,8 +335,8 @@ def Prompt_no_curses (message):
 ######################################################
 
   os.system("clear")
-  print message
-  q = raw_input()
+  print(message)
+  q = input()
 
 ######################################################
 def Browse_no_curses(entries,  default, options):
@@ -347,18 +347,18 @@ def Browse_no_curses(entries,  default, options):
   q = "c"
   while (q != ''):
     os.system("clear")
-    print ">> ",gb.title+"\n"
+    print(">> ",gb.title+"\n")
     for x in entries:
       i = entries.index(x)
       if (len(default) > 0): 
-        print str(i).rjust(2),') ',x.ljust(28), default[i]
+        print(str(i).rjust(2),') ',x.ljust(28), default[i])
       else:
-        print str(i).rjust(2),') ',x.ljust(28)
+        print(str(i).rjust(2),') ',x.ljust(28))
 
-    print " "
-    q = raw_input(">> choice ? ")
+    print(" ")
+    q = input(">> choice ? ")
     if (q == ''):
-      print "Enter"
+      print("Enter")
     else:
       try:
         q = int(q)
@@ -371,8 +371,8 @@ def Browse_no_curses(entries,  default, options):
         i = options[q].index(x)
         opt_list += repr(i)+") "+x+"   "
     
-      print "\n"+entries[q]+": ",opt_list
-      c = raw_input(">> choice ["+default[q]+"] ? ")
+      print("\n"+entries[q]+": ",opt_list)
+      c = input(">> choice ["+default[q]+"] ? ")
       try: 
         c = int(c)
       except:
@@ -390,22 +390,22 @@ def Insert_no_curses(entries, names):
   q = "c"
   while (q != ''):
     os.system("clear")
-    print ">> ",gb.title+"\n"
+    print(">> ",gb.title+"\n")
     for x in entries:
       i = entries.index(x)
-      print str(i).rjust(2),') ',names[i].ljust(28)
+      print(str(i).rjust(2),') ',names[i].ljust(28))
 
-    print " "
-    q = raw_input(">> choice ? ")
+    print(" ")
+    q = input(">> choice ? ")
     if (q == ''):
-      print "Enter"
+      print("Enter")
     else:
       try:
         q = int(q)
       except:
         continue
 
-      newname = raw_input(">> new name ? ")
+      newname = input(">> new name ? ")
       names[q] = newname
 
   return

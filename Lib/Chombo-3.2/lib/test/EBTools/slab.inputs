@@ -1,0 +1,23 @@
+###
+maxboxsize    = 8
+## domain params
+prob_lo       = 0.0 0.0 0.0 
+prob_hi       = 1.0 1.0 1.0 
+###n_cell        = 64 64 64
+###slab_lo       = 24 24 24	
+###slab_hi       = 48 24 48
+###n_cell        = 16 16 16
+###slab_lo       = 4 4 4	
+###slab_hi       = 8 4 8
+#n_cell        = 8 8 8
+#n_cell        = 9 9 9
+#n_cell        =  10 10 10
+#n_cell        =  128 128 128
+#n_cell         =  64 64 64
+#n_cell        =  32 32 32
+n_cell        =  16 16 16
+#slab_lo       = 2 2 2
+#slab_hi       = 5 2 5
+slab_lo       = 0 8 0
+slab_hi       = 512 512 512
+###covered box params

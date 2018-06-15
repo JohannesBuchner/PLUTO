@@ -93,7 +93,7 @@ class MakeProblem(object):
             try:
                 sys.argv[1:]
             except IndexError:
-                print "Additional Configration Details Required for '--with-chombo:' flag"
+                print("Additional Configration Details Required for '--with-chombo:' flag")
                 sys.exit()
             else:
                 for y in sys.argv[i:]:

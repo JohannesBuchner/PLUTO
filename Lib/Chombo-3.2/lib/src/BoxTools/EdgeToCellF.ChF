@@ -1,0 +1,110 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+c -----------------------------------------------------------------
+c this subroutine averages the edge-centered edgeData to the cell-centered
+c cellData in the direction dir
+c
+c INPUTS/OUTPUTS:
+c edgeData  => edge-centered field
+c cellData <=  cell-centered field
+c cellBox   => box which defines cellData valid region
+c dir       => direction in which to average
+c -----------------------------------------------------------------
+      subroutine EDGETOCELL(CHF_CONST_FRA1[edgeData],
+     &                      CHF_FRA1[cellData],
+     &                      CHF_BOX[cellBox],
+     &                      CHF_CONST_INT[dir])
+
+c ::: local variables
+      integer CHF_DDECL[i;j;k;l;m;n]
+      integer CHF_DDECL[ii;jj;kk;ll;mm;nn]
+
+      CHF_MULTIDO[cellBox;i;j;k;l;m;n]
+      CHF_DTERM[
+      ii = i+CHF_ID(0,dir);
+      jj = j+CHF_ID(1,dir);
+      kk = k+CHF_ID(2,dir);
+      ll = l+CHF_ID(3,dir);
+      mm = m+CHF_ID(4,dir);
+      nn = n+CHF_ID(5,dir)]
+
+      cellData(CHF_IX[i;j;k;l;m;n]) = half*(
+     &                    edgeData(CHF_IX[i;j;k;l;m;n])
+     &                   +edgeData(CHF_IX[ii;jj;kk;ll;mm;nn]))
+
+      CHF_ENDDO
+
+      return
+      end
+
+c -----------------------------------------------------------------
+c same as above but increments rather than stores
+c
+c INPUTS/OUTPUTS:
+c edgeData  => edge-centered field
+c cellData <=  cell-centered field
+c cellBox   => box which defines cellData valid region
+c dir       => direction in which to average
+c -----------------------------------------------------------------
+      subroutine EDGETOINCREMENTCELL(CHF_CONST_FRA1[edgeData],
+     &                               CHF_FRA1[cellData],
+     &                               CHF_BOX[cellBox],
+     &                               CHF_CONST_INT[dir])
+
+c ::: local variables
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii]
+
+      CHF_AUTOID[ii; dir]
+
+      CHF_AUTOMULTIDO[cellBox; i]
+         cellData(CHF_AUTOIX[i]) = cellData(CHF_AUTOIX[i]) + half*(
+     &      edgeData(CHF_AUTOIX[i]) + edgeData(CHF_OFFSETIX[i;+ii]))
+      CHF_ENDDO
+
+      return
+      end
+
+c -----------------------------------------------------------------
+c this subroutine fills the cell-centered data cellData using the
+c edge-centered edgeData in the direction dir by taking the max of
+c edgeData on the two normal faces
+c
+c INPUTS/OUTPUTS:
+c edgeData  => edge-centered field
+c cellData <=  cell-centered field
+c cellBox   => box which defines cellData valid region
+c dir       => direction in which to average
+c -----------------------------------------------------------------
+      subroutine EDGETOCELLMAX(CHF_CONST_FRA1[edgeData],
+     &                         CHF_FRA1[cellData],
+     &                         CHF_BOX[cellBox],
+     &                         CHF_CONST_INT[dir])
+
+c ::: local variables
+      integer CHF_DDECL[i;j;k;l;m;n]
+      integer CHF_DDECL[ii;jj;kk;ll;mm;nn]
+
+      CHF_MULTIDO[cellBox;i;j;k;l;m;n]
+      CHF_DTERM[
+      ii = i+CHF_ID(0,dir);
+      jj = j+CHF_ID(1,dir);
+      kk = k+CHF_ID(2,dir);
+      ll = l+CHF_ID(3,dir);
+      mm = m+CHF_ID(4,dir);
+      nn = n+CHF_ID(5,dir)]
+
+      cellData(CHF_IX[i;j;k;l;m;n]) = max(
+     &                    edgeData(CHF_IX[i;j;k;l;m;n]),
+     &                    edgeData(CHF_IX[ii;jj;kk;ll;mm;nn]))
+
+      CHF_ENDDO
+
+      return
+      end

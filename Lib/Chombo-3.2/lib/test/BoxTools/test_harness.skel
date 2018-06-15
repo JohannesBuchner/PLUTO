@@ -1,0 +1,43 @@
+// -*- Mode: C++; Modified: "Tue 14 Mar 2006 15:26:50 by dbs"; -*- 
+
+/// Test harness for Chombo classes.
+/** See test_harness.H for detailed documentation.
+ *  See test_harness.skel for a skeleton of this file.
+ */
+
+// remove this define if you don't want ArrayView built into the program
+#define TEST_ARRAYVIEW
+
+#include "test_harness.H"
+
+////////////////////////////////////////////////////////////////
+
+// header file for the class to test
+//-- Change CLASSNAME as appropriate.
+#include "CLASSNAME.H"
+
+// This generates the main program to test the class.
+//-- Change "CLASSNAME" to the name of the class.
+MAKE_TEST( CLASSNAME ) ;
+
+////////////////////////////////////////////////////////////////
+
+// This function does the actual testing.
+//-- Change "CLASSNAME" as above.
+//-- Fill in the code for this function.
+void Test::TestCLASSNAME( int argc, char *argv[] ){
+}
+
+// This function prints the "usage" message for the test program.
+//-- This version documents the command-line options implemented
+//   by the driver program.  Add any options or arguments 
+//  implemented by Test::TestCLASSNAME().
+void Test::Usage( ){
+  std::cout << "usage: " << Name << " [-dhqv]" << std::endl ;
+#ifdef CH_MPI
+  MPI_Finalize();
+#endif
+  exit( 99 );
+}
+
+//-- End of skeleton.  

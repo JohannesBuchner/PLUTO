@@ -1,0 +1,150 @@
+###
+### This is the standard include file for building example programs.
+### Any makefile that includes this one must define the following
+### variables first:
+###
+###   $(CHOMBO_HOME)   absolute path to the Chombo "lib" directory
+###   $(LibNames)      names of the Chombo libraries to use
+###   $(ebase)         names of the programs to build
+###   $(base_dir)      relative path to directory containing $(ebase) src files (default: .)
+###   $(src_dirs)      relative paths to other directories containing source
+###                    files to be compiled into the $(ebase) programs
+###   $(INPUT)         arguments to program (default: $(ebase).inputs)
+###   $(VERBOSE)       arguments to program to control verbosity (default: -q)
+###
+### followed by:
+###
+###   include $(CHOMBO_HOME)/mk/Make.example
+###
+### The names in $(ebase) should be the basenames of the source file
+### containing the main() function of the program.  As with the test
+### programs, if there is one name in $(ebase), all the sources in the
+### subdirectory are compiled together into one program.  If there are
+### two or more names in $(ebase), then each program is built from only
+### the source file corresponding to the name in $(base_dir), plus the
+### sources in $(src_dirs).
+###
+### Note: all source files in $(src_dirs) are used, so to keep a source
+###       file in a directory without compiling it, it must be renamed
+###       so it doesn't have a known source file extension (see the
+###       $(src_extensions) variable).  The extension ".notused" is
+###       recommended for this purpose.
+###
+######################################################################
+
+makefiles+=Make.example
+
+# define basic make variables
+include $(CHOMBO_HOME)/mk/Make.defs
+
+# define configuration variables
+#[NOTE: Make.rules also includes this file, but we need it here first.]
+include $(CHOMBO_HOME)/mk/Make.defs.config
+
+# names of subdirectories used for compilation files
+_object_prefix  = o/$(config)/
+_fortran_prefix = f/$(config)/
+_depends_prefix = d/$(config)/
+ifeq ($(ROSE),TRUE)
+  _rose_prefix = rose/$(config)/
+endif
+ifeq ($(GPU),TRUE)
+  _cubin_prefix = cubin/$(config)/
+endif
+
+# get all the source files in this application
+#[NOTE: src_extensions and vpath should match $(src_wildcard) in Make.rules;
+#       they are defined here explicitly because Make.rules isn't loaded. <dbs>]
+src_extensions := .cpp .F90 .f90 .ChF .f .F  .c
+vpath %.cpp $(src_dirs)
+vpath %.ChF $(src_dirs)
+vpath %.F   $(src_dirs)
+vpath %.f   $(src_dirs)
+vpath %.F90   $(src_dirs)
+vpath %.f90   $(src_dirs)
+vpath %.c   $(src_dirs)
+ifeq ($(GPU),TRUE)
+  vpath %.cu  $(src_dirs)
+endif
+
+# first off, set the default location of the main source file
+ifeq ($(base_dir),)
+  base_dir = .
+endif
+
+# list of source files in all the other source directories
+ifneq ($(src_dirs),)
+  _srcs := $(notdir $(wildcard $(foreach ext,$(src_extensions),$(addsuffix /*$(ext),$(src_dirs)))))
+  ifeq ($(GPU),TRUE)
+    _srccus := $(notdir $(wildcard $(addsuffix /*.cu,$(src_dirs))))
+  endif
+endif
+
+# the list of dependency files that Make.rules will need to build, including files in $base_dir
+depends := $(addprefix $(_depends_prefix),$(foreach _ext,$(src_extensions),$(subst $(_ext),.d,$(filter %$(_ext),$(_srcs)))))
+ifeq ($(GPU),TRUE)
+  depends += $(addprefix $(_depends_prefix),$(subst .cu,.cu.d,$(_srccus)))
+endif
+_base_srcs := $(notdir $(wildcard $(foreach ext,$(src_extensions),$(addsuffix /*$(ext),$(base_dir)))))
+depends += $(addprefix $(_depends_prefix),$(foreach _ext,$(src_extensions),$(subst $(_ext),.d,$(filter %$(_ext),$(_base_srcs)))))
+
+# the list of non-base object files that Make.rules will need to build
+objects := $(addprefix $(_object_prefix),$(foreach _ext,$(src_extensions),$(subst $(_ext),.o,$(filter %$(_ext),$(_srcs)))))
+# if there is one name in $(ebase) but other source files in $(base_dir), build them too
+ifeq ($(words $(ebase)),1)
+  _base_objs := $(addprefix $(_object_prefix),$(foreach _ext,$(src_extensions),$(subst $(_ext),.o,$(filter %$(_ext),$(_base_srcs)))))
+  # the patsubst is here because it provides a way of stripping out trailing
+  # space characters which may have infiltrated ebase. This protects against 
+  # a class of _really_ hard to find make problems (DFM 10-9-09)
+  objects += $(filter-out $(patsubst %,o/$(config)/%,$(ebase)).o,$(_base_objs))
+endif
+
+# tell Make.rules to search source directories for include files
+appcppflags := -I$(base_dir) $(addprefix -I,$(src_dirs))
+
+
+##
+## targets
+
+.PHONY: all example lib run vars usage
+
+usage:
+	@echo "This makefile supports targets:"
+	@echo "     all example lib example-only run $(ebase) vars usage"
+
+all example: all-example
+
+lib: $(shell $(CHOMBO_HOME)/mk/reverse $(LibNames))
+
+# tell program to run quietly unless user overrides on the command line
+VERBOSE =
+
+run: run-only
+
+vars:
+	@echo "CHOMBO_HOME=$(CHOMBO_HOME)"
+	@echo "ebase=$(ebase)"
+	@echo "LibNames=$(LibNames)"
+	@echo "base_dir=$(base_dir)"
+	@echo "src_dirs = $(src_dirs)"
+	@echo "config=$(config)"
+	@echo "objects=$(objects)"
+	@echo "depends=$(depends)"
+	@echo "appcppflags=$(appcppflags)"
+	@echo "_srcs=$(_srcs)"
+	@echo "_srccus=$(_srccus)"
+	@echo "_base_objs=$(_base_objs)"
+	@echo "_base_srcs=$(_base_srcs)"
+	@$(MAKE) --no-print-directory -f $(CHOMBO_HOME)/mk/Make.printVariables CHOMBO_HOME=$(CHOMBO_HOME) $@
+
+
+# tell Make.rules not to compute object files automatically
+AUTONAME=FALSE
+
+include $(CHOMBO_HOME)/mk/Make.rules
+
+# If we're using a Python parser, we need to link against libld.
+# This isn't finalized yet. -JNJ
+ifneq ($(findstring PyParse,$(LibNames)), )
+  LDFLAGS += -ldl
+endif

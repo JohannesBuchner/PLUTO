@@ -1,0 +1,59 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+
+c -------------------------------------------------------
+c  this subroutine computes the cell-centered divergence
+c  from the edge centered velocity field -- does this in
+c  a direction-by-direction basis; increments div with
+c  du/dx or dv/dy or dw/dz. actually assumes that dx=dy=dz
+c
+c  INPUTS/OUTPUTS:
+c  uEdge   => edge-centered vector field in direction dir
+c  div    <=  cell-centered divergence
+c  gridInt => box which defines interior of grid
+c  dx      => cell spacing in direction dir
+c  dir     => coordinate direction
+c -------------------------------------------------------
+      subroutine DIVERGENCE(CHF_CONST_FRA[uEdge],
+     &                      CHF_FRA[div],
+     &                      CHF_BOX[gridInt],
+     &                      CHF_CONST_REAL[dx],
+     &                      CHF_INT[dir])
+
+c ::: local variables
+      integer CHF_DDECL[i;j;k]
+      integer CHF_DDECL[ii;jj;kk]
+      integer n
+      REAL_T one_on_dx
+c     REAL_T  dirDiv
+
+      one_on_dx = one/dx
+
+      do n=0,CHF_NCOMP[div]-1
+
+      CHF_MULTIDO[gridInt;i;j;k]
+      CHF_DTERM[
+      ii = i+CHF_ID(0,dir);
+      jj = j+CHF_ID(1,dir);
+      kk = k+CHF_ID(2,dir)]
+
+c      dirDiv = one_on_dx*(uEdge(CHF_IX[ii;jj;kk],n)
+c     &                                 -uEdge(CHF_IX[i;j;k],n))
+
+      div(CHF_IX[i;j;k],n) = div(CHF_IX[i;j;k],n)
+     &                      +one_on_dx*(uEdge(CHF_IX[ii;jj;kk],n)
+     &                                 -uEdge(CHF_IX[i;j;k],n))
+
+      CHF_ENDDO
+
+      enddo
+
+      return
+      end
+

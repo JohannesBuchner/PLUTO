@@ -1,0 +1,76 @@
+max_step  	      = 100
+max_time              = 100.0
+
+mg_relax_type  = 2
+mg_relax_lazy  = true
+mg_num_smooths = 4
+#bottom solver:  0=BiCGStab, 1=EBSimpleSmoother
+mg_bottom_solver = 0
+mg_num_precond = 4
+mg_num_cycles = 1
+mg_hang        = 1.0e-1
+mg_tolerance   = 1.0e-15
+mg_norm_thresh = 1.0e-15
+mg_iter_max    = 100
+
+tag_on_scalar         = 0
+
+#euler
+viscosity             = 1.0
+#refine_threshold      = 5.0
+
+refine_threshold      = 1.0
+
+do_slip_walls         = 0
+
+order_ebbc            = 2
+order_time            = 2
+
+use_limiting          = 1
+domain_length         = 2.0
+do_regrid_smoothing = true
+
+max_level	      = 0
+n_cell                =  128 64 64
+ref_ratio	      = 2 2 2 2
+num_filter_iterations  = 4
+num_gphi_iterations    = 4
+num_init_iterations    = 4
+
+checkpoint_interval   = 100
+plot_interval	      = 100
+max_grid_size	      = 16
+fill_ratio	      = 0.7
+block_factor	      = 8
+#regrid_interval	      = 2
+regrid_interval	      = 1000000
+##this has to be bigger than one!
+max_dt_grow	      = 1000
+cfl		      = 0.75
+init_cfl	      = 0.75
+verbosity	      = 1
+nesting_radius	      = 2
+tag_buffer	      = 8
+
+flow_dir	      = 0
+inflow_vel	      = 10.0
+
+poiseuille_inflow = false
+poiseuille_init = false
+poise_profile_radius = 0.5
+poise_profile_center_pt = 0.0 0.5 0.5
+poise_profile_axis = 1.0 0.0 0.0
+poise_maxvel_factor = 1.5
+
+###geometry flag
+## 0 is all regular
+which_geom = 0
+
+## 5 is a sphere
+which_geom = 5
+
+sphere_radius = 0.25
+sphere_center = 1.0 0.5 0.5
+cutplane_normal = 1.0 0.0 0.0
+
+

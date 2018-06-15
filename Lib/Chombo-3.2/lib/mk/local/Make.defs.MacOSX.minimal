@@ -1,0 +1,12 @@
+
+CXX           = /opt/local/bin/c++-mp-4.3
+FC            = /opt/local/bin/gfortran-mp-4.3
+USE_HDF       = TRUE
+HDFINCFLAGS   = -I//opt/local/include 
+HDFLIBFLAGS   = -L//opt/local/lib -lhdf5 -lhdf5_hl -lz
+HDFMPIINCFLAGS   = -I//opt/local/include 
+HDFMPILIBFLAGS   = -L//opt/local/lib -lhdf5 -lhdf5_hl -lz
+USE_MT        = TRUE
+lddbgflags    =  -L/opt/local/lib/
+ldoptflags    =  -L/opt/local/lib/
+

@@ -1,0 +1,206 @@
+Chombo makefile users guide   v2.0   April 2007
+
+You can contact the Chombo development team at <chombo@anag.lbl.gov>
+
+This file discusses how to use and customize the Chombo makefiles.
+
+0. Introduction
+
+The rest of this document is broken into three parts.  The first part
+discusses the variables used in the Chombo makefiles.  These variables are
+the way you control how Chombo is built and how you customize the make
+process to a particular computer system.  The second part describes the
+targets that are implemented by the makefiles: what they do and how they
+interact with each other and with the variables.  The final part describes
+various features of the makefiles that might be useful to know.  This
+document does not discuss implementation details of the makefiles.  For that
+you must read the code and be fairly knowledgeable about GNU make.
+
+1. Variables
+
+There are essentially 3 sets of variables in the Chombo makefiles.
+
+a) variables that determine the configuration of the libraries and programs
+b) variables that tell the makefiles about things that vary across
+   computers, operating systems and compilers
+c) variables that are computed internally in the makefiles
+
+The variables in the first set are the ones that a user will use frequently.
+The way Chombo is built, each different configuration is compiled into a
+separate set of libraries and programs with different filenames.  [Note: the
+reasons why it is done this way will not be discussed here.]
+
+Most users will build more than one configuration: e.g. a debug version and
+an optimized version, or a serial version and a parallel version, or a 2D
+version and a 3D version (or all 8).  There are currently 7 configuration
+variables and dozens of possible combinations of variable values.  Each
+combination builds different copies of the libraries and programs.  The
+configuration information is put into the filenames so that different
+configurations can be used simultaneously without recompiling all the code
+repeatedly every time something changes, or managing complex directory
+structures.
+
+The configuration choices are:
+
+   a) dimensionality of the PDEs (2 or 3)
+   b) size of floating-point variables (single or double)
+   c) compile for debugging or for optimization
+   d) compile for serial or parallel (using MPI)
+   e) compile for performance profiling or not
+   f) choice of C++ compiler
+   g) choice of Fortran compiler
+   h) compiler object model (e.g. 32 or 64bit, dynamic or static link, etc.)
+
+There is one more configuration variable available that doesn't set
+anything except the filenames.  This allows the user to build separate
+versions that differ in something besides a configuration variable
+(different compiler optimization options is a common use for this).
+
+The recommended process for managing configurations is to define a 
+default configuration in the makefile, and set makefile variables
+on the make command line to build other configurations.
+
+The makefile variables that control the configuration are:
+
+    a) DIM        (2 or 3)
+    b) PRECISION  (FLOAT or DOUBLE)
+    c) DEBUG      (TRUE or FALSE)
+    d) OPT        (TRUE or HIGH or FALSE)
+    e) MPI        (TRUE or FALSE)
+    f) PROFILE    (TRUE or FALSE)
+    g) USE_SETVAL (TRUE or FALSE - some initialization)
+    h) CXX        (command to run the C++ compiler/linker)
+    i) FC         (command to run the Fortran compiler)
+    j) OBJMODEL   (32, 64, N32, DYNAMIC, etc)
+    k) XTRACONFIG (anything is allowed)
+
+You'll notice that the configuration variables have UPPER case names.
+The Chombo makefiles use upper case names for variables that the 
+user might want to change occasionally.  Lower case names are used
+for variables that tend to be set once and left alone.
+
+Keyword values like "FLOAT" or "TRUE" are also always UPPER case.  The
+values of the OBJMODEL variable are meaningful only to the compilers that
+support that feature.  Not all compiler support all features.
+You'll have to check the individual compiler makefiles in "Chombo/lib/compiler"
+to determine what OBJMODEL values are supported.  For example, the IBM
+compiler file supports "64" to compile with 64bit pointers.
+The GNU compiler file supports OBJMODEL values of "32" and "64", but only
+on certain platforms.
+
+Other makefile variables that the user might want to use to customize
+the build process are:
+
+        CXXFLAGS     CPPFLAGS     FFLAGS     LDFLAGS     LIBFLAGS
+    XTRACXXFLAGS XTRACPPFLAGS XTRAFFLAGS XTRALDFLAGS XTRALIBFLAGS
+
+where the *FLAGS variables specify options to the respective build
+tools (CXX for the C++ compiler, CH_CPP for the C preprocessor, FC for the
+Fortran compiler, LD,LIB for the linker) that override the default options 
+for those tools, and the XTRA*FLAGS variables specify options that are
+used in addition to the default options.  
+
+Notes:
+
+Care should be taken when setting the *FLAGS variables, since the default
+options for some compilers are necessary to successfully build the Chombo
+code.  The XTRA*FLAGS variables should be used whenever possible.  In
+particular, the CPPFLAGS variable should not be altered unless you really
+know what you're doing.
+
+LDFLAGS and XTRALDFLAGS are added at the beginning of the linker
+command, before object files and libraries.  LIBFLAGS and XTRALIBFLAGS
+are placed after the object files, with XTRALIBFLAGS before LIBFLAGS.
+
+2. targets
+
+The targets in the top-level makefile are sufficient to bulid all the Chombo
+code in most cases.  The top-level makefile is "Chombo/lib/GNUmakefile" and
+supports several targets.  In general, Chombo makefiles have default targets
+that do nothing but print a short message describing the available targets,
+so to do anything it is necessary to specify an explicit target on the
+command line.
+
+From the perspective of the make system, the Chombo code is divided into
+three groups: libraries, tests and examples.  The targets in the top-level
+makefile reflect this.  The primary targets are:
+
+  lib          compiles the libraries
+  test         compiles and links the test programs and the libraries
+  example      compiles and links the example programs and the libraries
+  example-only compiles and links the example programs and not the libs
+  all          same as the "test" target
+  run          compiles, links and runs the test programs
+  clean        deletes non-source files for the current configuration
+  realclean    deletes non-source files for all configurations
+  defs         prints values of configuration and compiler variables
+
+The "run" target runs the test programs quietly.  To get more output,
+use the command "make run VERBOSE=-v".
+
+To run an example program, you must cd into the appropriate directory and
+execute the program with an appropriate input file.  Some of the example
+programs have several input files.  All should run successfully.
+
+
+3. other features
+
+3.1 parallel make
+
+It can take a long time to build Chombo, especially on a slow or busy
+computer.  The Chombo makefiles support running 'make' in a way that builds
+mutiple objects simultaneously.  This can reduce the build time
+significantly, especially on multiprocessor computers and single processor
+computers with fast processors or slow disks.
+
+The Chombo makefiles allow using multiple processes in two ways: to build
+directories in parallel or to build files in parallel.  When building
+all of Chombo from scratch, it is best to build directories in parallel;
+when rebuilding just part of Chombo (after a code change, for example), it
+may be faster to build files in parallel.
+
+To build directories in parallel, you must build from the 'Chombo/lib'
+directory, and build the libraries and test programs separately.  Also,
+you must specify the number of processes on the 'make' command line:
+
+\begin{verbatim}
+       cd Chombo/lib
+       make -j4 lib
+       make -j4 test
+\end{verbatim}
+
+The reason for separating the make commands is to maintain the necessary
+order of operations.  If the tests start building before the libraries are
+completely built, then the test programs may not link successfully.  The
+number of processes can be more or less than 4, but more processes than the
+number of subdirectories cannot improve performance.  The optimal number
+depends on the computer, but our experiments suggest that 2 times the number
+of CPUs is fairly close to optimal.
+
+Building files in parallel is more useful when you're rebuilding a single
+program from the subdirectory containing that program.  The commands
+are almost the same as building directories except the {\tt -j} option
+should be given without a number and a {\tt -l} option should be added with
+a number specifying the maximum load to allow.  For example:
+
+\begin{verbatim}
+      make -j -l5 lib
+      make -j -l5 example
+\end{verbatim}
+
+This version should be used when you know that only a small number of files
+will recompile and relink.  The reason is that the way that GNU make
+implements the load limit (the {\tt -l} option) is not precise: on a fast
+computer, 'make' may generate many processes before it notices that the load
+limit has been exceeded, in which case it may perform worse than running
+serially.  If no load limit is specified and there are many files to
+recompile, the load may overwhelm the available resources and the computer
+may become unresponsive, or in the worst case, crash completely.
+
+A further improvement in performance can be made by using the 'example-only'
+make target instead of 'example'.  The '-only' version doesn't check that
+the libraries are up to date, but this isn't dangerous in this case since 
+you've just rebuilt the libraries using 'make lib'.  When building in 
+serial, it is better to always use the 'example' target so that you never
+have to worry about the libraries being out of date.  The bugs that result
+from out of date libraries can be subtle and very difficult to find.

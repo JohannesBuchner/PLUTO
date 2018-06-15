@@ -1,0 +1,508 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+#include "EBLGIntegrator.H"
+
+
+cccccccccccccccccccc
+cccccccccccccccccccc
+      subroutine getmodianovel(
+     &     chf_realvect[modianovel],
+     &     chf_const_realvect[vel])
+#include "ModianoCommon.fh"
+#include "EBEOSCommon.fh"
+
+      integer idir
+      real_t normalvel
+#if CH_SPACEDIM==2
+      real_t tanvel
+      real_t normalwave(0:1)
+#else
+      real_t tanvel1, tanvel2
+      real_t normalwave1(0:2)
+      real_t normalwave2(0:2)
+#endif
+
+c     normalvel is the vel dotted with the wavedir
+      normalvel = zero
+      do  idir = 0, CH_SPACEDIM-1
+         normalvel = normalvel + vel(idir)*wavedir(idir)
+      enddo
+c     the 0 component gets the normal vel
+      modianovel(0) = normalvel
+#if CH_SPACEDIM==2
+      normalwave(0) = -wavedir(1)
+      normalwave(1) =  wavedir(0)
+      tanvel = zero
+      do  idir = 0, CH_SPACEDIM-1
+         tanvel = tanvel + vel(idir)*normalwave(idir)
+      enddo
+      modianovel(1) = tanvel
+#else
+      normalwave1(0) = -wavedir(1)
+      normalwave1(1) =  wavedir(0)
+      normalwave1(2) =  0.0
+      normalwave2(0) =  0.0
+      normalwave2(1) =  wavedir(2)
+      normalwave2(2) = -wavedir(1)
+      tanvel1 = zero
+      tanvel2 = zero
+      do  idir = 0, CH_SPACEDIM-1
+         tanvel1 = tanvel1 + vel(idir)*normalwave1(idir)
+         tanvel2 = tanvel2 + vel(idir)*normalwave2(idir)
+      enddo
+      modianovel(1) = tanvel1
+      modianovel(2) = tanvel2
+#endif
+
+      return
+      end
+cccccccccccccccccccc
+cccccccccccccccccccc
+
+      subroutine setmodiano(
+     &     chf_const_real[augamma],
+     &     chf_const_real[auwaveamp],
+     &     chf_const_real[auwavewidth],
+     &     chf_const_realvect[aucenter],
+     &     chf_const_realvect[auwavedir],
+     &     chf_const_int[audofreestreamonly],
+     &     chf_const_int[audonegativewave])
+
+#include "ModianoCommon.fh"
+#include "EBEOSCommon.fh"
+
+      integer idir
+
+      idomodianoprob = 1
+c     whether to do only free stream
+      idofreestreamonly = audofreestreamonly
+      idonegativewave = audonegativewave
+c     equation of state
+      gamma = augamma
+
+c     wave definition
+      waveamp = auwaveamp
+      wavewidth = auwavewidth
+
+      do idir = 0, CH_SPACEDIM-1
+         wavedir(idir) = auwavedir(idir)
+         center(idir) = aucenter(idir)
+      enddo
+
+
+c     reference state
+      rhoref = one
+      pref   = one
+      cref = sqrt(gamma)
+      imaxiter = 100;
+      tolerance=1.0e-10
+
+c     this stuff defines the small variables
+c     to be something reasonable
+
+      smallr = small*rhoref
+      smallu = small*cref
+      smallp = small*pref
+
+      return
+      end
+cccccccccccccccccccc
+cccccccccccccccccccc
+
+      subroutine modianoinit(
+     &     chf_fra[u],
+     &     chf_const_real[dx],
+     &     chf_box[box])
+
+      integer chf_ddecl[i;j;k], idir
+      integer iv(0:CH_SPACEDIM-1)
+      real_t density, energy, momentum(0:CH_SPACEDIM-1)
+      real_t xval(0:CH_SPACEDIM-1), time
+
+      chf_multido[box;i;j;k]
+
+      chf_dterm[
+      iv(0) = i;
+      iv(1) = j;
+      iv(2) = k]
+
+      do idir = 0, CH_SPACEDIM-1
+         xval(idir) = (iv(idir) + half)*dx
+      enddo
+
+c     because it is an init
+      time = zero
+      call pointmodianoexact(density, momentum, energy, xval, time)
+
+      chf_dterm[
+      u(chf_ix[i;j;k],CMOMX) = momentum(0);
+      u(chf_ix[i;j;k],CMOMY) = momentum(1);
+      u(chf_ix[i;j;k],CMOMZ) = momentum(2)]
+
+      u(chf_ix[i;j;k],CRHO) = density
+      u(chf_ix[i;j;k],CENG) = energy
+
+      chf_enddo
+
+      return
+      end
+
+cccccccccccccccccccc
+cccccccccccccccccccc
+
+      subroutine modianoexact(
+     &     chf_fra[u],
+     &     chf_const_real[dx],
+     &     chf_const_real[time],
+     &     chf_box[box])
+
+      integer chf_ddecl[i;j;k], idir
+      integer iv(0:CH_SPACEDIM-1)
+      real_t xval(0:CH_SPACEDIM-1)
+      real_t density, energy, momentum(0:CH_SPACEDIM-1)
+
+      chf_multido[box;i;j;k]
+
+      chf_dterm[
+      iv(0) = i;
+      iv(1) = j;
+      iv(2) = k]
+
+      do idir = 0, CH_SPACEDIM-1
+         xval(idir) = (iv(idir) + half)*dx
+      enddo
+
+
+      call pointmodianoexact(density, momentum, energy, xval, time)
+
+      chf_dterm[
+      u(chf_ix[i;j;k],CMOMX) = momentum(0);
+      u(chf_ix[i;j;k],CMOMY) = momentum(1);
+      u(chf_ix[i;j;k],CMOMZ) = momentum(2)]
+
+      u(chf_ix[i;j;k],CRHO) = density
+      u(chf_ix[i;j;k],CENG) = energy
+
+      chf_enddo
+
+      return
+      end
+
+
+      subroutine modianoexactconsandprim(
+     &     chf_fra[u],
+     &     chf_const_real[dx],
+     &     chf_const_real[time],
+     &     chf_box[box])
+
+      integer chf_ddecl[i;j;k], idir
+      integer iv(0:CH_SPACEDIM-1)
+      real_t xval(0:CH_SPACEDIM-1)
+      real_t density, energy, momentum(0:CH_SPACEDIM-1), soundspeed
+      real_t entropy, pressure, velocity(0:CH_SPACEDIM-1), modianovel(0:CH_SPACEDIM-1)
+      chf_multido[box;i;j;k]
+
+      chf_dterm[
+      iv(0) = i;
+      iv(1) = j;
+      iv(2) = k]
+
+      do idir = 0, CH_SPACEDIM-1
+         xval(idir) = (iv(idir) + half)*dx
+      enddo
+
+
+      call pointmodianoexactconsandprim(
+     &     density, momentum, energy,
+     &     velocity, pressure, entropy,
+     &     soundspeed, modianovel, xval, time)
+
+
+      chf_dterm[
+      u(chf_ix[i;j;k],CMOMX) = momentum(0);
+      u(chf_ix[i;j;k],CMOMY) = momentum(1);
+      u(chf_ix[i;j;k],CMOMZ) = momentum(2)]
+
+      chf_dterm[
+      u(chf_ix[i;j;k],CNUM+QVELX) = velocity(0);
+      u(chf_ix[i;j;k],CNUM+QVELY) = velocity(1);
+      u(chf_ix[i;j;k],CNUM+QVELZ) = velocity(2)]
+
+#ifdef MODIANO_PROBLEM
+      chf_dterm[
+      u(chf_ix[i;j;k],CNUM+QMVAX)   = modianovel(0);
+      u(chf_ix[i;j;k],CNUM+QMVAX+1) = modianovel(1);
+      u(chf_ix[i;j;k],CNUM+QMVAX+2) = modianovel(2)]
+#endif
+
+      u(chf_ix[i;j;k],CRHO) = density
+      u(chf_ix[i;j;k],CENG) = energy
+
+      u(chf_ix[i;j;k],CNUM+QRHO)  = density
+      u(chf_ix[i;j;k],CNUM+QPRES) = pressure
+      u(chf_ix[i;j;k],CNUM+QENTR) = entropy
+      u(chf_ix[i;j;k],CNUM+QC)    = soundspeed
+
+      chf_enddo
+
+      return
+      end
+ccccccccccccccccccccc
+      subroutine pointmodianoexactconsandprim(
+     &     CHF_REAL[density],
+     &     CHF_REALVECT[momentum],
+     &     CHF_REAL[energy],
+     &     CHF_REALVECT[velocity],
+     &     CHF_REAL[pressure],
+     &     CHF_REAL[entropy],
+     &     CHF_REAL[soundspeed],
+     &     CHF_REALVECT[modianovel],
+     &     CHF_CONST_REALVECT[xval],
+     &     CHF_CONST_REAL[time])
+
+
+      integer logflag, cnum, qnum
+      real_t conserved(0:CNUM-1), internal,cvtemp
+      real_t primitive(0:QNUM-1)
+
+      cnum = CNUM-1
+      qnum = QNUM-1
+      logflag = 0
+
+      call pointmodianoexact(density, momentum, energy, xval, time)
+
+      call fillconservedvector(conserved, cnum, density, momentum, energy)
+
+      call pointcons2prm(conserved, cnum, primitive, qnum, logflag)
+
+      call dumpprimitivevector(primitive, qnum, density, pressure,
+     $     velocity, modianovel, entropy, internal, cvtemp, soundspeed)
+
+      return
+      end
+ccccccccccccccccccccc
+      subroutine modianowavefunc(
+     &     CHF_REAL[retval],
+     &     CHF_CONST_REAL[xbar])
+
+      if((xbar .ge. -one) .and. (xbar.lt.one)) then
+         retval = (xbar*xbar - one)*(xbar*xbar - one)*(xbar*xbar - one)*(xbar*xbar - one)
+      else
+         retval = zero
+      endif
+
+      return
+      end
+ccccccccccccccccccccc
+ccccccccccccccccccccc
+      subroutine getxbar(
+     &     chf_real[xbar],
+     &     chf_realvect[xval])
+
+#include "ModianoCommon.fh"
+#include "EBEOSCommon.fh"
+      integer idir
+      real_t wavemag
+      real_t diffvec(0:CH_SPACEDIM-1)
+
+c     normalization coeff for the wave direction
+      wavemag = zero
+      do idir = 0, CH_SPACEDIM-1
+         wavemag = wavemag + wavedir(idir)*wavedir(idir)
+         diffvec(idir) = -center(idir)+xval(idir)
+      enddo
+      wavemag = sqrt(wavemag)
+
+c     xbar  = ((xval-center) dot wavedir)/wavemag
+c     signed distance = (Ax+By+Cz+alpha)/wavemag
+      xbar = zero
+      do idir = 0, CH_SPACEDIM-1
+         xbar = xbar + diffvec(idir)*wavedir(idir)
+      enddo
+      xbar = xbar/wavemag
+      xbar = xbar/wavewidth
+      return
+      end
+ccccccccccccccccccccc
+ccccccccccccccccccccc
+
+      subroutine pointmodianoflux(
+     &     chf_real[denseflux],
+     &     chf_realvect[momenflux],
+     &     chf_real[energflux],
+     &     chf_const_realvect[xval],
+     &     chf_const_int[facedir],
+     &     chf_const_real[time])
+
+#include "ModianoCommon.fh"
+#include "EBEOSCommon.fh"
+
+      real_t momentum(0:CH_SPACEDIM-1)
+      real_t conserved(0:CNUM-1)
+      real_t primitive(0:QNUM-1)
+      real_t   fluxvec(0:FNUM-1)
+      real_t density, energy
+      integer logflag, cnum, qnum, fnum
+
+      cnum = CNUM-1
+      qnum = QNUM-1
+      fnum = FNUM-1
+
+      call pointmodianoexact(density, momentum, energy, xval, time)
+      call fillconservedvector(conserved, cnum, density, momentum, energy)
+
+      logflag = 0
+      call pointcons2prm(conserved, cnum, primitive, qnum, logflag)
+
+      call pointgetflux(fluxvec, fnum, primitive, qnum, facedir)
+
+      return
+      end
+
+ccccccccccccccccccccc
+ccccccccccccccccccccc
+      subroutine pointmodianoexact(
+     &     chf_real[density],
+     &     chf_realvect[momentum],
+     &     chf_real[energy],
+     &     chf_const_realvect[xval],
+     &     chf_const_real[time])
+
+      integer  idir,  iter
+      real_t xbar, funcval, unot,xbardiff
+      real_t wavedirval(0:CH_SPACEDIM-1)
+      real_t centerval(0:CH_SPACEDIM-1)
+
+      real_t velocity(0:CH_SPACEDIM-1)
+      real_t pressure, soundspeed,ke, xbarold
+      real_t wavew, mgamma
+
+#include "ModianoCommon.fh"
+#include "EBEOSCommon.fh"
+
+      do idir = 0, CH_SPACEDIM-1
+         wavedirval(idir) = wavedir(idir)
+         centerval(idir) =  center(idir)
+      enddo
+
+      wavew = wavewidth
+      mgamma = gamma
+
+c     distance to plane
+      call getxbar(xbar, xval)
+
+      call modianowavefunc(funcval, xbar)
+
+
+c     the real modiano problem
+      if(idofreestreamonly .ne. 1) then
+
+c     need to iterate to convergence of xbar
+c     use initial condition as first guess
+
+         density = rhoref*(one + funcval*waveamp)
+         pressure = pref*((density/rhoref)**gamma)
+         soundspeed = sqrt(gamma*pressure/density)
+         if(idonegativewave.eq.1) then
+            unot = (two/(gamma-one))*(cref-soundspeed)
+         else
+            unot = (two/(gamma-one))*(soundspeed-cref)
+         endif
+
+      else
+
+c     free stream with a modiano bump
+c     need to iterate to convergence of xbar
+c     use initial condition as first guess
+         density = rhoref*(one + funcval*waveamp)
+         pressure = pref
+         soundspeed = sqrt(gamma*pressure/density)
+         if(idonegativewave.eq.1) then
+            unot = -waveamp
+         else
+            unot = waveamp
+         endif
+
+      endif
+      xbardiff = one
+      iter = 0
+
+ 1234 continue
+
+      if((iter .lt. imaxiter) .and. (xbardiff.gt.tolerance)) then
+
+         xbarold = xbar
+
+c     distance to plane
+         call getxbar(xbar, xval)
+
+c     time component
+         if(idofreestreamonly .ne. 1) then
+            if(idonegativewave.eq.1) then
+               xbar = xbar - time*(unot - soundspeed)/wavewidth
+            else
+               xbar = xbar - time*(unot + soundspeed)/wavewidth
+            endif
+         else
+            xbar = xbar - time*unot/wavewidth
+         endif
+
+         call modianowavefunc(funcval, xbar)
+
+         if(idofreestreamonly .ne. 1) then
+c     the real modiano problem
+
+            density = rhoref*(one + funcval*waveamp)
+            pressure = pref*((density/rhoref)**gamma)
+            soundspeed = sqrt(gamma*pressure/density)
+
+            if(idonegativewave.eq.1) then
+               unot = (two/(gamma-one))*(cref-soundspeed)
+            else
+               unot = (two/(gamma-one))*(soundspeed-cref)
+            endif
+         else
+
+c     free stream with a modiano bump
+c     need to iterate to convergence of xbar
+c     use initial condition as first guess
+            density = rhoref*(one + funcval*waveamp)
+            pressure = pref
+            soundspeed = sqrt(gamma*pressure/density)
+            if(idonegativewave.eq.1) then
+               unot = -waveamp
+            else
+               unot = waveamp
+            endif
+
+         endif
+
+         xbardiff = abs(xbarold-xbar)
+         iter = iter + 1
+         goto 1234
+      endif
+
+c     iteration did not converge
+      if(iter .ge. imaxiter) then
+         call MAYDAY_ERROR()
+      endif
+
+
+      ke = zero
+      do idir = 0, CH_SPACEDIM-1
+         velocity(idir) = unot*wavedir(idir)
+         ke = ke + half*velocity(idir)*velocity(idir)
+      enddo
+
+      do idir = 0, CH_SPACEDIM-1
+         momentum(idir) = density*velocity(idir)
+      enddo
+      energy =  pressure/(gamma - one) + density*ke
+
+      return
+      end

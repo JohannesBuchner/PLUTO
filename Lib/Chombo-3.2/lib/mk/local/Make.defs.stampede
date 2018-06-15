@@ -1,0 +1,33 @@
+## This file defines variables for use on the login nodes of the NERSC Linux
+## machine 'edison'.  
+##
+## NOTE: everything is always in 64bit mode
+
+makefiles+=local/Make.defs.stampede
+
+CXX=icpc
+FC=ifort
+MPICXX=mpicxx
+USE_64=TRUE
+
+CH_CPP=$(CXX) -E -P -C
+
+RUN = aprun -n 2 ./#
+
+cxxoptflags += -C -O3  -no-ipo
+foptflags += -O2
+# DFM (7-8-14) --  don't seem to need these anymore...
+#flibflags += -lifport -lifcore -limf -lsvml -lm -lipgo -lirc -lsvml
+XTRALDFLAGS += -Wl,-zmuldefs
+# (DFM 3/28/14) this overrides the -FI in Make.defs.Intel. 
+XTRAF90FLAGS += -free
+syslibflags = -mkl
+
+USE_HDF=TRUE
+HDF5_DIR = $(CRAY_HDF5_DIR)/INTEL/130
+
+HDFLIBFLAGS=   -L$(TACC_HDF5_DIR)/lib     $(HDF_POST_LINK_OPTS)  -lhdf5 -lz
+HDFMPILIBFLAGS= -L$(TACC_HDF5_DIR)/lib     $(HDF_POST_LINK_OPTS)  -lhdf5 -lz
+HDFINCFLAGS=   -I$(TACC_HDF5_DIR)/include $(HDF_INCLUDE_OPTS) 
+HDFMPIINCFLAGS= -I$(TACC_HDF5_DIR)/include $(HDF_INCLUDE_OPTS) 
+

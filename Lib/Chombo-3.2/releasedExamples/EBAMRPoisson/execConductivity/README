@@ -1,0 +1,62 @@
+How to run this example
+./conductivityDriver...ex conductivity.inputs
+
+#number of cells of coarest level
+n_cells = 64 64 64
+#max amr level number
+max_level = 1
+Go ahead and play with the coefficients.   The identity term gets multiplied by alpha*acoef
+The laplacian gets multiplied by beta*bcoef.
+Some other geometries
+#multisphere
+#which_geom = 6
+#num_spheres = 12
+#
+#sphere_radius_0 = 0.05
+#sphere_radius_1 = 0.05
+#sphere_radius_2 = 0.05
+#sphere_radius_3 = 0.05
+#sphere_radius_4 = 0.05
+#sphere_radius_5 = 0.05
+#sphere_radius_6 = 0.05
+#sphere_radius_7 = 0.05
+#sphere_radius_8 = 0.05
+#sphere_radius_9 = 0.05
+#sphere_radius_10= 0.05
+#sphere_radius_11= 0.05
+#
+#sphere_center_0 = 0.20  0.25 0.5
+#sphere_center_1 = 0.40  0.20 0.5
+#sphere_center_9 = 0.60  0.25 0.5
+#sphere_center_2 = 0.80  0.20 0.5
+#
+#sphere_center_3 = 0.25  0.5 0.5
+#sphere_center_4 = 0.45  0.45 0.5
+#sphere_center_5 = 0.65  0.5 0.5
+#sphere_center_10= 0.85  0.45 0.5
+#
+#sphere_center_6 = 0.30   0.75 0.5
+#sphere_center_7 = 0.50   0.70 0.5
+#sphere_center_8 = 0.70   0.75 0.5
+#sphere_center_11= 0.90   0.70 0.5
+
+###multiparabola stuff
+#which_geom = 7
+#num_parabolas = 2
+#parabola_updir = 1
+#parabola_amplitude_0 = -5.0
+#parabola_amplitude_1 =  10.0
+#parabola_center_0 = 0.10  0.25 0.5
+#parabola_center_1 = 0.50  0.025 0.5
+
+#parabolic mirroro
+#which_geom = 8
+#mirror_amplitude = -12.3456789
+#mirror_center = 0.98  0.25 0.25
+
+## 11 is an ellipsoid
+#which_geom = 11
+#ellipsoid_radii  = 0.18 0.25 0.3
+#ellipsoid_center = 0.36 0.5 0.5
+#ellipsoid_xaxis  = 3.0 2.0 1.0
+#ellipsoid_fluid_inside = 0

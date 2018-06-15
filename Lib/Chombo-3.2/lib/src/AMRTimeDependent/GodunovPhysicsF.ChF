@@ -1,0 +1,34 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+      subroutine FLUXDIFFF(
+     &     CHF_FRA[diff],
+     &     CHF_CONST_FRA[F],
+     &     CHF_CONST_INT[idir],
+     &     CHF_BOX[box])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[c2fLo]
+      integer CHF_AUTODECL[c2fHi]
+      integer iv
+
+!     +c2fLo from cell to adjacent face on low side (index is same)
+      CHF_AUTOID[c2fLo; idir; 0]
+!     +c2fHi from cell to adjacent face on high side (index is 1 higher)
+      CHF_AUTOID[c2fHi; idir; 1]
+
+      do iv = 0,CHF_NCOMP[diff] - 1
+         CHF_AUTOMULTIDO[box;i]
+            diff(CHF_AUTOIX[i], iv) =
+     &        F(CHF_OFFSETIX[i; +c2fHi], iv) -
+     &        F(CHF_OFFSETIX[i; +c2fLo], iv)
+         CHF_ENDDO
+      enddo
+
+      return
+      end

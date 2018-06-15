@@ -1,0 +1,50 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+c     constant coarse-fine interpolation
+        subroutine regconstantinterp(
+     &     chf_fra1[phi],
+     &     chf_box[validbox],
+     &     chf_const_int[dir],
+     &     chf_const_int[nghost],
+     $     chf_const_int[side])
+
+        integer chf_ddecl[ioff;joff;koff]
+        integer chf_ddecl[ighost; jghost; kghost]
+        integer chf_ddecl[ivalid; jvalid; kvalid]
+        integer whichghost
+
+c        real_t phivalid, phighost
+
+c     side must be 1 or -1
+        if((side.ne.1).and.(side.ne.-1)) then
+           call MAYDAY_ERROR()
+        endif
+
+        chf_dterm[
+        ioff = chf_id(0,dir)*side;
+        joff = chf_id(1,dir)*side;
+        koff = chf_id(2,dir)*side]
+
+        chf_multido[validbox;ivalid;jvalid;kvalid]
+
+        do whichghost = 1, nghost
+
+           chf_dterm[
+           ighost = ivalid + whichghost*ioff ;
+           jghost = jvalid + whichghost*joff ;
+           kghost = kvalid + whichghost*koff ]
+
+c           phivalid = phi(chf_ix[ivalid;jvalid;kvalid])
+c           phighost = phi(chf_ix[ighost;jghost;kghost])
+           phi(chf_ix[ighost;jghost;kghost]) = phi(chf_ix[ivalid;jvalid;kvalid])
+c           phighost = phi(chf_ix[ighost;jghost;kghost])
+
+        enddo
+        chf_enddo
+
+        return
+        end

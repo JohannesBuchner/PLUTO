@@ -1,0 +1,209 @@
+#ifndef _INJECTIONI_H_TRANSDIM_
+#define _INJECTIONI_H_TRANSDIM_
+
+namespace CH_MultiDim {
+
+template<typename IntVectT>
+void injectIntVect(
+  IntVectT&    a_to,
+  const typename ObjTraits< DimTraits<IntVectT>::dim - 1 >::IntVect& a_from,
+  const typename ObjTraits< DimTraits<IntVectT>::dim >::SliceSpec& a_spec )
+{
+    enum {DIM=DimTraits<IntVectT>::dim};
+    int ii=0;
+    for( int i=0;i<DIM;++i )
+    {
+        if( i != a_spec.direction )
+        {
+            a_to[i] = a_from[ii];
+            ++ii;
+        }
+    }
+    a_to[a_spec.direction] = a_spec.position;
+}
+
+
+template<typename BoxT> void
+injectBox( BoxT& a_to,
+           const typename ObjTraits< DimTraits<BoxT>::dim - 1 >::Box& a_from,
+           const typename ObjTraits< DimTraits<BoxT>::dim >::SliceSpec& a_slicespec )
+{
+    enum {DIM=DimTraits<BoxT>::dim};
+    typename ObjTraits<DIM>::IntVect smTo, bgTo;
+
+    injectIntVect( smTo, a_from.smallEnd(), a_slicespec );
+    injectIntVect( bgTo, a_from.bigEnd(), a_slicespec );
+    a_to.define( smTo, bgTo );
+}
+
+
+template<typename BaseFabT> void
+injectBaseFab(
+  BaseFabT& a_to,
+  const typename BaseFabTraits<BaseFabT>::OneDimLessBaseFab& a_from,
+  const typename ObjTraits< DimTraits<BaseFabT>::dim >::SliceSpec& a_slicespec )
+{
+    enum {DIM=DimTraits<BaseFabT>::dim};
+    typename ObjTraits<DIM>::Box toBox;
+
+    injectBox( toBox, a_from.box(), a_slicespec );
+    a_to.define( toBox, a_from.nComp() );
+
+    memcpy( a_to.dataPtr(), a_from.dataPtr(),
+            toBox.numPts()*a_from.nComp()*
+            sizeof(typename BaseFabTraits<BaseFabT>::ElementT) );
+}
+
+
+template<typename DBL_T> void
+injectDisjointBoxLayout(
+  DBL_T& a_to,
+  const typename ObjTraits< DimTraits<DBL_T>::dim - 1 >::DisjointBoxLayout& a_from,
+  const typename ObjTraits< DimTraits<DBL_T>::dim >::SliceSpec& a_slicespec)
+{
+    enum {DIM=DimTraits<DBL_T>::dim};
+    typedef typename ObjTraits<DIM>::Box toBoxT;
+    typedef typename ObjTraits<DIM-1>::DisjointBoxLayout fromDBL_T;
+    typedef typename ObjTraits<DIM-1>::LayoutIterator LayoutIt_T;
+    typedef typename ObjTraits<DIM>::VectorOfBox VectorOfBoxT;
+
+    VectorOfBoxT boxes;
+    for( LayoutIt_T it(a_from.layoutIterator()); it.ok(); ++it )
+    {
+        toBoxT tobox;
+        injectBox( tobox, a_from[it()], a_slicespec );
+        boxes.push_back( tobox );
+    }
+
+    // What happens now if boxes.size()==0?
+    a_to.defineAndLoadBalance( boxes, 0 );
+    a_to.close(); // Do we really need this?
+}
+
+
+template<typename LD_T> void
+injectLevelData(
+  LD_T& a_to,
+  const typename ObjTraits< DimTraits<LD_T>::dim - 1 >::LevelData& a_from,
+  const typename ObjTraits< DimTraits<LD_T>::dim >::SliceSpec& a_slicespec )
+{
+    enum {DIM=DimTraits<LD_T>::dim};
+    typename ObjTraits<DIM>::DisjointBoxLayout toDBL;
+
+    if( !a_to.isDefined() )
+    {
+        typename ObjTraits<DIM>::VectorOfInt procIDs;
+        typename ObjTraits<DIM>::VectorOfBox toBoxes;
+        typename ObjTraits<DIM-1>::LayoutIterator it
+            = a_from.disjointBoxLayout().layoutIterator();
+        for( ; it.ok(); ++it )
+        {
+            procIDs.push_back( a_from.disjointBoxLayout().procID( it() ) );
+            typename ObjTraits<DIM>::Box toBox;
+            injectBox( toBox, a_from.disjointBoxLayout()[it()], a_slicespec );
+            toBoxes.push_back( toBox );
+        }
+
+        // Make toDBL, with procIDs the same as degenerateLD's:
+        toDBL.define( toBoxes, procIDs );
+
+        typename ObjTraits<DIM>::IntVect toGhost;
+        int ii=0;
+        for( int i=0;i<DIM;++i )
+        {
+            if( i != a_slicespec.direction )
+            {
+                toGhost[i] = a_from.ghostVect()[ii];
+                ++ii;
+            } else
+            {
+                toGhost[i] = 0;
+            }
+        }
+
+        a_to.define( toDBL, a_from.nComp(), toGhost );
+    }
+
+    // Copy the FAB data.
+    typename ObjTraits<DIM-1>::DataIterator fromIt = a_from.dataIterator();
+    typename ObjTraits<DIM>::DataIterator   toIt = a_to.dataIterator();
+    for( ; fromIt.ok(); ++fromIt, ++toIt )
+    {
+        CH_assert( toIt.ok() );
+        memcpy( a_to[toIt].dataPtr(), a_from[fromIt].dataPtr(),
+                a_to[toIt].box().numPts() * a_from.nComp() * sizeof(Real) );
+    }
+}
+
+
+
+template<typename LD_T> void
+injectLevelFlux(
+  LD_T& a_to,
+  const typename ObjTraits< DimTraits<LD_T>::dim - 1 >::LevelFlux& a_from,
+  const typename ObjTraits< DimTraits<LD_T>::dim >::SliceSpec& a_slicespec )
+{
+    enum {DIM=DimTraits<LD_T>::dim};
+    typename ObjTraits<DIM>::DisjointBoxLayout toDBL;
+
+    if( !a_to.isDefined() )
+    {
+        typename ObjTraits<DIM>::VectorOfInt procIDs;
+        typename ObjTraits<DIM>::VectorOfBox toBoxes;
+        typename ObjTraits<DIM-1>::LayoutIterator it
+            = a_from.disjointBoxLayout().layoutIterator();
+        for( ; it.ok(); ++it )
+        {
+            procIDs.push_back( a_from.disjointBoxLayout().procID( it() ) );
+            typename ObjTraits<DIM>::Box toBox;
+            injectBox( toBox, a_from.disjointBoxLayout()[it()], a_slicespec );
+            toBoxes.push_back( toBox );
+        }
+
+        // Make toDBL, with procIDs the same as degenerateLD's:
+        toDBL.define( toBoxes, procIDs );
+
+        typename ObjTraits<DIM>::IntVect toGhost;
+        int ii=0;
+        for( int i=0;i<DIM;++i )
+        {
+            if( i != a_slicespec.direction )
+            {
+                toGhost[i] = a_from.ghostVect()[ii];
+                ++ii;
+            } else
+            {
+                toGhost[i] = 0;
+            }
+        }
+
+        a_to.define( toDBL, a_from.nComp(), toGhost );
+    }
+
+    // Copy the FAB data for the "old" directions, leave the "new" 
+    // direction uninitialized
+    typename ObjTraits<DIM-1>::DataIterator fromIt = a_from.dataIterator();
+    typename ObjTraits<DIM>::DataIterator   toIt = a_to.dataIterator();
+    for( ; fromIt.ok(); ++fromIt, ++toIt )
+    {
+        CH_assert( toIt.ok() );
+        int srcDir = 0;
+        for (int dir=0; dir<DIM; dir++)
+          {
+            if (dir != a_slicespec.direction)
+              {
+                memcpy( a_to[toIt][dir].dataPtr(), 
+                        a_from[fromIt][srcDir].dataPtr(),
+                        a_to[toIt][dir].box().numPts()*a_from.nComp() * sizeof(Real) );
+                srcDir++;
+              } // end if dir != slicespec.direction
+          } // end loop over dest directions
+    }
+
+}
+
+
+} // namespace CH_MultiDim
+
+
+#endif // include guard

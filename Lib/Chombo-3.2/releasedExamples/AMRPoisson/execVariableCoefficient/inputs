@@ -1,0 +1,47 @@
+# alpha*aCoef(x)*I - beta*Div(bCoef(x)*Grad)
+refine_threshold = 0.85
+
+# spatially-varying aCoef and bCoef are set in the example itself
+alpha = 1.0
+beta  = 1.0
+
+write_output = 1 # write solution to an hdf5 plotfile
+numMGsmooth = 4 # number of GSRB smooths before and after MG coarsening
+#preCondSolverDepth = 1
+num_mg     = 1 
+numMGIterations = 2 #this is the number of MG v-cycles in the preconditioner
+max_iterations = 100 #max number of solver iterations
+tolerance  = 1.0e-9   #solver tolerance for declaring convergence
+hang       = 1.0e-10  #solver tolerance for deciding when we're hung
+verbosity = 6 # higher number means more verbose output
+# Sine frequency multipliers to use
+# for when bcs are trig
+trig = 1.3 2.2 3.1
+
+# how to average face-centered coefficients to coarser multigrid levels
+#coefficient_average_type = arithmetic
+coefficient_average_type = harmonic
+
+###GRID STUFF
+max_level    = 2
+ref_ratio    = 2 2 2 2 2 
+n_cells      = 32 32 32
+
+# AMR Mesh generation parameters
+block_factor = 8
+fill_ratio   = 0.7
+buffer_size  = 2
+max_grid_size = 32
+
+##GEOMETRY STUFF
+domain_length = 1.0 1.0 1.0
+
+# bcs for domain-boundary faces 
+# 2==trig Neumann, 3 == trig Dirichlet
+bc_lo              = 3 3 3   
+bc_hi              = 3 3 3   
+#bc_lo              = 2 2 2    
+#bc_hi              = 2 2 2  
+
+
+

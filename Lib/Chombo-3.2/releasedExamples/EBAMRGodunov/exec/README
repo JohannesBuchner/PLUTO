@@ -1,0 +1,35 @@
+This is an implentation of the algorithm described in the following document:
+
+@ARTICLE{ EBAMRGodunov,
+  AUTHOR={ P. Colella and D. T. Graves and  B. Keen and D. Modiano}, 
+  TITLE={ A {C}artesian Grid Embedded Boundary Method for Hyperbolic Conservation Laws},
+  JOURNAL = jcp,
+  VOLUME = {211},
+  YEAR = {2006},
+  PAGES={347--366}
+}
+
+To run this code:
+ebamrGodunov2d...ex ramp.inputs
+
+Stuff you might want to change in the input file are the 
+the resolution:
+n_cell =  32 32 32
+the number of AMR levels
+max_level = 2
+or the geometry:
+--for a ramp:
+which_geom = 1
+ramp_normal = -0.5 0.866025404 0.0
+ramp_alpha = -0.0625
+
+--for no embedded boundaries:
+which_geom = 0
+
+---for a sphere
+which_geom = 5
+sphere_center = 0.5 0.5 0.5
+sphere_radius = 0.1
+
+
+See more in src/GodunovGeom.cpp

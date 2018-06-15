@@ -1,0 +1,79 @@
+##### Below this point, a user should not mess with
+##### the makefile unless he/she really know what he/she  is doing.
+##### Below is the part that interacts with the Chombo Make system.
+#####
+
+## define basic make variables
+include $(CHOMBO_HOME)/mk/Make.defs
+## define configuration variables
+##[NOTE: Make.rules also includes this file, but we need it here first.]
+include $(CHOMBO_HOME)/mk/Make.defs.config
+OBJECT_PREFIX = o/$(config)/
+FORTRAN_PREFIX = f/$(config)/
+DEPENDS_PREFIX = d/$(config)/
+
+#define which object files we'll need -- start with sources,
+#replace suffixes, then add object directory
+OBJ_LOCAL = $(CXX_SOURCES) $(FORT_SOURCES) $(C_SOURCES) $(F_SOURCES)
+OBJ_LOCAL := $(OBJ_LOCAL:.cpp=.o)
+OBJ_LOCAL := $(OBJ_LOCAL:.ChF=.o)
+OBJ_LOCAL := $(OBJ_LOCAL:.F=.o)
+OBJ_LOCAL := $(OBJ_LOCAL:.c=.o)
+OBJ_LOCAL := $(OBJ_LOCAL:.f=.o)
+OBJ_LOCAL := $(addprefix $(OBJECT_PREFIX),$(OBJ_LOCAL))
+
+#similarly, define dependency files
+DEPEND_LOCAL = $(CXX_SOURCES) $(FORT_SOURCES) $(C_SOURCES) $(F_SOURCES)
+DEPEND_LOCAL := $(DEPEND_LOCAL:.cpp=.d)
+DEPEND_LOCAL := $(DEPEND_LOCAL:.ChF=.d)
+DEPEND_LOCAL := $(DEPEND_LOCAL:.F=.d)
+DEPEND_LOCAL := $(DEPEND_LOCAL:.c=.d)
+DEPEND_LOCAL := $(DEPEND_LOCAL:.f=.d)
+DEPEND_LOCAL := $(addprefix $(DEPENDS_PREFIX),$(DEPEND_LOCAL))
+
+# define variables needed by Make.rules
+depends = $(DEPEND_LOCAL)
+objects = $(OBJ_LOCAL)
+
+.PHONY: all lib run testmk usage
+
+usage:
+	@echo "This makefile supports targets:"
+	@echo "     all example run $(ebase) usage "
+
+all: all-example
+
+#[NOTE: the 'echo' command is necessary to keep the
+#       default .ex rule from triggering. <dbs>.]
+lib: $(shell $(CHOMBO_HOME)/mk/reverse $(LibNames))
+	@echo "done building libraries"
+
+# tell program to run quietly unless user overrides on the command line
+VERBOSE =
+
+run: run-only
+
+testmk:
+	@echo "ebase= $(ebase)"
+	@echo "config= $(config)"
+	@echo "objects= $(objects)"
+	@echo "_other_app_objects=$(_other_app_objects)"
+	@echo "LibNames=$(LibNames)"
+	@echo "_lib_names=$(_lib_names)"
+	@echo "_libs=$(_libs)"
+	@echo "OBJ_LOCAL = $(OBJ_LOCAL)"
+	@echo "DEPEND_LOCAL= $(DEPEND_LOCAL)"
+	@echo "CHF_HEADERS = $(CHF_HEADERS)"
+	@echo "VPATH_LOCAL = $(VPATH_LOCAL)"
+
+## tell Make.rules how to find include files
+appcppflags = $(INCLUDES_LOCAL)
+
+vpath %.cpp $(VPATH_LOCAL)
+vpath %.ChF $(VPATH_LOCAL)
+vpath %.F $(VPATH_LOCAL)
+vpath %.c $(VPATH_LOCAL)
+vpath %.f $(VPATH_LOCAL)
+
+AUTONAME=FALSE#  #tell Make.rules not to compute object files automatically
+include $(CHOMBO_HOME)/mk/Make.rules

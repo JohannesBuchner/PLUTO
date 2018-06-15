@@ -1,0 +1,106 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+C=======================================================
+C    subroutine FACENODEBC
+C    general bc routine to fill boundary nodes
+C    on the face of a fab
+C    for a boundary condition of the form
+C     a*(dphi/dn) + b*phi = c
+C     => inputs,  <= outputs
+C     state   <=> phi
+C     neumfac  => a
+C     dircfac  => b
+C     inhmval  => c
+C     facebox  => boundary nodes to fill
+C     idir     => direction of face (0 to SpaceDim-1)
+C     side     => side of face (-1 low +1 high)
+C     dx       => grid spacing
+C     startcomp => first component of state to apply BC's to
+C     endcomp  => final component of state to apply BC's to
+C     WARNING: the input FABS must have the same
+C     number of components and span facebox
+C
+C     adapted from BOXGHOSTBC by dtgraves nov 2, 1999
+C     petermc, 16 Feb 2001
+C=======================================================
+      subroutine FACENODEBC(
+     &     CHF_FRA[state],
+     &     CHF_CONST_FRA[neumfac],
+     &     CHF_CONST_FRA[dircfac],
+     &     CHF_CONST_FRA[inhmval],
+     &     CHF_BOX[facebox],
+     &     CHF_CONST_INT[idir],
+     $     CHF_CONST_INT[side],
+     $     CHF_CONST_REAL[dx],
+     $     CHF_CONST_INT[startcomp],
+     $     CHF_CONST_INT[endcomp])
+
+      REAL_T nfac, dfac, ival, sval,denom,numer
+      integer ncomp,nc
+      integer CHF_AUTODECL[i], CHF_AUTODECL[ii]
+
+      ncomp = CHF_NCOMP[state]
+
+C     incomplete error checking
+      if(ncomp .ne. CHF_NCOMP[neumfac]) then
+          call MAYDAY_ERROR()
+      endif
+      if(ncomp .ne. CHF_NCOMP[dircfac]) then
+          call MAYDAY_ERROR()
+      endif
+      if(ncomp .ne. CHF_NCOMP[inhmval]) then
+          call MAYDAY_ERROR()
+      endif
+      if ((side .ne. -1) .and. (side .ne. 1)) then
+          call MAYDAY_ERROR()
+      endif
+
+c [ii, jj, kk] =: -e_idir if low side
+c                 +e_idir if high side
+      CHF_AUTOID[ii; idir; side]
+
+c      do nc = 0, ncomp - 1
+      do nc = startcomp, endcomp
+
+          CHF_AUTOMULTIDO[facebox; i]
+
+              nfac = neumfac(CHF_AUTOIX[i], nc)
+              dfac = dircfac(CHF_AUTOIX[i], nc)
+              ival = inhmval(CHF_AUTOIX[i], nc)
+
+c     sval is state at interior point next to boundary point
+              sval = state(CHF_OFFSETIX[i;-ii], nc)
+
+c     estimate derivative as  side*(new - sval)/dx
+c     hence
+c     nfac*side*(new - sval)/dx + dfac*new = ival
+c     so
+c     (dfac + nfac*side/dx) * new = ival + nfac*side*sval/dx
+c              old:
+c              denom = half*dfac + side*nfac/dx
+c              numer = ival - sval*(half*dfac - side*nfac/dx)
+              denom = dfac + side*(nfac/dx)
+              numer = ival + side*(nfac/dx)*sval
+
+#ifndef NDEBUG
+              if (abs(denom) .lt. 1.0e-9) then
+C                print*, 'fort_facenodebc: bogus values set.'
+C                print*, 'denominator of boundary condition is zero'
+C                print*, 'gacking...'
+C                stop
+                  call MAYDAY_ERROR()
+              endif
+#endif
+              state(CHF_AUTOIX[i], nc) = numer/denom
+
+          CHF_ENDDO
+      enddo
+
+      return
+      end

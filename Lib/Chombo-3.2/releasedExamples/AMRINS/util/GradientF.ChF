@@ -1,0 +1,201 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+#include "MASKVAL.H"
+
+
+c -------------------------------------------------------------------
+c  This subroutine computes the edge-centered (MAC) gradient in
+c  a single component direction.
+c
+c  INPUTS/OUTPUTS:
+c  edgeGrad <=  edge centered gradient of phi in direction dir
+c  phi       => cell-centered field
+c  edgeGrid  => edgecentered box which defines valid region
+c  dx        => cell spacing
+c  dir       => direction of gradient
+c  edgeDir   => which set of edges edgeGrad lives on
+c  BLcornerBox => "Bottom left" corner cells which need
+c                 special treatment since normal stencil is
+c                 not defined... while this is a single cell
+c                 in 2D, it is a line of cells in 3D
+c  BRcornerBox => "bottom right" corner box
+c  ULcornerBox => "upper left" corner box
+c  URcornerBox => "upper right" corner box
+c -----------------------------------------------------------------
+      subroutine NEWMACGRAD(CHF_FRA1[edgeGrad],
+     &                   CHF_CONST_FRA1[phi],
+     &                   CHF_BOX[edgeGrid],
+     &                   CHF_CONST_REAL[dx],
+     &                   CHF_INT[dir],
+     &                   CHF_INT[edgeDir])
+
+c ::: local variables
+      integer CHF_DDECL[i;j;k]
+      integer CHF_DDECL[ii;jj;kk]
+      integer CHF_DDECL[iedge;jedge;kedge]
+      REAL_T factor
+
+      CHF_DTERM[
+      ii = CHF_ID(0,dir);
+      jj = CHF_ID(1,dir);
+      kk = CHF_ID(2,dir)]
+
+      CHF_DTERM[
+      iedge = CHF_ID(edgeDir,0);
+      jedge = CHF_ID(edgeDir,1);
+      kedge = CHF_ID(edgeDir,2)]
+
+      if (dir.eq.edgeDir) then
+c ::: this is a normal derivative (simpler stencil)
+         factor = one/dx
+         CHF_MULTIDO[edgeGrid;i;j;k]
+         edgeGrad(CHF_IX[i;j;k]) = factor*(phi(CHF_IX[i;j;k])
+     &                                    -phi(CHF_IX[i-ii;j-jj;k-kk]))
+
+         CHF_ENDDO
+
+      else
+c ::: this is a transverse derivative
+         factor = fourth/dx
+
+         CHF_MULTIDO[edgeGrid;i;j;k]
+         edgeGrad(CHF_IX[i;j;k]) =
+     &        factor*(phi(CHF_IX[i+ii;j+jj;k+kk])
+     &        -phi(CHF_IX[i-ii;j-jj;k-kk])
+     &        +phi(CHF_IX[i+ii-iedge;j+jj-jedge;k+kk-kedge])
+     &        -phi(CHF_IX[i-ii-iedge;j-jj-jedge;k-kk-kedge]))
+         CHF_ENDDO
+
+      endif
+
+      return
+      end
+
+c ----------------------------------------------------------------------
+c   modifies edge-centered gradients so that averaged cell-centered
+c   gradients will be one-sided extrapolations along coarse side of C/F
+c   interface
+c
+c   INPUTS/OUTPUTS:
+c   edgeGrad <=> edge centered gradients in direction dir
+c   mask      => integer flags indicating AMR coverage
+c   loEdgeBox => box which indicates lo edge of fine grid in direction dir
+c   hiEdgeBox => box which indicates hi edge of fine grid in direction dir
+c   dir       => direction of gradient (and of edges)
+c   doLo      => should we do correction on the low-side?
+c   doHi      => 1 if we should do correction on hi-side...
+c ------------------------------------------------------------------------
+      subroutine CRSEONESIDEGRAD(CHF_FRA1[edgeGrad],
+     &                           CHF_FIA1[mask],
+     &                           CHF_BOX[loEdgeBox],
+     &                           CHF_BOX[hiEdgeBox],
+     &                           CHF_INT[dir],
+     &                           CHF_INT[doLo],
+     &                           CHF_INT[doHi])
+
+c ::: local variables
+      integer CHF_DDECL[i;j;k]
+      integer CHF_DDECL[ii;jj;kk]
+
+      CHF_DTERM[
+      ii = CHF_ID(dir,0);
+      jj = CHF_ID(dir,1);
+      kk = CHF_ID(dir,2)]
+
+c ::: do low side
+      if (doLo.eq.1) then
+         CHF_MULTIDO[loEdgeBox;i;j;k]
+
+c     :: check to see if enough cells exist for full stencil
+         if (mask(CHF_IX[i-2*ii; j-2*jj; k-2*kk]).eq.MASKCOPY) then
+
+c     :: do linear extrapolation
+            edgeGrad(CHF_IX[i;j;k]) = two*edgeGrad(CHF_IX[i-ii;j-jj;k-kk])
+     &           -edgeGrad(CHF_IX[i-2*ii;j-2*jj;k-2*kk])
+
+         else if (mask(CHF_IX[i-ii;j-jj;k-kk]).eq.MASKCOPY) then
+
+c     ::: just do simple extrapolation
+            edgeGrad(CHF_IX[i;j;k]) = edgeGrad(CHF_IX[i-ii;j-jj;k-kk])
+
+         else
+c     ::: don't know what to do here, so do nothing...
+
+         endif
+
+         CHF_ENDDO
+
+      endif
+
+c ::: now do high end box
+
+      if (doHi.eq.1) then
+         CHF_MULTIDO[hiEdgeBox;i;j;k]
+
+c     :: check to see if enough cells exist for full stencil
+c     :: note that we only look one _cell_ over due to i-1/2 indexing
+c     :: of edges
+         if (mask(CHF_IX[i+ii; j+jj;k+kk]).eq.MASKCOPY) then
+
+c     :: do linear extrapolation
+            edgeGrad(CHF_IX[i;j;k]) = two*edgeGrad(CHF_IX[i+ii;j+jj;k+kk])
+     &           -edgeGrad(CHF_IX[i+2*ii;j+2*jj;k+2*kk])
+
+         else if (mask(CHF_IX[i;j;k]).eq.MASKCOPY) then
+
+c     ::: just do simple extrapolation
+            edgeGrad(CHF_IX[i;j;k]) = edgeGrad(CHF_IX[i+ii;j+jj;k+kk])
+
+         else
+c     ::: don't know what to do here, so do nothing...
+
+         endif
+
+         CHF_ENDDO
+      endif
+
+      return
+      end
+
+c -----------------------------------------------------------------
+c  This subroutine computes the cell-centered gradient of a
+c  cell-centered phi.  assumes all BC's already set, etc.
+c
+c INPUTS/OUTPUTS:
+c phi     => cell-centered quantity (should have 1 row of ghost cells)
+c gradPhi<=  cell-centered centered-difference gradient
+c dx     <=  cell spacing
+c gridBox => grid interior over which gradient is computed
+c dir     => direction in which to compute gradient
+c ----------------------------------------------------------------
+      subroutine GRADCC(CHF_FRA1[gradPhi],
+     &                  CHF_CONST_FRA1[phi],
+     &                  CHF_BOX[gridBox],
+     &                  CHF_CONST_REAL[dx],
+     &                  CHF_INT[dir])
+
+c ::: local variables
+      integer CHF_DDECL[i;j;k]
+      integer CHF_DDECL[ii;jj;kk]
+      REAL_T factor
+
+      CHF_DTERM[
+      ii = CHF_ID(dir,0);
+      jj = CHF_ID(dir,1);
+      kk = CHF_ID(dir,2)]
+
+      factor = half/dx
+
+      CHF_MULTIDO[gridBox;i;j;k]
+      gradPhi(CHF_IX[i;j;k]) = factor*(phi(CHF_IX[i+ii;j+jj;k+kk])
+     &                                -phi(CHF_IX[i-ii;j-jj;k-kk]))
+
+      CHF_ENDDO
+
+      return
+      end

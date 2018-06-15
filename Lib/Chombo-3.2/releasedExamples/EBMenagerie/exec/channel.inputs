@@ -1,0 +1,33 @@
+# Grid size
+# n_cell =  64  32   8
+n_cell = 128  64  16
+# n_cell = 256 128  32
+# n_cell = 512 256  64
+
+# Maximum box size
+maxboxsize = 32
+
+# Domain domain - physical coordinates
+# prob_lo is the origin of the coordinate system
+prob_lo = 0.0 -0.25 -0.0625
+# prob_hi is the high point of the domain in the x direction
+# Note:  dx = dy = dz
+prob_hi =  1.0
+
+# Distance from the inlet to the first inflection point
+length1 = 0.33333333333333
+
+# Distance from the first inflection point to the second inflection point
+length2 = 0.33333333333333
+
+# The length of the transition from the large width to the small width
+transition_length = 0.3
+
+# Width at the inlet and outlet
+large_width = 0.3
+
+# Width at the throat
+small_width = 0.1
+
+# In 3D, the depth of the channel (centered around 0.0)
+depth = 0.05

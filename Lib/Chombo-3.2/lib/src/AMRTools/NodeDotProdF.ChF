@@ -1,0 +1,275 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+C=======================================================
+C     TRAPWEIGHTS
+C     Returns weights for trapezoidal rule of integration.
+C
+C     Initially set all weights to dv.
+C     Then loop over each node on each face, and halve the weight
+C     on each node.  At a node where K faces intersect, the weight
+C     will end up as dv/2^K.
+C
+C     => inputs,  <= outputs
+C     wt         <=  resulting weights
+C     region      => node-centered box over which to get weights
+C     dv          => element of volume
+C
+C     petermc, 22 Oct 2002
+C=======================================================
+      subroutine TRAPWEIGHTS(
+     &     CHF_FRA1[wt],
+     &     CHF_BOX[region],
+     &     CHF_CONST_REAL[dv])
+      integer CHF_AUTODECL[i]
+
+      CHF_AUTOMULTIDO[region; i]
+         wt(CHF_AUTOIX[i]) = dv
+         CHF_DTERM[
+         if ((i0 .eq. CHF_LBOUND[region; 0]) .or.
+     &        (i0 .eq. CHF_UBOUND[region; 0])) then
+             wt(CHF_AUTOIX[i]) = wt(CHF_AUTOIX[i]) * half
+         endif ;
+         if ((i1 .eq. CHF_LBOUND[region; 1]) .or.
+     &        (i1 .eq. CHF_UBOUND[region; 1])) then
+             wt(CHF_AUTOIX[i]) = wt(CHF_AUTOIX[i]) * half
+         endif ;
+         if ((i2 .eq. CHF_LBOUND[region; 2]) .or.
+     &        (i2 .eq. CHF_UBOUND[region; 2])) then
+             wt(CHF_AUTOIX[i]) = wt(CHF_AUTOIX[i]) * half
+         endif ;
+         if ((i3 .eq. CHF_LBOUND[region; 3]) .or.
+     &        (i3 .eq. CHF_UBOUND[region; 3])) then
+             wt(CHF_AUTOIX[i]) = wt(CHF_AUTOIX[i]) * half
+         endif ;
+         if ((i4 .eq. CHF_LBOUND[region; 4]) .or.
+     &        (i4 .eq. CHF_UBOUND[region; 4])) then
+             wt(CHF_AUTOIX[i]) = wt(CHF_AUTOIX[i]) * half
+         endif ;
+         if ((i5 .eq. CHF_LBOUND[region; 5]) .or.
+     &        (i5 .eq. CHF_UBOUND[region; 5])) then
+             wt(CHF_AUTOIX[i]) = wt(CHF_AUTOIX[i]) * half
+         endif ]
+      CHF_ENDDO
+
+      return
+      end
+
+
+C=======================================================
+C     NODEDOTPRODUCT
+C     takes the dot product between two fabs over specified components.
+C     R = Sum_ijkn(a(i,j,k,n)*b(i,j,k,n)*w(i,j,k))
+C     where w is the trapezoidal weight array from TRAPWEIGHTS
+C
+C     => inputs,  <= outputs
+C     dotprodout <=  result R
+C     afab        => a
+C     bfab        => b
+C     wfab        => w
+C     region      => node-centered box over which to do the sum
+C     startcomp   => first component of sum
+C     endcomp     => last component of sum
+C
+C     Warning: afab, bfab must have the same number
+C     of components and span region, and w must span region.
+C
+C     petermc, 22 Oct 2002
+C     based on DOTPRODUCT by dtgraves nov 2, 1999
+C=======================================================
+      subroutine NODEDOTPRODUCT(
+     &     CHF_REAL[dotprodout],
+     &     CHF_CONST_FRA[afab],
+     &     CHF_CONST_FRA[bfab],
+     &     CHF_CONST_FRA1[wfab],
+     &     CHF_BOX[region],
+     &     CHF_CONST_INT[startcomp],
+     &     CHF_CONST_INT[endcomp])
+
+      integer CHF_AUTODECL[i]
+      integer nv
+
+      dotprodout = 0
+
+      do nv=startcomp,endcomp,1
+
+         CHF_AUTOMULTIDO[region; i]
+
+            dotprodout = dotprodout +
+     &        afab(CHF_AUTOIX[i],nv)*
+     &        bfab(CHF_AUTOIX[i],nv)*
+     &        wfab(CHF_AUTOIX[i])
+
+         CHF_ENDDO
+      enddo
+
+      return
+      end
+
+
+C=======================================================
+C     NODENORM
+C     evaluates the p-norm of the fab over specified components.
+C     R = Sum_ijkn(|a(i,j,k,n)|^p * w(i,j,k)) ^ (1/p)
+C     where w is the trapezoidal weight array from TRAPWEIGHTS
+C
+C     => inputs,  <= outputs
+C     normout    <=  result R
+C     p           => p
+C     afab        => a
+C     wfab        => w
+C     region      => node-centered box over which to do the sum
+C     startcomp   => first component of sum
+C     endcomp     => last component of sum
+C
+C     Warning:  a and w must span region.
+C
+C     petermc, 22 Oct 2002
+C=======================================================
+      subroutine NODENORM(
+     &     CHF_REAL[normout],
+     &     CHF_CONST_INT[p],
+     &     CHF_CONST_FRA[afab],
+     &     CHF_CONST_FRA1[wfab],
+     &     CHF_BOX[region],
+     &     CHF_CONST_INT[startcomp],
+     &     CHF_CONST_INT[endcomp])
+
+      integer CHF_AUTODECL[i]
+      integer nv
+      REAL_T pwrinv
+
+      normout = 0
+
+      if (p .eq. 1) then
+c     Add up weighted absolute values.
+         do nv = startcomp, endcomp, 1
+            CHF_AUTOMULTIDO[region; i]
+
+               normout = normout +
+     &           wfab(CHF_AUTOIX[i]) *
+     &           abs(afab(CHF_AUTOIX[i], nv))
+
+            CHF_ENDDO
+         enddo
+      elseif (p .eq. 2) then
+C     Add up weighted squares, then take square root.
+         do nv = startcomp, endcomp, 1
+            CHF_AUTOMULTIDO[region; i]
+
+            normout = normout +
+     &           wfab(CHF_AUTOIX[i]) *
+     &           afab(CHF_AUTOIX[i], nv) *
+     &           afab(CHF_AUTOIX[i], nv)
+
+            CHF_ENDDO
+         enddo
+         normout = sqrt(normout)
+      else
+C     Add up weighted p-th powers, then take p-th root.
+         do nv = startcomp, endcomp, 1
+            CHF_AUTOMULTIDO[region; i]
+
+               normout = normout +
+     &           wfab(CHF_AUTOIX[i]) *
+     &           (afab(CHF_AUTOIX[i], nv)**p)
+
+            CHF_ENDDO
+         enddo
+         pwrinv = one / p
+         normout = normout**pwrinv
+      endif
+
+      return
+      end
+
+
+C=======================================================
+C     NODEINTEGRAL
+C     evaluates the p-norm of the fab over specified components.
+C     R = Sum_ijkn(a(i,j,k,n) * w(i,j,k))
+C     where w is the trapezoidal weight array from TRAPWEIGHTS
+C
+C     => inputs,  <= outputs
+C     ans        <=  integral R
+C     afab        => a
+C     wfab        => w
+C     region      => node-centered box over which to do the sum
+C     startcomp   => first component of sum
+C     endcomp     => last component of sum
+C
+C     Warning:  a and w must span region.
+C
+C     petermc, 12 Mar 2003
+C=======================================================
+      subroutine NODEINTEGRAL(
+     &     CHF_REAL[ans],
+     &     CHF_CONST_FRA[afab],
+     &     CHF_CONST_FRA1[wfab],
+     &     CHF_BOX[region],
+     &     CHF_CONST_INT[startcomp],
+     &     CHF_CONST_INT[endcomp])
+
+      integer CHF_AUTODECL[i]
+      integer nv
+
+      ans = 0
+
+c     Add up weighted absolute values.
+      do nv = startcomp, endcomp, 1
+         CHF_AUTOMULTIDO[region; i]
+
+            ans = ans +
+     &        wfab(CHF_AUTOIX[i]) * afab(CHF_AUTOIX[i], nv)
+
+         CHF_ENDDO
+      enddo
+
+      return
+      end
+
+
+C=======================================================
+C     NODEMAXNORM
+C     returns the maximum value of the fab over specified components.
+C
+C     => inputs,  <= outputs
+C     normout    <=  result, maximum
+C     afab        => a
+C     region      => node-centered box over which to take max
+C     startcomp   => first component of sum
+C     endcomp     => last component of sum
+C
+C     Warning:  a must span region.
+C
+C     petermc, 22 Oct 2002
+C=======================================================
+      subroutine NODEMAXNORM(
+     &     CHF_REAL[normout],
+     &     CHF_CONST_FRA[afab],
+     &     CHF_BOX[region],
+     &     CHF_CONST_INT[startcomp],
+     &     CHF_CONST_INT[endcomp])
+
+      integer CHF_AUTODECL[i]
+      integer nv
+      REAL_T this
+
+      normout = 0
+
+      do nv = startcomp, endcomp, 1
+         CHF_AUTOMULTIDO[region; i]
+            this = abs(afab(CHF_AUTOIX[i], nv))
+            if (this .gt. normout) then
+               normout = this
+            endif
+         CHF_ENDDO
+      enddo
+
+      return
+      end

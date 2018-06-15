@@ -1,0 +1,75 @@
+This is an implentation of the algorithm described in the following document:
+@ARTICLE{schwartzETAL:2006,
+    AUTHOR = {P. Schwartz and M. Barad and P. Colella and T. Ligocki},
+    TITLE = {A {C}artesian Grid Embedded Boundary Method for the Heat Equation and {P}oisson's Equation in Three Dimensions},
+    JOURNAL= {Journal of Computational Physics},
+    VOLUME={211},
+    NUMBER={2},
+    MONTH=Jan,
+    YEAR={2006},
+    PAGES={531-550}
+}
+
+How to run this program
+./poissonDriver...ex poisson.inputs
+
+stuff you might want to change in the input file
+
+#coefficient of the identity term
+alpha = 0.
+
+#coefficient of laplacian
+beta = 1.
+
+#maximum amr level number
+max_level    = 1
+# refinement at coarsest level
+n_cells      = 32 32 32
+
+Here are some other geometries
+
+#all regular (no embedded boundaries)
+which_geom = 0
+# 5 sphere
+ which_geom = 5
+ sphere_center = -0.05 -0.05 -0.05
+ sphere_radius  = 0.5	
+
+#multisphere
+which_geom = 6
+num_spheres = 2
+sphere_radius_0 = 0.1
+sphere_radius_1 = 0.15
+sphere_center_0 = 0.20  0.25 0.5
+sphere_center_1 = 0.40  0.80 0.5
+
+###multiparabola stuff
+which_geom = 7
+num_parabolas = 2
+parabola_updir = 1
+parabola_amplitude_0 = -5.0
+parabola_amplitude_1 =  10.0
+parabola_center_0 = 0.10  0.25 0.5
+parabola_center_1 = 0.50  0.025 0.5
+
+#parabolic mirror
+which_geom = 8
+mirror_amplitude = -12.3456789
+mirror_center = 0.98  0.25 0.25
+
+## 11 is an ellipsoid
+which_geom = 11
+ellipsoid_radii  = 0.18 0.25 0.3
+ellipsoid_center = 0.36 0.5 0.5
+ellipsoid_xaxis  = 3.0 2.0 1.0
+ellipsoid_fluid_inside = 0
+
+# ramp
+ which_geom = 1
+ ramp_normal = -0.25 1.0 0.25
+ ramp_alpha  = 0.0
+
+#  tilted cylinder
+ which_geom = 4 
+ cylinder_axis = 4.0 1.0 1.0
+ cylinder_radiuis = 0.125

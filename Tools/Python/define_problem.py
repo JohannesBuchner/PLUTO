@@ -21,6 +21,7 @@ class DefineProblem(object):
           It generates a definitions.h file.
 
         """
+        #sys.stdin.encoding ('utf-8')
         #Some class attributes that will be used in various class methods.
         self.work_dir = work_dir
         self.pluto_dir = pluto_dir
@@ -45,7 +46,7 @@ class DefineProblem(object):
         # Creating a dictionary of flags that are invoked by giving arguments.
         flag_keys = ['WITH-CHOMBO', 'FULL', 'WITH-FD', 'WITH-SB', 'WITH-FARGO']
         #self.flag_dict = {key: False for key in flag_keys} DOESNT WORK WITH PYTHON 2.6
-	self.flag_dict = {'WITH-CHOMBO':False, 'FULL':False, 'WITH-FD':False, 'WITH-SB':False, 'WITH-FARGO':False}
+        self.flag_dict = {'WITH-CHOMBO':False, 'FULL':False, 'WITH-FD':False, 'WITH-SB':False, 'WITH-FARGO':False}
         
         for arg in sys.argv:
             if arg[2:].upper() in flag_keys:
@@ -59,7 +60,7 @@ class DefineProblem(object):
         self.GenerateOptionsList()
         
         #Updates Options, default based on FLAGS.
-        if True in self.flag_dict.values():
+        if True in list(self.flag_dict.values()):
             self.AfterFlagLists() 
 
         #Read the exsisting definition.h file or Browse the menu for Setting up problem.
@@ -202,11 +203,11 @@ class DefineProblem(object):
         if (os.path.exists(self.work_dir+'/definitions.h')):
             pf = pfIO.PlutoFiles(self.work_dir+'/definitions.h')
             pf.UpdateListFromFile(Ents, Defs)
-	    for i in range(len(Ents)):
-		if Defs[i] not in Opts[i]:
-		    Defs[i] = Opts[i][0]
-		else:
-		    pass
+        for i in range(len(Ents)):
+            if Defs[i] not in Opts[i]:
+                Defs[i] = Opts[i][0]
+            else:
+                pass
 
         # Provides Browsing options using the menu file in case of no automatic update flag.
         if self.auto_update == 0:
@@ -415,7 +416,7 @@ class DefineProblem(object):
             pf = pfIO.PlutoFiles(self.work_dir+'/definitions.h')
             pf.UpdateListFromFile(tmplist1, tmplist2)
             
-        self.non_usfr = ['#define  '+tmplist1[i].ljust(longword+3)+tmplist2[i]+'\n' for i in range(len(tmplist1))]
+        self.non_usfr = ['#define  '+str(tmplist1[i]).ljust(longword+3)+tmplist2[i]+'\n' for i in range(len(tmplist1))]
 
     def AppendAdditionalFiles(self):
         """
@@ -432,8 +433,8 @@ class DefineProblem(object):
             self.header_files.append('ppm_coeffs.h')
         elif interp_mode in ['FLAT', 'LimO3', 'WENO3']:
             self.additional_files.append(interp_mode.lower()+'_states.o')
-	else:
-	    pass
+        else:
+            pass
         
         if self.flag_dict['WITH-FD']:
             self.additional_files += ['fd_states.o', 'fd_reconstruct.o', 'fd_flux.o']
@@ -535,7 +536,7 @@ class DefineProblem(object):
         try:
             scrh[0]
         except IndexError:
-            print "Parameters keyword not found in pluto.ini"
+            print("Parameters keyword not found in pluto.ini")
             sys.exit()
         else:
             pass
@@ -559,15 +560,24 @@ class DefineProblem(object):
                     cmms.append('')
 
         for x in self.udef_params:
-            if x in paradict.keys():
-                pf.InsertLine(x.ljust(21) + paradict[x] +'  '+cmms[self.udef_params.index(x)]+'\n', ipos)
+            if x in list(paradict.keys()):
+                try:
+                    pf.InsertLine(x.decode('ascii').ljust(21) + paradict[x] +'  '+cmms[self.udef_params.index(x)]+'\n', ipos)
+                except:
+                    pf.InsertLine(x.ljust(21) + paradict[x] +'  '+cmms[self.udef_params.index(x)]+'\n', ipos)
             else:
                 try:
                     cmms[self.udef_params.index(x)]
                 except IndexError:
-                    pf.InsertLine(x.ljust(21) + '0.0' + '\n', ipos)
+                    try:
+                        pf.InsertLine(x.decode('ascii').ljust(21) + '0.0' + '\n', ipos)
+                    except:
+                        pf.InsertLine(x.ljust(21) + '0.0' + '\n', ipos)
                 else:
-                    pf.InsertLine(x.ljust(21) + '0.0'+'  '+cmms[self.udef_params.index(x)]+ '\n', ipos)
+                    try:
+                        pf.InsertLine(x.decode('ascii').ljust(21) + '0.0'+'  '+cmms[self.udef_params.index(x)]+ '\n', ipos)
+                    except:
+                        pf.InsertLine(x.ljust(21) + '0.0'+'  '+cmms[self.udef_params.index(x)]+ '\n', ipos)
             ipos = ipos + 1
         pf.DeleteLines(ipos,ipos+100)
         
@@ -576,7 +586,7 @@ class DefineProblem(object):
         Writes all modular entries, options, defaults into a list.
         """
         for x in self.entries:
-            self.def_file_list.append('#define  '+x.ljust(21)+'   '+self.default[self.entries.index(x)]+'\n')
+            self.def_file_list.append('#define  '+str(x).ljust(21)+'   '+self.default[self.entries.index(x)]+'\n')
 
         self.def_file_list.append('\n/* -- physics dependent declarations -- */\n\n')
         self.phymodule = self.default[self.entries.index('PHYSICS')]
@@ -585,7 +595,7 @@ class DefineProblem(object):
         self.mod_default = self.__getattribute__(tmp1[1])
 
         for x in self.mod_entries:
-            self.def_file_list.append('#define  '+x.ljust(21)+'   '+ self.mod_default[self.mod_entries.index(x)]+'\n')
+            self.def_file_list.append('#define  '+str(x).ljust(21)+'   '+ self.mod_default[self.mod_entries.index(x)]+'\n')
 
         self.AppendAdditionalFiles()
         self.AppendPlutoPathAndFlags()
@@ -594,14 +604,17 @@ class DefineProblem(object):
 
         self.def_file_list.append('\n/* -- user-defined parameters (labels) -- */\n\n')
         for x in self.udef_params:
-            self.def_file_list.append('#define  '+x.ljust(21)+'   '+'%d'%self.udef_params.index(x)+'\n')
-    
+            #f = open('test','w'); f.write(str(type(x)))#f.write(x);
+            try:
+                self.def_file_list.append('#define  '+x.decode('ascii').ljust(21)+'   '+'%d'%self.udef_params.index(x)+'\n')
+            except:
+                self.def_file_list.append('#define  '+x.ljust(21)+'   '+'%d'%self.udef_params.index(x)+'\n')
         self.UpdatePlutoIni()
     
                 
         self.def_file_list.append('\n/* [Beg] user-defined constants (do not change this line) */\n\n')
         for i in range(len(self.udef_const)):
-            self.def_file_list.append('#define  '+self.udef_const[i].ljust(21)+'   '+self.udef_const_vals[i]+'\n')
+            self.def_file_list.append('#define  '+str(self.udef_const[i]).ljust(21)+'   '+self.udef_const_vals[i]+'\n')
 
         self.def_file_list.append('\n/* [End] user-defined constants (do not change this line) */\n')
         

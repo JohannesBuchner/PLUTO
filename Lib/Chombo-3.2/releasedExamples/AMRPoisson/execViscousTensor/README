@@ -1,0 +1,12 @@
+simple example of ViscousTensorOp solve using the Chombo ViscousTensorOp linear operator and geometric multigrid.
+
+To build, 
+make all DIM=<1,2,3> 
+
+to run the example
+./viscousTensorSolve<config-string>.ex inputs
+
+if you have hdf5 output enabled, the output will be in 
+viscousTensorOut.<DIM>d.hdf5
+
+where DIM is the SpaceDim of the problem

@@ -1,0 +1,221 @@
+## This file defines variables for use on the machines in ANAG.
+## You should copy this file to 'mk/Make.defs.local' or symlink
+## it to 'mk/local/Make.defs.<your_machine_name>'
+
+################################################################
+
+# special ANAG variables:
+
+#  EFENCE  :(TRUE,FALSE) link with ElectricFence library (default:FALSE)
+#  TRACER  :(TRUE,FALSE) link with LeakTracer library (g++ only) (default:FALSE)
+
+# Chombo configuration variables:
+
+#  DIM          :(2,3) number of dimensions in PDEs
+#  DEBUG        :(TRUE,FALSE) compile for debugging if TRUE, else for optimizing
+#  OPT          :(TRUE,HIGH,FALSE) compile optimized, highly optimized, or not
+#  PRECISION    :(FLOAT,DOUBLE) size of floating point variables
+#  PROFILE      :(TRUE,FALSE) compile for performance profiling or not
+#  NAMESPACE    :(TRUE,FALSE) put Chombo:: in front of everything C++
+#  USE_SETVAL   :(TRUE,FALSE) use setVal in initialize all BaseFab<Real>
+#  CXX          : command to compile/link C++ code
+#  FC           : command to compile Fortran code
+#  MPI          :(TRUE,FALSE) compile for parallel if TRUE, else serial
+#  MPICXX       : command to compile/link C++ code in parallel
+#  USE_64       :(TRUE,FALSE) compile for 64bit pointers if TRUE
+#  XTRACONFIG   : user-defined special config
+
+# These variables are system-dependent:
+
+#  USE_HDF        : use HDF5 library (TRUE or FALSE) (default is TRUE)
+#  HDFINCFLAGS    : cpp options (-I*) for HDF5 include files
+#  HDFLIBFLAGS    : link options (-L* -l*) for HDF5 library files
+#  HDFMPIINCFLAGS : cpp options (-I*) for parallel HDF5 include files
+#  HDFMPILIBFLAGS : link options (-L* -l*) for parallel HDF5 library files
+
+# These variables are system-dependent but usually dont have to be changed:
+
+#  CH_AR    : command to add object files to a library file
+#  CH_CPP   : command to run the C preprocessor on Fortran files
+#  DOXYGEN  : command to run the 'doyxgen' program
+#  EMT      : CH_CPP option to enable the memory tracking feature in the Chombo code
+#           :    (set the variable to blank to disable this feature)
+#  LD       : command to run the linker (default: use $CXX or $MPICXX, as appropriate)
+#  PERL     : command to run perl
+#  RANLIB   : command to post-process a library archive for random access
+
+# Compiler variables.  The 'Make.rules' file chooses whether to use
+# the 'opt' flags or the 'dbg' flags.  The 'prof' flags are added if
+# PROFILE=TRUE.
+# NAMESPACE=TRUE
+#
+#  cppdbgflags : debug options for the C-preprocessor (both C++ and Fortran)
+#  cppoptflags : optimization options for the C-preprocessor (ditto)
+#  cxxcppflags : C-preprocessor flags for C++ compiles only
+#  cxxdbgflags : debug options for the C++ and MPIC++ compilers
+#  cxxoptflags : optimization options for the C++ and MPIC++ compilers
+#  cxxprofflags: profiling options for the C++ and MPIC++ compilers
+#  fcppflags   : C-preprocessor flags for Fortran compiles only
+#  fdbgflags   : debug options for the Fortran compiler
+#  foptflags   : optimization options for the Fortran compiler
+#  fprofflags  : profiling options for the Fortran compiler
+#  lddbgflags  : debug options for the linker
+#  ldoptflags  : optimization options for the linker
+#  ldprofflags : profiling options for the linker
+#  flibflags   : options for the linker to specify the Fortran libraries
+#                (this usually is needed only when mixing C++ and
+#                 Fortran compilers from different vendors)
+# Notes:
+# 1) The linker command always uses the CXX options in addition to its own variables,
+#    so options that are common to both do not need to be repeated in the ld*flags vars
+#    (e.g. -g for debugging, or -pg for profiling)
+# 2) The compiler options can be set on the command line using the
+#    variables: CPPFLAGS CXXFLAGS FFLAGS LDFLAGS.
+#    These variables supercede any settings in the makefiles.
+
+################################################################
+
+makefiles+=local/Make.defs.ANAG
+
+MPICXX=mpiCC
+
+ifeq ($(OPENMPCC),TRUE)
+  USE_MT = FALSE
+endif
+
+# set default for 64bit mode based on system architecture
+ifeq ($(findstring 64,$(arch)),64)
+  USE_64 = TRUE
+else
+  USE_64 = FALSE
+endif
+
+syslibflags = -llapack-3 -llapack_atlas
+LAPACKLIBS = -llapack-3 -llapack_atlas 
+
+ifneq ($(USE_HDF),FALSE)
+  # if an ANAG HDF5 module is loaded, use its variables
+  ifneq ($(ANAG_HDF5_DIR),)
+    # For serial:   do  'module load hdf5/serial'
+    # For parallel: do  'module load hdf5/parallel'
+    _hdf_root=$(ANAG_HDF5_DIR)
+    # check that the hdf module is consistent with parallel
+    ifeq ($(MPI),TRUE)
+      ifeq ($(findstring par,$(_hdf_root))$(findstring mpich,$(_hdf_root)),)
+        $(error HDF5 directory [$(_hdf_root)] is not parallel but MPI is TRUE.  Are you using the right library?)
+      endif
+    else
+      ifeq ($(findstring par,$(_hdf_root)),par)
+        $(error HDF5 directory [$(_hdf_root)] is parallel but MPI is FALSE.  Are you using the right library?)
+      endif
+      ifeq ($(findstring mpich,$(_hdf_root)),mpich)
+        $(error HDF5 directory [$(_hdf_root)] is parallel but MPI is FALSE.  Are you using the right library?)
+      endif
+    endif
+
+    HDFINCFLAGS=-I$(_hdf_root)/include 
+    HDFLIBFLAGS=-L$(_hdf_root)/lib -lhdf5_hl -lhdf5 -lz 
+    HDFMPIINCFLAGS=-I$(_hdf_root)/include 
+    HDFMPILIBFLAGS=-L$(_hdf_root)/lib -lhdf5_hl -lhdf5 -lz 
+  else
+    $(error No HDF5 module is loaded.)
+  endif
+
+  # Customizations for MacOS
+  ifeq ($(system),Darwin)
+    HDFLIBFLAGS+=-lssl -lcrypto -lm
+    ifneq ($(HDFMPILIBFLAGS),)
+      HDFMPILIBFLAGS)+=-lssl -lcrypto -lm
+    endif
+  endif
+
+  # Sometimes someone forgets to put the HDF directory in the LD_LIBRARY_PATH
+  # environment variable, so the loader fails to find the dynamic library.
+  # This only helps when running programs using the makefiles.
+  ifeq ($(findstring $(_hdf_root),$(LD_LIBRARY_PATH)),)
+    $(warning warning: the HDF5 directory [$(_hdf_root)] is not in the LD_LIBRARY_PATH environment var.  You should fix this.)
+    ifeq ($(MPI),TRUE)
+      export LD_LIBRARY_PATH := $(_hdf_root).parallel/lib:$(LD_LIBRARY_PATH)
+    else
+      export LD_LIBRARY_PATH := $(_hdf_root)/lib:$(LD_LIBRARY_PATH)
+    endif
+  endif
+endif
+
+# InfiniteDomain lib needs FFTW version 3.
+# 'Make.defs' uses FFTWDIR.
+ifeq ($(USE_FFTW),TRUE)
+  ifneq ($(ANAG_FFTW_DIR),)
+    ifneq ($(firstword $(subst ., ,$(ANAG_FFTW_VER))),3)
+      $(error error: FFTW is not version 3.  Chombo requires version 3)
+    endif
+    FFTWDIR:=$(ANAG_FFTW_DIR)
+  endif
+endif
+
+
+cxxname := $(notdir $(firstword $(CXX)))
+fname   := $(notdir $(firstword $(FC)))
+
+# LeakTracer is not on by default, and only supported for g++
+ifeq ($(TRACER),TRUE)
+  ifeq ($(findstring g++,$(cxxname)),g++)
+    gppversion := $(subst ., ,$(shell $(CXX) -dumpversion))
+    gppmajorver:= $(firstword $(gppversion))
+    ifeq ($(gppmajorver),3)
+      syslibflags+=/usr/local/src/LeakTracer/GCC3/LeakTracer.o
+    else
+      syslibflags+=/usr/local/src/LeakTracer/LeakTracer.o
+    endif
+  endif
+endif
+
+# ElectricFence is off by default
+ifeq ($(EFENCE),TRUE)
+  lddbgflags += -lefence
+endif
+
+XTRALDFLAGS += -Wl,-zmuldefs
+
+# The Intel version 7.0 compiler installation is broken on most ANAG
+# systems.  The Fortran compiler is in a different directory from the C++
+# compiler, so you have to specify the library directory for the Fortran
+# libs explicitly even when using the Intel C++ and Fortran compilers
+# together.
+ifeq ($(fname),ifc)
+  _ifcversion := $(shell $(FC) -V 2>&1 | awk '/^Intel.*Version/{print $$8}')
+  ifeq ($(_ifcversion),7.0)
+    ifneq ($(wildcard /opt/intel/if7/compiler70),)
+      flibflags := -L/opt/intel/if7/compiler70/ia32/lib -lCEPCF90 -lF90 -lPEPCF90 -lintrins -lcxa -lcprts
+    else
+      flibflags := -L/opt/intel/compiler70/ia32/lib     -lCEPCF90 -lF90 -lPEPCF90 -lintrins -lcxa -lcprts
+    endif
+  endif
+endif
+
+ifeq ($(USE_PETSC),TRUE)
+  # if an ANAG PETSC module is loaded, use its variables
+  ifneq ($(ANAG_PETSC_DIR),)
+    # For serial:   do  'module load petsc/serial'
+    # For parallel: do  'module load petsc/parallel'
+    _petsc_root=$(ANAG_PETSC_DIR)
+    _petsc_arch=$(ANAG_PETSC_ARCH)
+    # check that the petsc module is consistent with parallel
+    PETSCTESTER=${shell fgrep  PETSC_HAVE_MPIUNI $(_petsc_root)/$(_petsc_arch)/include/petscconf.h}
+    ifeq ($(MPI),TRUE)
+      ifneq ($(PETSCTESTER),)
+        $(error PETSC installation in  [$(_petsc_root)/$(_petsc_arch)] is not parallel but MPI is TRUE.  Are you using the right library?)
+      endif
+    else
+      ifeq ($(PETSCTESTER),)
+        $(error PETSC installation in [$(_petsc_root)/$(_petsc_arch)] is parallel but MPI is FALSE.  Are you using the right library?)
+      endif
+    endif
+
+    PETSC_DIR = $(_petsc_root)
+    PETSC_ARCH = $(_petsc_arch)
+  else
+    $(error No PETSC module is loaded.)
+  endif
+
+endif

@@ -1,0 +1,40 @@
+#main parameters
+main.verbosity = 4 # higher number means more verbose output
+main.iterations = 1 # number of times to do Poisson solve
+main.writePlotFiles = 0 # if 1, write hdf5 plotfiles
+main.mg_type = 0 # 0: correction scheme; 1: FAS MG
+
+#AMR grid generation parameters
+grids.num_cells = 32 32 32 # number of cells on base level
+grids.max_level = 0 # finest allowable AMR level 
+grids.max_box_size = 16
+grids.domain_size = 1.0 1.0 1.0
+  
+grids.block_factor = 8
+grids.fillRatio = 0.85 # how efficiently to make refined meshes.
+grids.ref_ratio = 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+grids.refine_threshold = 0.025
+
+# periodicity over-rides BC's
+grids.is_periodic = 0 0 0 # 1 if periodic, 0 if not
+
+#grids.grids_file = grids.dat #uncomment to read in grids
+
+# Multigrid solver parameters
+solver.num_smooth = 4
+solver.num_mg     = 1
+solver.num_bottom = 1
+solver.num_pre = 4
+solver.num_post = 4
+solver.cycle_type = 0 # FULL=0,VCYCLE=1,FCYCLE=2
+solver.max_iterations = 100
+solver.tolerance  = 1.0e-12
+solver.hang       = 1.0e-10
+
+#bcs for lfaces 1==const neumann, 0 == const dirc
+bc_lo              = 0 0 0   
+bc_hi              = 0 0 0   
+#bc_lo              = 1 1 1    
+#bc_hi              = 1 1 1  
+bc_value = 0.0  
+

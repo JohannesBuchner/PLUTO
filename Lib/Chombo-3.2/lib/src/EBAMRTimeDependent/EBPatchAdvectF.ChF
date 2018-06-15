@@ -1,0 +1,497 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+      subroutine predadvect(
+     &     chf_box[dcalc],
+     &     chf_const_fra1[rho],
+     &     chf_const_fra1[drho],
+     &     chf_const_fra[velcc],
+     &     chf_fra1[rholo],
+     &     chf_fra1[rhohi],
+     &     chf_const_int[normdir],
+     &     chf_const_real[dtbydx])
+
+      real_t    veloc(0:CH_SPACEDIM-1)
+      integer chf_ddecl[i;j;k], idir
+      real_t dense, denlo, denhi, denslope
+
+      chf_multido[dcalc;i;j;k]
+
+      dense    =  rho(chf_ix[i;j;k])
+      denslope = drho(chf_ix[i;j;k])
+      do idir = 0, CH_SPACEDIM-1
+         veloc(idir)    = velcc(chf_ix[i;j;k],idir)
+      enddo
+
+      call pointpredadvect(
+     &     dense, denlo, denhi, denslope, veloc,
+     &     normdir, dtbydx)
+
+      rholo(chf_ix[i;j;k])  = denlo
+      rhohi(chf_ix[i;j;k])  = denhi
+
+      chf_enddo
+
+      return
+      end
+cccccccccccccccc
+      subroutine pointpredadvect(
+     &     chf_real[dense],
+     &     chf_real[denlo],
+     &     chf_real[denhi],
+     &     chf_real[denslope],
+     &     chf_realvect[veloc],
+     &     chf_const_int[normdir],
+     &     chf_const_real[dtbydx])
+
+      real_t velpos, velneg
+      real_t tol
+
+c      tol = 1.e-8
+c      velpos = max(veloc(normdir), zero)
+c      velneg = min(veloc(normdir), zero)
+c      velpos=zero
+c      if(veloc(normdir).gt.tol) velpos = veloc(normdir)
+c      velneg=zero
+c      if(veloc(normdir).lt.-tol) velneg = veloc(normdir)
+
+c      denhi = dense + half*( one - velpos*dtbydx)*denslope
+c      denlo = dense + half*(-one - velneg*dtbydx)*denslope
+      denhi = dense + half*min((one-veloc(normdir)*dtbydx),one)*denslope
+      denlo = dense - half*min((one+veloc(normdir)*dtbydx),one)*denslope
+
+      return
+      end
+
+      subroutine predadvecttrans(
+     &     chf_box[dcalc],
+     &     chf_const_fra1[rho],
+     &     chf_const_fra1[drho],
+     &     chf_const_fra[velcc],
+     &     chf_fra1[rholo],
+     &     chf_fra1[rhohi],
+     &     chf_const_int[tandir],
+     &     chf_const_real[dtbydx])
+
+      real_t    veloc(0:CH_SPACEDIM-1)
+      integer chf_ddecl[i;j;k], idir
+      real_t dense, denlo, denhi, denslope
+
+      chf_multido[dcalc;i;j;k]
+
+      dense    =   rho(chf_ix[i;j;k])
+      denslope =  drho(chf_ix[i;j;k])
+      denlo    = rholo(chf_ix[i;j;k])
+      denhi    = rhohi(chf_ix[i;j;k])
+      do idir = 0, CH_SPACEDIM-1
+         veloc(idir)    = velcc(chf_ix[i;j;k],idir)
+      enddo
+
+      call pointpredadvecttrans(
+     &     dense, denlo, denhi, denslope, veloc,
+     &     tandir, dtbydx)
+
+      rholo(chf_ix[i;j;k])  = denlo
+      rhohi(chf_ix[i;j;k])  = denhi
+
+      chf_enddo
+
+      return
+      end
+cccccccccccccccc
+      subroutine pointpredadvecttrans(
+     &     chf_real[dense],
+     &     chf_real[denlo],
+     &     chf_real[denhi],
+     &     chf_real[denslope],
+     &     chf_realvect[veloc],
+     &     chf_const_int[tandir],
+     &     chf_const_real[dtbydx])
+
+      real_t velpos, velneg
+      real_t tol
+
+c      tol = 1.e-8
+c      velpos = max(veloc(normdir), zero)
+c      velneg = min(veloc(normdir), zero)
+c      velpos=zero
+c      if(veloc(normdir).gt.tol) velpos = veloc(normdir)
+c      velneg=zero
+c      if(veloc(normdir).lt.-tol) velneg = veloc(normdir)
+
+c      denhi = dense + half*( one - velpos*dtbydx)*denslope
+c      denlo = dense + half*(-one - velneg*dtbydx)*denslope
+      denhi = denhi - half*dtbydx*veloc(tandir)*denslope
+      denlo = denlo - half*dtbydx*veloc(tandir)*denslope
+
+      return
+      end
+
+#include "CONSTANTS.H"
+cccccccccccccccc
+      subroutine GETDSDT(
+     &     chf_fra[dsdtplus],
+     &     chf_fra[dsdtminu],
+     &     chf_const_fra[slopeprim],
+     &     chf_const_fra[slopeupwi],
+     &     chf_const_fra[normalvel],
+     &     chf_const_real[dx],
+     &     chf_const_real[dt],
+     &     chf_const_int[facedir],
+     &     chf_const_int[extrapdir],
+     &     chf_const_int[numslopes],
+     &     chf_box[entirebox])
+
+      integer chf_ddecl[i   ;j   ;k   ],lvar
+      real_t velpt, dw, velplus, velminu
+
+      do lvar = 0, numslopes - 1
+         chf_multido[entirebox;i;j;k]
+
+         velpt = normalvel(chf_ix[i;j;k],extrapdir)
+         if(extrapdir .eq. facedir) then
+            dw = slopeprim(chf_ix[i;j;k], lvar)
+            velplus = max(velpt, zero)
+            velminu = min(velpt, zero)
+         else
+            dw = slopeupwi(chf_ix[i;j;k], lvar)
+            velplus = velpt
+            velminu = velpt
+         endif
+
+         dsdtplus(chf_ix[i;j;k],lvar) =
+     $        dsdtplus(chf_ix[i;j;k],lvar) - velplus*dw/dx
+
+         dsdtminu(chf_ix[i;j;k],lvar) =
+     $        dsdtminu(chf_ix[i;j;k],lvar) - velminu*dw/dx
+
+
+         chf_enddo
+      enddo
+
+      return
+      end
+
+      subroutine upwinddiffs(
+     &     chf_fra[slopeupwi],
+     &     chf_const_fra[primstate],
+     &     chf_const_fra[normalvel],
+     &     chf_const_int[numslopes],
+     &     chf_const_int[idir],
+     &     chf_box[lobox],
+     &     chf_const_int[haslo],
+     &     chf_box[hibox],
+     &     chf_const_int[hashi],
+     &     chf_box[centerbox])
+
+      integer chf_ddecl[i   ;j   ;k   ],lvar
+      integer chf_ddecl[ioff;joff;koff]
+      real_t dwr,dwl,velpt, dw
+      real_t tol
+
+      tol = 1.e-12
+
+c     perform first difference calculation in the interior.
+      chf_dterm[
+      ioff = chf_id(0,idir);
+      joff = chf_id(1,idir);
+      koff = chf_id(2,idir)]
+
+      do lvar = 0, numslopes - 1
+         chf_multido[centerbox;i;j;k]
+
+         velpt = normalvel(chf_ix[i;j;k],idir)
+
+         dwr =  primstate(chf_ix[i+ioff;j+joff;k+koff],lvar)
+     &        - primstate(chf_ix[i     ;j     ;k     ],lvar)
+         dwl =  primstate(chf_ix[i     ;j     ;k     ],lvar)
+     &        - primstate(chf_ix[i-ioff;j-joff;k-koff],lvar)
+
+         if(velpt .gt. tol) then
+            dw = dwl
+         else if(velpt .lt. -tol) then
+            dw = dwr
+         else
+            dw = half*(dwl+dwr)
+         endif
+
+         slopeupwi(chf_ix[i;j;k],lvar) = dw
+
+         chf_enddo
+
+c     perform calculation on the cells adjacent to the domain boundary in
+c     current direction, if required.
+
+         if (haslo .ne. 0) then
+            chf_multido[lobox;i;j;k]
+
+            velpt = normalvel(chf_ix[i;j;k],idir)
+
+            dwl = 0.d0
+
+            dwr =  primstate(chf_ix[i+ioff;j+joff;k+koff],lvar)
+     &           - primstate(chf_ix[i     ;j     ;k     ],lvar)
+
+            dw = dwr
+
+c            if(velpt .gt. tol) then
+c               dw = dwl
+c            else if(velpt .lt. -tol) then
+c               dw = dwr
+c            else
+c               dw = half*(dwl+dwr)
+c            endif
+
+            slopeupwi(chf_ix[i;j;k],lvar) = dw
+
+            chf_enddo
+
+         endif
+
+         if (hashi .ne. 0) then
+            chf_multido[hibox;i;j;k]
+
+            velpt = normalvel(chf_ix[i;j;k],idir)
+
+            dwl =  primstate(chf_ix[i     ;j     ;k     ],lvar)
+     &           - primstate(chf_ix[i-ioff;j-joff;k-koff],lvar)
+
+            dwr = 0.d0
+
+            dw = dwl
+
+c            if(velpt .gt. tol) then
+c               dw = dwl
+c            else if(velpt .lt. -tol) then
+c               dw = dwr
+c            else
+c               dw = half*(dwl+dwr)
+c            endif
+
+            slopeupwi(chf_ix[i;j;k],lvar) = dw
+
+            chf_enddo
+         endif
+      enddo
+
+
+      return
+      end
+cccccccccccccc
+      subroutine advectivef(
+     &     chf_fra[udelrho],
+     &     chf_const_fra[facerho],
+     &     chf_const_fra1[facevel],
+     &     chf_const_int[facedir],
+     &     chf_const_int[nconserved],
+     &     chf_const_real[dx],
+     &     chf_box[dcalc],
+     $     chf_int[doingvel]
+     &)
+
+      integer chf_ddecl[i; j; k]
+      integer chf_ddecl[ioff; joff; koff]
+      integer spacedim,iv
+      real_t  uave, rhodiff, hival, loval
+      chf_dterm[
+      ioff = chf_id(0,facedir);
+      joff = chf_id(1,facedir);
+      koff = chf_id(2,facedir)]
+
+      spacedim = CH_SPACEDIM
+
+      if(doingvel .eq. 1) then
+c     velocity gets done non-conservatively
+         do iv = 0,nconserved - 1
+
+            chf_multido[dcalc;i;j;k]
+
+            uave =
+     &           (facevel(chf_ix[i+ioff;j+joff;k+koff])
+     &           +facevel(chf_ix[i     ;j     ;k     ]))/two
+            rhodiff =
+     &           (facerho(chf_ix[i+ioff;j+joff;k+koff],iv)
+     &           -facerho(chf_ix[i     ;j     ;k     ],iv))/dx
+
+            udelrho(chf_ix[i;j;k],iv) = udelrho(chf_ix[i;j;k],iv) +  uave*rhodiff
+
+            chf_enddo
+
+         enddo
+
+      else
+         do iv = 0,nconserved - 1
+
+            chf_multido[dcalc;i;j;k]
+
+            hival = facevel(chf_ix[i+ioff;j+joff;k+koff])*facerho(chf_ix[i+ioff;j+joff;k+koff],iv)
+            loval = facevel(chf_ix[i     ;j     ;k     ])*facerho(chf_ix[i     ;j     ;k     ],iv)
+
+
+            udelrho(chf_ix[i;j;k],iv) = udelrho(chf_ix[i;j;k],iv) + (hival-loval)/dx
+
+            chf_enddo
+
+         enddo
+
+      endif
+
+      return
+      end
+cccccccccccccccc
+      subroutine avefacetocell(
+     &     chf_fra[cellvel],
+     &     chf_const_fra1[facevel],
+     &     chf_const_int[idir],
+     &     chf_box[dcalc])
+
+      integer chf_ddecl[i; j; k]
+      integer ii,jj,kk
+
+      ii = chf_id(0,idir)
+      jj = chf_id(1,idir)
+      kk = chf_id(2,idir)
+
+      chf_multido[dcalc;i;j;k]
+
+      cellvel(chf_ix[i;j;k],idir) =  half*(
+     &     facevel(chf_ix[i   ;j   ;k   ]) +
+     &     facevel(chf_ix[i+ii;j+jj;k+kk]))
+
+      chf_enddo
+
+      return
+      end
+cccccccccccccccc
+      subroutine advectupdate(
+     &     chf_box[dcalc],
+     &     chf_fra[primminu],
+     &     chf_fra[primplus],
+     &     chf_const_fra[primface],
+     &     chf_const_fra[normvel],
+     &     chf_const_int[facedir],
+     &     chf_const_int[nprim],
+     &     chf_const_real[dtbydx],
+     &     chf_box[cellbox])
+
+      real_t unorm
+      real_t primdiff
+      integer chf_ddecl[i; j; k]
+      integer chf_ddecl[ioff; joff; koff]
+
+      integer spacedim,iv
+
+      chf_dterm[
+      ioff = chf_id(0,facedir);
+      joff = chf_id(1,facedir);
+      koff = chf_id(2,facedir)]
+
+      spacedim = CH_SPACEDIM
+
+      do iv = 0,nprim - 1
+
+         chf_multido[cellbox;i;j;k]
+
+         unorm    = normvel(chf_ix[i;j;k], facedir)
+         primdiff =
+     $        ( primface(chf_ix[i+ioff;j+joff;k+koff],iv)
+     $        - primface(chf_ix[i     ;j     ;k     ],iv))
+
+         primminu(chf_ix[i;j;k],iv) = primminu(chf_ix[i;j;k],iv) -
+     &        dtbydx * unorm * primdiff
+
+         primplus(chf_ix[i;j;k],iv) = primplus(chf_ix[i;j;k],iv) -
+     &        dtbydx * unorm * primdiff
+
+         chf_enddo
+
+
+      enddo
+
+
+      return
+      end
+
+cccccccccccccccc
+      subroutine advectriemann(
+     &     chf_box[dcalc],
+     &     chf_fra[primgdnv],
+     &     chf_const_fra[primleft],
+     &     chf_const_fra[primrigh],
+c     &     chf_const_fra[normalvel],
+     &     chf_const_fra1[advectvel],
+     &     chf_const_int[facedir],
+     &     chf_const_int[nprim],
+     &     chf_const_int[curcomp],
+     &     chf_const_int[doingvel]
+     $     )
+
+      real_t  velhi, vello, velface
+      real_t tol
+      integer chf_ddecl[i; j; k]
+      integer chf_ddecl[ioff; joff; koff]
+
+      integer spacedim,iv
+
+      chf_dterm[
+      ioff = chf_id(0,facedir);
+      joff = chf_id(1,facedir);
+      koff = chf_id(2,facedir)]
+
+      spacedim = CH_SPACEDIM
+
+      tol = 1.e-12
+
+      do iv = 0,nprim - 1
+         chf_multido[dcalc;i;j;k]
+
+         velface  = advectvel(chf_ix[i;j;k])
+c         if(velface.gt.zero) then
+         if(velface.gt.tol) then
+            primgdnv(chf_ix[i;j;k],iv) = primleft(chf_ix[i-ioff;j-joff;k-koff],iv)
+c         else if(velface.lt.zero) then
+         else if(velface.lt.-tol) then
+            primgdnv(chf_ix[i;j;k],iv) = primrigh(chf_ix[i;j;k],iv)
+         else
+            if( (doingvel .eq. 1) .and. (curcomp.eq.facedir)) then
+               primgdnv(chf_ix[i;j;k],iv) = zero
+            else
+               primgdnv(chf_ix[i;j;k],iv) =
+     $              half*(
+     $              primrigh(chf_ix[i     ;j     ;k     ],iv) +
+     $              primleft(chf_ix[i-ioff;j-joff;k-koff],iv))
+            endif
+         endif
+ccdebug
+c         if(i.eq.0.and.facedir.eq.1)then
+c            print *,chf_ix[i;j;k]," velface ",velface," primleft ",
+c     &           primleft(chf_ix[i-ioff;j-joff;k-koff],iv)," primright ",
+c     &           primrigh(chf_ix[i     ;j     ;k     ],iv)," primgdnv ",
+c     &           primgdnv(chf_ix[i;j;k],iv)
+c         endif
+
+c         velhi  = normalvel(chf_ix[i     ;j     ;k     ],facedir)
+c         vello  = normalvel(chf_ix[i-ioff;j-joff;k-koff],facedir)
+c         if((velhi .gt. tol).and.(vello.gt.tol)) then
+c            primgdnv(chf_ix[i;j;k],iv) = primleft(chf_ix[i-ioff;j-joff;k-koff],iv)
+c         else if((velhi .lt. -tol).and.(vello.lt.-tol)) then
+c            primgdnv(chf_ix[i;j;k],iv) = primrigh(chf_ix[i;j;k],iv)
+c         else
+c            if( (doingvel .eq. 1) .and. (curcomp.eq.facedir)) then
+c               primgdnv(chf_ix[i;j;k],iv) = zero
+c            else
+c               primgdnv(chf_ix[i;j;k],iv) =
+c     $              half*(
+c     $              primrigh(chf_ix[i     ;j     ;k     ],iv) +
+c     $              primleft(chf_ix[i-ioff;j-joff;k-koff],iv))
+c            endif
+c         endif
+
+         chf_enddo
+      enddo
+
+      return
+      end

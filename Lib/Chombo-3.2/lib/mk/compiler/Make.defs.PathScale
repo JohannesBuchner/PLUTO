@@ -1,0 +1,88 @@
+### This is a compiler-specific definitions file for GNU compilers,
+### modified for the PathScale versions of g++/g77 for AMD64
+
+### NOTE: using -O3 for cxxoptflags requires more than the default amount
+###       of "limit {stack,data}size" on jacquard, and results in an error
+###       that looks like a compiler bug.  Thus it is very hard to debug.
+###       So the settings in this file avoid the problem by using -O2.
+###       But to get maximum performance, you could set cxxoptflags=-O3
+###       and set shell limits for stacksize and datasize to "unlimited"
+
+## It sets values for the defaults variables ($def*), which will be used
+## if the calling makefile doesn't set the corresponding variables.
+## The corresponding variables are the ones without the "def" prefix.
+
+## Defaults variables:
+##  defcppcomflags = C-preprocessor options for both C++ and Fortran code
+##  defcppdbgflags = C-preprocessor options for both C++ and Fortran code when DEBUG=TRUE
+##  defcppoptflags = C-preprocessor options for both C++ and Fortran code when OPT=TRUE or HIGH
+##  defcxxcppflags = C-preprocessor options for only C++ code
+##  defcxxcomflags = C++ compiler/linker options
+##  defcxxdbgflags : for C++ compiling and linking when DEBUG=TRUE
+##  defcxxoptflags : for C++ compiling and linking when OPT=TRUE or HIGH
+##  defcxxprofflags: for C++ compiling and linking when PROFILE=TRUE
+##  deffcppflags   = C-preprocessor options for only Fortran code
+##  deffcomflags   = Fortran compiler options
+##  deffdbgflag    : for Fortran compiling when DEBUG=TRUE
+##  deffoptflag    : for Fortran compiling when OPT=TRUE or HIGH
+##  deffprofflags  : for Fortran compiling when PROFILE=TRUE
+##  defflibflags   : library options needed to link the Fortran code
+##  defldcomflags  = linker options
+##  deflddbgflags  = linker options when DEBUG=TRUE
+##  defldoptflags  = linker options when OPT=TRUE or HIGH
+##  defldprofflags = linker options when PROFILE=TRUE
+##  cppcallsfort   = preprocessor macro as used in FORT_PROTO.H to specify
+##                    how the C++ code should construct names for calling Fortran
+##
+## Notes:
+##  PathScale C/C++ compilers set the preprocessor macros: (use -E -dM options to display)
+##    __PATHCC__     (int) defined for pathCC, == major version number
+##    __PATHCC_MINOR__(int) defined for pathCC, == minor version number
+##    __x86_64__           defined for AMD Opteron and Athlon64
+##    __amd64__            defined for AMD Opteron and Athlon64
+##    __GNUC__       (int) defined for gcc or g++, == major version number
+##    __GNUG__       (int) defined for g++, == major version number
+##    __GNUC_MINOR__ (int) defined for gcc or g++, == minor version number
+##    __VERSION__  (string) contains the gcc version number plus OS ident
+
+makefiles+=compiler/Make.defs.PathScale
+
+cxxname := $(notdir $(firstword $(CXX)))
+fname   := $(notdir $(firstword $(FC)))
+
+ifeq ($(cxxname),pathCC)
+  _gppversion := $(subst ., ,$(shell $(CXX) -dumpversion))
+  _gppmajorver:= $(word 1,$(_gppversion))
+  _gppminorver:= $(word 2,$(_gppversion))
+
+  # HDF5 uses `long long', so disable warnings about it.
+  # `-Wno-sign-compare' turns off warnings about comparing signed and unsigned int -
+  #   this is a meaningful warning, but it appears way too often in our code.
+  #NOTE: -O3 uses more data/stack than default shell settings allow, so don't use
+  #      it unless you reset these shell limits. <dbs>
+  _cxxbaseflags := -Wno-long-long -Wno-sign-compare -Wno-deprecated
+  cxxcomflags := $(_cxxbaseflags)
+  cxxoptflags := -OPT:Olimit=0 -O2
+  cxxdbgflags := -g -Wall
+
+  # Memory tracking doesn't work
+  USE_MT=FALSE
+
+  # pathcc preprocessor strips C++ comments by default, but they are valid
+  # Fortran code, so use '-C' to disable this feature; '-ignore-suffix'
+  # prevents a warning about running the C++ compiler on a Fortran file.
+  CH_CPP = $(CXX) -E -P -C -ignore_suffix
+endif
+
+ifeq ($(fname),pathf90)
+  # -fno-second-underscore disables the stupid g77 behavior of appending 2 "_" to names that already have a "_"
+  # -DCH_FORT_2UNDERSCORE indicates external names will use the g77 behavior (in InfiniteDomain FFTW code)
+  _fbaseflags := -fno-second-underscore
+  cppcallsfort = -DCH_FORT_UNDERSCORE -DCH_FORT_2UNDERSCORE
+  fcomflags := $(_fbaseflags)
+  foptflags := -O3 -funroll-loops -OPT:Olimit=0
+  fdbgflags := -g -Wimplicit -Wall -C -ffortran-bounds-check
+
+  # libraries needed by pathf90
+  flibflags :=  -lpathfortran -lmv -lmpath
+endif

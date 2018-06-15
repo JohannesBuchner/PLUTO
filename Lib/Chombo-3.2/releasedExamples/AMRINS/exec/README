@@ -1,0 +1,9 @@
+This is an implementation of the algorithm described in the following paper.
+@ARTICLE{martinColellaGraves:2008,
+author ={D. Martin and P. Colella and D. T. Graves},
+title = {A cell-centered adaptive projection method for the incompressible {N}avier-{S}tokes equations in three dimensions},
+journal = {Journal of Computational Physics},
+volume= 227,
+pages = {1863-1886},
+year = 2008,
+}

@@ -1,0 +1,277 @@
+#!/bin/sh
+
+### This file runs various checks of the makefile customization variables
+### to see if they are correct.
+
+### Usage: $0 [-v] keyword [value]*
+
+### The '-v' option must appear first if it appears at all.
+### It enables verbose output, for debugging the script.
+
+### The first non-option argument is always a keyword that determines what
+### check to do.  All the other arguments are the values to check, and
+### will vary depending on the keyword.
+
+### The environment variable TMPDIR is used as the directory to
+### write scratch files, if it exists; else /tmp is used.
+### The files are small, so this shouldn't be an issue.
+
+### Keywords:
+###  HDFINCFLAGS     checks the include flags for serial HDF
+###  HDFLIBFLAGS     checks the linker flags for serial HDF
+###  HDFMPIINCFLAGS  checks the include flags for parallel HDF
+###  HDFMPILIBFLAGS  checks the linker flags for parallel HDF
+###  PERL            checks the perl interpreter installation
+###  CXX             checks the C++ compiler
+###  FC              checks the Fortran compiler
+
+#################################################################
+
+rtfm () 
+{
+  echo "info: please read the documentation files:"
+  echo "      Chombo/ReleaseNotes.txt   Chombo/README"
+  echo "  for more information."
+  echo ""
+}
+
+errexit () 
+{
+  rtfm
+  exit 1
+}
+
+
+#################################################################
+
+# option for verbose/debug output
+if [ x"$1" = x"-v" ] ; then
+  debug=echo
+  shift
+  set -x
+elif [ x"$1" = x"-q" ] ; then
+  debug=true
+  shift
+else
+  debug=true
+fi
+
+# one arg is required
+if [ x"$1" = x"" ] ; then
+  echo "error: $0: first argument must specify a known action"
+  exit 99
+fi
+
+# save the first arg as the item to check
+action=$1 ; shift
+
+# get the hostname using the same algorithm that Make.defs uses
+hostnm=`uname -n 2> /dev/null`
+if [ x$hostnm = x ] ; then
+  hostnm=`hostname`
+fi
+
+# get the temp directory to write scratch file into
+if [ x$TMPDIR = x ] ; then
+  TMPDIR=/tmp
+fi
+
+# check
+case $action in
+  HDFINCFLAGS)
+    $debug "checking \$(HDFINCFLAGS) = [$*]"
+    if [ x"$*" != x"" ] ; then
+      ok=0
+      for f in $* ; do 
+        case $f in
+        -I*)
+          dir=`echo $f | sed 's/^-I//'`
+          if [ -e $dir/hdf5.h ] ; then
+            ok=1
+          fi
+          ;;
+        esac
+      done
+      if [ $ok -eq 0 ] ; then
+        echo
+        echo "error: cannot find the HDF header file [hdf5.h] using the HDFINCFLAGS make variable [$*]"
+        echo "info: it should be defined in lib/mk/Make.defs.local or lib/mk/local/Make.defs.$hostnm"
+        errexit
+      fi
+    else
+      echo
+      echo "warning: the HDFINCFLAGS make variable is empty."
+      echo "info: Chombo will not compile if the HDF header files cannot be found."
+      echo "info: if this is not intentional, define HDFINCFLAGS in Chombo/lib/mk/Make.defs.local"
+      rtfm
+      exit
+    fi
+    ;;
+
+  HDFLIBFLAGS)
+    $debug "checking \$(HDFLIBFLAGS) = [$*]"
+    if [ x"$*" != x"" ] ; then
+      ok=0
+      dir=/usr/lib
+      for f in $* ; do 
+        case $f in
+        -L*)
+          dir="$dir `echo $f | sed 's/^-L//'`"
+          ;;
+        -l*)
+          lib=lib`echo $f | sed 's/^-l//'`
+          for d in $dir ; do
+            if [ -e $d/$lib.a -o -e $d/$lib.so ] ; then
+              ok=1
+            fi
+          done
+          if [ $ok -eq 0 ] ; then
+            echo
+            echo "error: cannot find the HDF library [$lib.{a,so}] using the HDFLIBFLAGS make variable [$*]"
+            echo "info: it should be defined in lib/mk/Make.defs.local or lib/mk/local/Make.defs.$hostnm"
+            errexit
+          fi
+        esac
+      done
+    else
+      echo
+      echo "warning: the HDFLIBFLAGS make variable is empty."
+      echo "info: Chombo will not compile if the HDF library files cannot be found."
+      echo "info: if this is not intentional, define it in Chombo/lib/mk/Make.defs.local"
+      rtfm
+      exit
+    fi
+    ;;
+
+  HDFMPIINCFLAGS)
+    $debug "checking \$(HDFMPIINCFLAGS) = [$*]"
+    if [ x"$*" != x"" ] ; then
+      ok=0
+      for f in $* ; do 
+        case $f in
+        -I*)
+          dir=`echo $f | sed 's/^-I//'`
+          if [ -e $dir/hdf5.h ] ; then
+            ok=1
+          fi
+          ;;
+        esac
+      done
+      if [ $ok -eq 0 ] ; then
+        echo
+        echo "error: cannot find the HDF header file [hdf5.h] using the HDFMPIINCFLAGS make variable[$*]"
+        echo "info: it should be defined in lib/mk/Make.defs.local or lib/mk/local/Make.defs.$hostnm"
+        errexit
+      fi
+    else
+      echo
+      echo "warning: the HDFMPIINCFLAGS make variable is empty."
+      echo "info: Chombo will not compile in parallel if the HDF header files cannot be found."
+      echo "info: if this is not intentional, define HDFMPIINCFLAGS in lib/mk/Make.defs.local or lib/mk/local/Make.defs.$hostnm"
+      rtfm
+      exit
+    fi
+    ;;
+
+  HDFMPILIBFLAGS)
+    $debug "checking \$(HDFMPILIBFLAGS) = [$*]"
+    if [ x"$*" != x"" ] ; then
+      ok=0
+      dir=/usr/lib
+      for f in $* ; do 
+        case $f in
+        -L*)
+          dir="$dir `echo $f | sed 's/^-L//'`"
+          ;;
+        -l*)
+          lib=lib`echo $f | sed 's/^-l//'`
+          for d in $dir ; do
+            if [ -e $d/$lib.a -o -e $d/$lib.so ] ; then
+              ok=1
+            fi
+          done
+          if [ $ok -eq 0 ] ; then
+            echo
+            echo "error: cannot find the parallel HDF library [$lib.{a,so}] using the HDFMPILIBFLAGS make variable [$*]"
+            echo "info: it should be defined in lib/mk/Make.defs.local or lib/mk/local/Make.defs.$hostnm"
+            errexit
+          fi
+        esac
+      done
+    else
+      echo
+      echo "warning: the HDFMPILIBFLAGS make variable is empty."
+      echo "info: Chombo will not compile with MPI if the parallel HDF library file(s) cannot be found."
+      rtfm
+      exit
+    fi
+    ;;
+
+  PERL)
+    $debug "checking \$(PERL) = [$*]"
+    perl="$*"
+    $perl -e "print a;" > /dev/null
+    stat=$?
+    if [ $stat -ne 0 ] ; then
+      echo "error: the \$PERL makefile variable [$perl] is incorrect."
+      errexit
+    fi
+    ;;
+
+  CXX)
+    $debug "checking \$(CXX) = [$*]"
+    olddir=`pwd`
+    \cd ${TMPDIR} > /dev/null
+    echo '#include <iostream>'          > check$$.cpp
+    echo 'using namespace std ;'       >> check$$.cpp
+    echo 'int main(){ cout << "a" ; }' >> check$$.cpp
+    if [ $? -ne 0 ] ; then
+      echo "error: cannot write scratch file into ${TMPDIR}"
+      echo "info: set the TMPDIR environment variable to a writeable directory."
+      errexit
+    fi
+    $* check$$.cpp > check$$cpp.out 2>&1
+    stat=$?
+    if [ $stat -eq 0 ] ; then
+      rm -f check$$*
+    fi
+    \cd $olddir > /dev/null
+    if [ $stat -ne 0 ] ; then
+      echo "error: the C++ compiler does not work or the C++ compile options [$*] are set incorrectly."
+      echo "info: look at ${TMPDIR}/check$$.cpp and ${TMPDIR}/check$$cpp.out for details."
+      echo "info: set the correct compiler and options variables in Chombo/lib/mk/Make.defs.local"
+      errexit
+    fi
+    ;;
+
+  FC)
+    $debug "checking \$(FC) = [$*]"
+    olddir=`pwd`
+    \cd ${TMPDIR} > /dev/null
+    echo "       write(6,*) 'hello world'" > check$$.f
+    echo "       end"                     >> check$$.f
+    if [ $? -ne 0 ] ; then
+      echo "error: cannot write scratch file into ${TMPDIR}"
+      echo "info: set the TMPDIR environment variable to a writeable directory."
+      errexit
+    fi
+    $* check$$.f > check$$f.out 2>&1
+    stat=$?
+    if [ $stat -eq 0 ] ; then
+      rm -f check$$*
+    fi
+    \cd $olddir > /dev/null
+    if [ $stat -ne 0 ] ; then
+      echo "error: the Fortran compile options [$*] are set incorrectly."
+      echo "info: look at ${TMPDIR}/check$$.f and ${TMPDIR}/check$$f.out for details."
+      echo "info: set the correct compiler and options variables in Chombo/lib/mk/Make.defs.local"
+      errexit
+    fi
+    ;;
+  *)
+    echo "error: $0: first argument [$action] is not a known action"
+    errexit
+    ;;
+esac
+
+exit 0
