@@ -1,3 +1,0 @@
-if SMALLBUILD_AM
-  bin_PROGRAMS = testRealVect
-endif SMALLBUILD_AM

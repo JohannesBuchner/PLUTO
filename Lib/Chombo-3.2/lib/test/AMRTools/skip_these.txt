@@ -1,3 +1,0 @@
-fluxRegisterTest.cpp
-testPeriodicFillPatch.cpp
-testPeriodicFR.cpp
