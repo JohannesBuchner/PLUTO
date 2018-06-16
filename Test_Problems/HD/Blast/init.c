@@ -53,7 +53,7 @@ void Init (double *v, double x1, double x2, double x3)
    v[PRS] = 1.0;
   #endif
 
-/* -- set a high pressure region inside r = 0.1 -- */
+/* -- set a high pressure region inside r = 1 -- */
 
   if (r < 0.1) {
     v[RHO] = g_inputParam[RHO_IN];

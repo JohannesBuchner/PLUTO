@@ -11,7 +11,7 @@ import pyPLUTO as pp
 import string
 import time
 
-from tkinter import *
+from Tkinter import *
 import sys
 import os
 
@@ -33,7 +33,7 @@ class App:
             self.datatype = sys.argv[1].split('--')[1]
             
         if self.datatype == 'hdf5':
-            print("GUI currently doesnot support pyPLUTO AMR Reader!!")
+            print "GUI currently doesnot support pyPLUTO AMR Reader!!"
             sys.exit()
         
         self.I = pp.Image()
@@ -305,7 +305,7 @@ class App:
         try:
             int(self.enstep.get().strip().split()[0])
         except (ValueError, IndexError):
-            print("Specify the proper value of Nstep")
+            print "Specify the proper value of Nstep"
         else:
             mynstep=int(self.enstep.get())
             self.D = pp.pload(mynstep,datatype=self.datatype)
@@ -318,7 +318,7 @@ class App:
         try:
             self.v.get() != "None"
         except KeyError:
-            print("Specify the variable to plot")
+            print "Specify the variable to plot"
         else:
             self.myvar=self.v.get()
         
@@ -414,7 +414,7 @@ class App:
             try:
                 self.plcont.get() != "None"
             except KeyError:
-                print("Specify the variable for Contour")
+                print "Specify the variable for Contour"
             else:
                 self.drawcontour()
                 self.contlevlist=[]
@@ -444,7 +444,7 @@ class App:
             try:
                 self.plarr.get() != "None"
             except KeyError:
-                print("Specify the variable for plotting the arrow")
+                print "Specify the variable for plotting the arrow"
             else:
                 self.drawarrow()
                 self.a.quiver(self.xcong, self.ycong, self.xveccong, self.yveccong,color='w')
@@ -543,7 +543,7 @@ class App:
                     try:
                         int(self.ex2.get().strip().split()[0])
                     except (ValueError, IndexError):
-                        print("Specify the value of x2 cut")
+                        print "Specify the value of x2 cut"
                     else:
                         self.var = self.var[:,int(self.ex2.get())]
                         self.sucess = True
@@ -552,7 +552,7 @@ class App:
                         int(self.ex2.get().strip().split()[0])
                         int(self.ex3.get().strip().split()[0])
                     except (ValueError, IndexError):
-                        print("Specify the value of x2 or x3 cut")
+                        print "Specify the value of x2 or x3 cut"
                     else:
                         self.var = self.var[:,int(self.ex2.get()),int(self.ex3.get())]
                         self.sucess = True
@@ -563,7 +563,7 @@ class App:
                     try:
                         int(self.ex1.get().strip().split()[0])
                     except (ValueError, IndexError):
-                        print("Specify the value of x1 cut")
+                        print "Specify the value of x1 cut"
                     else:
                         self.var = self.var[int(self.ex1.get()),:]
                         self.sucess = True
@@ -572,7 +572,7 @@ class App:
                         int(self.ex1.get().strip().split()[0])
                         int(self.ex3.get().strip().split()[0])
                     except (ValueError, IndexError):
-                        print("Specify the value of x1 or x3 cut")
+                        print "Specify the value of x1 or x3 cut"
                     else:
                         self.var = self.var[int(self.ex1.get()),:,int(self.ex3.get())]
                         self.sucess = True
@@ -583,7 +583,7 @@ class App:
                     int(self.ex1.get().strip().split()[0])
                     int(self.ex2.get().strip().split()[0])
                 except (ValueError, IndexError):
-                    print("Specify the value of x1 or x2 cut")
+                    print "Specify the value of x1 or x2 cut"
                 else:
                     self.var = self.var[int(self.ex1.get()),int(self.ex2.get()),:]
                     self.sucess = True
@@ -613,7 +613,7 @@ class App:
                 try:
                     int(self.ex3.get().strip().split()[0])
                 except (ValueError, IndexError):
-                    print("Specify the value of x3 cut")
+                    print "Specify the value of x3 cut"
                 else:
                     self.var = self.var[xmineed:xmaneed,ymineed:ymaneed,int(self.ex3.get())].T
                     self.sucess = True
@@ -630,7 +630,7 @@ class App:
             try:
                 int(self.ex1.get().strip().split()[0])
             except (ValueError, IndexError):
-                print("Specify the value of x1 cut")
+                print "Specify the value of x1 cut"
             else:
                 self.var = self.var[int(self.ex1.get()),xmineed:xmaneed,ymineed:ymaneed].T
                 self.sucess = True
@@ -646,7 +646,7 @@ class App:
             try:
                 int(self.ex2.get().strip().split()[0])
             except (ValueError, IndexError):
-                print("Specify the value of x2 cut")
+                print "Specify the value of x2 cut"
             else:
                 self.var = self.var[xmineed:xmaneed,int(self.ex2.get()),ymineed:ymaneed].T
                 self.sucess = True
@@ -663,7 +663,7 @@ class App:
                 try:
                     int(self.ex3.get().strip().split()[0])
                 except (ValueError, IndexError):
-                    print("Specify the value of x3 cut")
+                    print "Specify the value of x3 cut"
                 else:
                     self.R,self.Z,self.SphData = self.I.getSphData(self.D,w_dir=self.wdir,datatype=self.datatype, rphi=False,x3cut=int(self.ex3.get()))
                     self.sucess = True
@@ -672,7 +672,7 @@ class App:
             try:
                 int(self.ex2.get().strip().split()[0])
             except (ValueError, IndexError):
-                print("Specify the value of x2 cut")
+                print "Specify the value of x2 cut"
             else:
                 self.R,self.Z,self.SphData = self.I.getSphData(self.D,w_dir=self.wdir,datatype=self.datatype, rphi=True, x2cut=int(self.ex2.get()))
                 self.sucess = True
@@ -691,7 +691,7 @@ class App:
             if self.maxPl>-self.minPl:
                 self.minPl=-self.maxPl
             else:
-                self.maxPl=-self.minPl      
+                self.maxPl=-self.minPl	  
             if (self.normrange and self.myvar !='rho' and self.myvar !='prs'):
                 self.SphData[self.myvar][-1][-1]=self.maxPl
                 self.SphData[self.myvar][-1][-2]=self.minPl
@@ -709,16 +709,16 @@ class App:
                 self.Xmesh, self.Ymesh = meshgrid(self.D.x1.T,self.D.x2.T)
                 if self.D.n3 == 1:
                     if self.plcont.get() == 'x1*Ax3':
-                        self.varcont = self.Xmesh*(self.D.Ax3.T)
+			self.varcont = self.Xmesh*(self.D.Ax3.T)
                     elif self.plcont.get() == 'x1*bx3':
-                        self.varcont = self.Xmesh*(self.D.bx3.T)
+			self.varcont = self.Xmesh*(self.D.bx3.T)
                     else:
                         self.varcont = self.D.__getattribute__(self.plcont.get())[:,:].T              
                 else:
                     if self.plcont.get() == 'x1*Ax3':
-                        self.varcont = self.Xmesh*(self.D.Ax3[:,:,int(self.ex3.get())].T)
+			self.varcont = self.Xmesh*(self.D.Ax3[:,:,int(self.ex3.get())].T)
                     elif self.plcont.get() == 'x1*bx3':
-                        self.varcont = self.Xmesh*(self.D.bx3[:,:,int(self.ex3.get())].T)
+			self.varcont = self.Xmesh*(self.D.bx3[:,:,int(self.ex3.get())].T)
                     else:
                         self.varcont = self.D.__getattribute__(self.plcont.get())[:,:,int(self.ex3.get())].T
                         

@@ -17,10 +17,10 @@ except ImportError:
     hasH5 = False
 
 def curdir():
-    """ Get the current working directory.
-    """
-    curdir = os.getcwd()+'/' 
-    return curdir
+	""" Get the current working directory.
+	"""
+        curdir = os.getcwd()+'/'
+        return curdir
 
 def get_nstepstr(ns):
 	""" Convert the float input *ns* into a string that would match the data file name.
@@ -77,12 +77,12 @@ def nlast_info(w_dir=None,datatype=None):
 	Dt = float(last_line[2])
 	Nstep = int(last_line[3])
 	    
-	print("------------TIME INFORMATION--------------")
-	print('nlast =',nlast)
-	print('time  =',SimTime)
-	print('dt    =', Dt)
-	print('Nstep =',Nstep)
-	print("-------------------------------------------")
+	print "------------TIME INFORMATION--------------"
+	print 'nlast =',nlast
+	print 'time  =',SimTime
+	print 'dt    =', Dt
+	print 'Nstep =',Nstep
+	print "-------------------------------------------"
 	    
 	return {'nlast':nlast,'time':SimTime,'dt':Dt,'Nstep':Nstep}
     
@@ -129,8 +129,8 @@ class pload(object):
         self.datatype = datatype
 
         if ((not hasH5) and (datatype == 'hdf5')):
-            print('To read AMR hdf5 files with python')
-            print('Please install h5py (Python HDF5 Reader)')
+            print 'To read AMR hdf5 files with python'
+            print 'Please install h5py (Python HDF5 Reader)'
             return
 
         self.level = level
@@ -238,28 +238,28 @@ class pload(object):
         self.n1_tot = self.n1 ; self.n2_tot = self.n2 ; self.n3_tot = self.n3
         if (self.x1range != None):
             self.n1_tot = self.n1
-            self.irange = list(range(abs(self.x1-self.x1range[0]).argmin(),abs(self.x1-self.x1range[1]).argmin()+1))
+            self.irange = range(abs(self.x1-self.x1range[0]).argmin(),abs(self.x1-self.x1range[1]).argmin()+1)
             self.n1  = len(self.irange)
             self.x1  = self.x1[self.irange]
             self.dx1 = self.dx1[self.irange]
         else:
-            self.irange = list(range(self.n1))
+            self.irange = range(self.n1)
         if (self.x2range != None):
             self.n2_tot = self.n2
-            self.jrange = list(range(abs(self.x2-self.x2range[0]).argmin(),abs(self.x2-self.x2range[1]).argmin()+1))
+            self.jrange = range(abs(self.x2-self.x2range[0]).argmin(),abs(self.x2-self.x2range[1]).argmin()+1)
             self.n2  = len(self.jrange)
             self.x2  = self.x2[self.jrange]
             self.dx2 = self.dx2[self.jrange]
         else:
-            self.jrange = list(range(self.n2))
+            self.jrange = range(self.n2)
         if (self.x3range != None):
             self.n3_tot = self.n3
-            self.krange = list(range(abs(self.x3-self.x3range[0]).argmin(),abs(self.x3-self.x3range[1]).argmin()+1))
+            self.krange = range(abs(self.x3-self.x3range[0]).argmin(),abs(self.x3-self.x3range[1]).argmin()+1)
             self.n3  = len(self.krange)
             self.x3  = self.x3[self.krange]
             self.dx3 = self.dx3[self.krange]
         else:
-            self.krange = list(range(self.n3))
+            self.krange = range(self.n3)
         self.Slice=(self.x1range != None) or (self.x2range != None) or (self.x3range != None)
 
 
@@ -328,7 +328,7 @@ class pload(object):
             if l == '':
                 break
         
-        vtkvardict = dict(list(zip(ks,vtkvar)))
+        vtkvardict = dict(zip(ks,vtkvar))
         return vtkvardict
             
     def DataScanHDF5(self, fp, myvars, ilev):
@@ -372,7 +372,7 @@ class pload(object):
                     elif (dim == 3):
                         zstr = fl.attrs.get('g_x3stretch')
                 except:
-                    print('Old HDF5 file, not reading stretch and logr factors')
+                    print 'Old HDF5 file, not reading stretch and logr factors'
                 freb[i] = 1
                 x1b = fl.attrs.get('domBeg1')
                 if (dim == 1):
@@ -422,16 +422,16 @@ class pload(object):
 	    
         ## Create uniform grids at the required level
         if logr == 0:
-            x1 = x1b + (ibeg+np.array(list(range(nx)))+0.5)*dx
+            x1 = x1b + (ibeg+np.array(range(nx))+0.5)*dx
         else:
-            x1 = x1b*(exp((ibeg+np.array(list(range(nx)))+1)*dx)+exp((ibeg+np.array(list(range(nx))))*dx))*0.5
+            x1 = x1b*(exp((ibeg+np.array(range(nx))+1)*dx)+exp((ibeg+np.array(range(nx)))*dx))*0.5
         
-        x2 = x2b + (jbeg+np.array(list(range(ny)))+0.5)*dx*ystr
-        x3 = x3b + (kbeg+np.array(list(range(nz)))+0.5)*dx*zstr
+        x2 = x2b + (jbeg+np.array(range(ny))+0.5)*dx*ystr
+        x3 = x3b + (kbeg+np.array(range(nz))+0.5)*dx*zstr
         if logr == 0:
             dx1 = np.ones(nx)*dx
         else:
-            dx1 = x1b*(exp((ibeg+np.array(list(range(nx)))+1)*dx)-exp((ibeg+np.array(list(range(nx))))*dx))
+            dx1 = x1b*(exp((ibeg+np.array(range(nx))+1)*dx)-exp((ibeg+np.array(range(nx)))*dx))
         dx2 = np.ones(ny)*dx*ystr
         dx3 = np.ones(nz)*dx*zstr
 
@@ -460,12 +460,12 @@ class pload(object):
             boxes = fl['boxes']
             nbox = len(boxes['lo_i'])
             AMRLevel[i]['nbox'] = nbox
-            ncount = 0
+            ncount = 0L
             AMRLevel[i]['box']=[]
             for j in range(nbox): # loop on all boxes of a given level
-                AMRLevel[i]['box'].append({'x0':0.,'x1':0.,'ib':0,'ie':0,\
-                                           'y0':0.,'y1':0.,'jb':0,'je':0,\
-                                           'z0':0.,'z1':0.,'kb':0,'ke':0})
+                AMRLevel[i]['box'].append({'x0':0.,'x1':0.,'ib':0L,'ie':0L,\
+                                           'y0':0.,'y1':0.,'jb':0L,'je':0L,\
+                                           'z0':0.,'z1':0.,'kb':0L,'ke':0L})
                 # Box indexes
                 ib = boxes[j]['lo_i'] ; ie = boxes[j]['hi_i'] ; nbx = ie-ib+1
                 jb = 0 ; je = 0 ; nby = 1
@@ -548,28 +548,28 @@ class pload(object):
 
     
     def DataScan(self, fp, n1, n2, n3, endian, dtype, off=None):
-	     
-#        Scans the data files in all formats. 
-#        
-#        **Inputs**:
-#          
-#        fp -- Data file pointer\n
-#        n1 -- No. of points in X1 direction\n
-#        n2 -- No. of points in X2 direction\n
-#        n3 -- No. of points in X3 direction\n
-#        endian -- Endianess of the data\n
-#        dtype -- datatype, eg : double, float, vtk, hdf5\n
-#        off -- offset (for avoiding staggered B fields) 
-#	 
-#        **Output**:
-#        
-#        Dictionary consisting of variable names as keys and its values. 
+	""" Scans the data files in all formats. 
         
+        **Inputs**:
+          
+          fp -- Data file pointer\n
+          n1 -- No. of points in X1 direction\n
+          n2 -- No. of points in X2 direction\n
+          n3 -- No. of points in X3 direction\n
+          endian -- Endianess of the data\n
+          dtype -- datatype, eg : double, float, vtk, hdf5\n
+          off -- offset (for avoiding staggered B fields) 
+	 
+        **Output**:
+         
+          Dictionary consisting of variable names as keys and its values. 
+
+	"""
         if off is not None:
             off_fmt = endian+str(off)+dtype
             nboff = np.dtype(off_fmt).itemsize
             fp.read(nboff)
-        
+
         n1_tot = self.n1_tot ; n2_tot = self.n2_tot; n3_tot = self.n3_tot
 
         A = array.array(dtype)
@@ -588,7 +588,7 @@ class pload(object):
         else:
             darr = np.frombuffer(A,dtype=np.dtype(fmt))
         
-    return np.reshape(darr[0],self.nshp).transpose()
+        return np.reshape(darr[0],self.nshp).transpose()
 
     def ReadSingleFile(self, datafilename, myvars, n1, n2, n3, endian,
                        dtype, ddict):
@@ -615,7 +615,7 @@ class pload(object):
         else:
             fp = open(datafilename, "rb")
         
-        print("Reading Data file : %s"%datafilename)
+        print "Reading Data file : %s"%datafilename
         
         if self.datatype == 'vtk':
             vtkd = self.DataScanVTK(fp, n1, n2, n3, endian, dtype)
@@ -732,227 +732,235 @@ class pload(object):
             self.ReadMultipleFiles(nstr, dataext, self.vars, self.n1, self.n2,
                                    self.n3, endian, dtype, ddict)
         else:
-            print("Wrong file type : CHECK pluto.ini for file type.")
-            print("Only supported are .dbl, .flt, .vtk, .hdf5")
+            print "Wrong file type : CHECK pluto.ini for file type."
+            print "Only supported are .dbl, .flt, .vtk, .hdf5"
             sys.exit()
 
         return ddict
       
 
 class Tools(object):
-#	"""
-#	
-#	This Class has all the functions doing basic mathematical
-#	operations to the vector or scalar fields.
-#	It is called after pyPLUTO.pload object is defined.
-#	
-#	"""
-    
-    def deriv(self,Y,X=None):
-#		"""
-#		Calculates the derivative of Y with respect to X.
-#
-#		**Inputs:**
-#
-#		  Y : 1-D array to be differentiated.\n
-#		  X : 1-D array with len(X) = len(Y).\n
-#
-#		  If X is not specified then by default X is chosen to be an equally spaced array having same number of elements
-#		  as Y.
-#
-#                **Outputs:**
-#
-#                  This returns an 1-D array having the same no. of elements as Y (or X) and contains the values of dY/dX.
-#		
-#		"""
-        n = len(Y)
-        n2 = n-2
-        if X==None : X = np.arange(n)
-        Xarr = np.asarray(X,dtype='float')
-        Yarr = np.asarray(Y,dtype='float')
-        x12 = Xarr - np.roll(Xarr,-1)   #x1 - x2
-        x01 = np.roll(Xarr,1) - Xarr    #x0 - x1
-        x02 = np.roll(Xarr,1) - np.roll(Xarr,-1) #x0 - x2
-        DfDx = np.roll(Yarr,1) * (x12 / (x01*x02)) + Yarr * (1./x12 - 1./x01) - np.roll(Yarr,-1) * (x01 / (x02 * x12))
-        # Formulae for the first and last points:
-        
-        DfDx[0] = Yarr[0] * (x01[1]+x02[1])/(x01[1]*x02[1]) - Yarr[1] * x02[1]/(x01[1]*x12[1]) + Yarr[2] * x01[1]/(x02[1]*x12[1])
-        DfDx[n-1] = -Yarr[n-3] * x12[n2]/(x01[n2]*x02[n2]) + Yarr[n-2]*x02[n2]/(x01[n2]*x12[n2]) - Yarr[n-1]*(x02[n2]+x12[n2])/(x02[n2]*x12[n2])
-        
-        return DfDx
-    
-    def Grad(self,phi,x1,x2,dx1,dx2,polar=False):
-#		""" This method calculates the gradient of the 2D scalar phi.
-#
-#                **Inputs:**
-#
-#                  phi -- 2D scalar whose gradient is to be determined.\n
-#		  x1 -- The 'x' array\n
-#		  x2 -- The 'y' array\n
-#                  dx1 -- The grid spacing in 'x' direction.\n
-#                  dx2 -- The grid spacing in 'y' direction.\n
-#                  polar -- The keyword should be set to True inorder to estimate the Gradient in polar co-ordinates. By default it is set to False.
-#                
-#		**Outputs:**
-#
-#                  This routine outputs a 3D array with shape = (len(x1),len(x2),2), such that [:,:,0] element corresponds to the gradient values of phi wrt to x1 and [:,:,1] are the gradient values of phi wrt to x2.
-# 
-#		"""
-        (n1, n2) = phi.shape 
-        grad_phi = np.zeros(shape=(n1,n2,2))
-        h2 = np.ones(shape=(n1,n2))
-        if polar == True:
-            for j in range(n2):
-                h2[:,j] = x1
-        
-        for i in range(n1):
-            scrh1 = phi[i,:]
-            grad_phi[i,:,1] = self.deriv(scrh1,x2)/h2[i,:]
-        for j in range(n2):
-            scrh2 = phi[:,j]
-            grad_phi[:,j,0] = self.deriv(scrh2,x1)
-        
-        return grad_phi
-    
-    def Div(self,u1,u2,x1,x2,dx1,dx2,geometry=None):
-#		""" This method calculates the divergence of the 2D vector fields u1 and u2.
-#
-#                **Inputs:**
-#
-#                  u1 -- 2D vector along x1 whose divergence is to be determined.\n
-#                  u2 -- 2D vector along x2 whose divergence is to be determined.\n
-#		  x1 -- The 'x' array\n
-#		  x2 -- The 'y' array\n
-#                  dx1 -- The grid spacing in 'x' direction.\n
-#                  dx2 -- The grid spacing in 'y' direction.\n
-#                  geometry -- The keyword *geometry* is by default set to 'cartesian'. It can be set to either one of the following : *cartesian*, *cylindrical*, *spherical* or *polar*. To calculate the divergence of the vector fields, respective geometric corrections are taken into account based on the value of this keyword.
-#
-#                **Outputs:**
-#
-#		  A 2D array with same shape as u1(or u2) having the values of divergence.
-#
-#		"""
-        (n1, n2) = u1.shape
-        Divergence = np.zeros(shape=(n1,n2))
-        du1 = np.zeros(shape=(n1,n2))
-        du2 = np.zeros(shape=(n1,n2))
-        
-        A1 = np.zeros(shape=n1)
-        A2 = np.zeros(shape=n2)
-        
-        dV1 = np.zeros(shape=(n1,n2))
-        dV2 = np.zeros(shape=(n1,n2))
-        if geometry == None : geometry = 'cartesian'
-#		#------------------------------------------------
-#		#  define area and volume elements for the
-#		#  different coordinate systems
-#		#------------------------------------------------
-        
-        if geometry == 'cartesian' :
-            A1[:] = 1.0
-            A2[:] = 1.0
-            dV1   = np.outer(dx1,A2)
-            dV2   = np.outer(A1,dx2)
-        
-        if geometry == 'cylindrical' :
-            A1 = x1
-            A2[:] = 1.0
-            dV1 = np.meshgrid(x1*dx1,A2)[0].T*np.meshgrid(x1*dx1,A2)[1].T
-            for i in range(n1) : dV2[i,:] = dx2[:]
+	"""
+	
+	This Class has all the functions doing basic mathematical
+	operations to the vector or scalar fields.
+	It is called after pyPLUTO.pload object is defined.
+	
+	"""
+
+	def deriv(self,Y,X=None):
+		"""
+		Calculates the derivative of Y with respect to X.
+
+		**Inputs:**
+
+		  Y : 1-D array to be differentiated.\n
+		  X : 1-D array with len(X) = len(Y).\n
+
+		  If X is not specified then by default X is chosen to be an equally spaced array having same number of elements
+		  as Y.
+
+                **Outputs:**
+
+                  This returns an 1-D array having the same no. of elements as Y (or X) and contains the values of dY/dX.
 		
-        if geometry == 'polar' :
-            A1    = x1
-            A2[:] = 1.0
-            dV1   = np.meshgrid(x1,A2)[0].T*np.meshgrid(x1,A2)[1].T
-            dV2   = np.meshgrid(x1,dx2)[0].T*np.meshgrid(x1,dx2)[1].T
-        
-        if geometry == 'spherical' :
-            A1 = x1*x1
-            A2 = np.sin(x2)
-            for j in range(n2): dV1[:,j] = A1*dx1
-            dV2   = np.meshgrid(x1,np.sin(x2)*dx2)[0].T*np.meshgrid(x1,np.sin(x2)*dx2)[1].T
-            
-        # ------------------------------------------------
-        #              Make divergence
-        # ------------------------------------------------
-        
-        for i in range(1,n1-1):
-            du1[i,:] = 0.5*(A1[i+1]*u1[i+1,:] - A1[i-1]*u1[i-1,:])/dV1[i,:]
-            for j in range(1,n2-1):
-                du2[:,j] = 0.5*(A2[j+1]*u2[:,j+1] - A2[j-1]*u2[:,j-1])/dV2[:,j]
-        Divergence = du1 + du2
-        return Divergence
-    
-    
-    def RTh2Cyl(self,R,Th,X1,X2):
-#		""" This method does the transformation from spherical coordinates to cylindrical ones.
-#		
-#                **Inputs:**
-#
-#                  R - 2D array of spherical radius coordinates.\n
-#	          Th - 2D array of spherical theta-angle coordinates.\n
-#		  X1 - 2D array of radial component of given vector\n
-#		  X2 - 2D array of thetoidal component of given vector\n
-#                
-#		**Outputs:**
-#
-#                  This routine outputs two 2D arrays after transformation.
-#				  
-#                **Usage:**
-#
-#                  ``import pyPLUTO as pp``\n
-#		  ``import numpy as np``\n
-#                  ``D = pp.pload(0)``\n
-#		  ``ppt=pp.Tools()``\n
-#                  ``TH,R=np.meshgrid(D.x2,D.x1)``\n
-#		  ``Br,Bz=ppt.RTh2Cyl(R,TH,D.bx1,D.bx2)``
-#
-#                D.bx1 and D.bx2 should be vectors in spherical coordinates. After transformation (Br,Bz) corresponds to vector in cilindrical coordinates.
-#        """
-        Y1=X1*np.sin(Th)+X2*np.cos(Th)
-        Y2=X1*np.cos(Th)-X2*np.sin(Th)
-        return Y1,Y2
-    
-    
-    def myInterpol(self,RR,N):
-#		""" This method interpolates (linear interpolation) vector 1D vector RR to 1D N-length vector. Useful for stretched grid calculations. 
-#		
-#                **Inputs:**
-#
-#                  RR - 1D array to interpolate.\n
-#		  N  - Number of grids to interpolate to.\n
-#				  
-#		**Outputs:**
-#
-#                  This routine outputs interpolated 1D array to the new grid (len=N).
-#				  
-#                **Usage:**
-#
-#                  ``import pyPLUTO as pp``\n
-#		  ``import numpy as np``\n
-#                  ``D = pp.pload(0)``\n
-#		  ``ppt=pp.Tools()``\n
-#                  ``x=linspace(0,1,10) #len(x)=10``\n
-#		  ``y=x*x``\n
-#		  ``Ri,Ni=ppt.myInterpol(y,100) #len(Ri)=100``
-#
-#                  Ri - interpolated numbers;
-#		  Ni - grid for Ri
-# 
-#        """	
-        
-        NN=np.linspace(0,len(RR)-1,len(RR))
-        spline_fit=UnivariateSpline(RR,NN,k=3,s=0)
-        
-        RRi=np.linspace(RR[0],RR[-1],N)
-        NNi=spline_fit(RRi)
-        NNi[0]=NN[0]+0.00001
-        NNi[-1]=NN[-1]-0.00001
-        return RRi,NNi
-    
-    
-    def getUniformGrid(self,r,th,rho,Nr,Nth):
-        """ This method transforms data with non-uniform grid (stretched) to uniform. Useful for stretched grid calculations. 
+		"""
+		n = len(Y)
+		n2 = n-2
+		if X==None : X = np.arange(n)
+		Xarr = np.asarray(X,dtype='float')
+		Yarr = np.asarray(Y,dtype='float')
+		x12 = Xarr - np.roll(Xarr,-1)   #x1 - x2
+		x01 = np.roll(Xarr,1) - Xarr    #x0 - x1
+		x02 = np.roll(Xarr,1) - np.roll(Xarr,-1) #x0 - x2
+		DfDx = np.roll(Yarr,1) * (x12 / (x01*x02)) + Yarr * (1./x12 - 1./x01) - np.roll(Yarr,-1) * (x01 / (x02 * x12))
+		# Formulae for the first and last points:
+
+		DfDx[0] = Yarr[0] * (x01[1]+x02[1])/(x01[1]*x02[1]) - Yarr[1] * x02[1]/(x01[1]*x12[1]) + Yarr[2] * x01[1]/(x02[1]*x12[1])
+		DfDx[n-1] = -Yarr[n-3] * x12[n2]/(x01[n2]*x02[n2]) + Yarr[n-2]*x02[n2]/(x01[n2]*x12[n2]) - Yarr[n-1]*(x02[n2]+x12[n2])/(x02[n2]*x12[n2])
+
+		return DfDx
+	
+	def Grad(self,phi,x1,x2,dx1,dx2,polar=False):
+		""" This method calculates the gradient of the 2D scalar phi.
+
+                **Inputs:**
+
+                  phi -- 2D scalar whose gradient is to be determined.\n
+		  x1 -- The 'x' array\n
+		  x2 -- The 'y' array\n
+                  dx1 -- The grid spacing in 'x' direction.\n
+                  dx2 -- The grid spacing in 'y' direction.\n
+                  polar -- The keyword should be set to True inorder to estimate the Gradient in polar co-ordinates. By default it is set to False.
+                
+		**Outputs:**
+
+                  This routine outputs a 3D array with shape = (len(x1),len(x2),2), such that [:,:,0] element corresponds to the gradient values of phi wrt to x1 and [:,:,1] are the gradient values of phi wrt to x2.
+ 
+		"""
+		(n1, n2) = phi.shape 
+		grad_phi = np.zeros(shape=(n1,n2,2))
+		h2 = np.ones(shape=(n1,n2))
+		if polar == True:
+			for j in range(n2):
+				h2[:,j] = x1
+		
+		for i in range(n1):
+			scrh1 = phi[i,:]
+			grad_phi[i,:,1] = self.deriv(scrh1,x2)/h2[i,:]
+		for j in range(n2):
+			scrh2 = phi[:,j]
+			grad_phi[:,j,0] = self.deriv(scrh2,x1)
+
+		return grad_phi
+
+	def Div(self,u1,u2,x1,x2,dx1,dx2,geometry=None):
+		""" This method calculates the divergence of the 2D vector fields u1 and u2.
+
+                **Inputs:**
+
+                  u1 -- 2D vector along x1 whose divergence is to be determined.\n
+                  u2 -- 2D vector along x2 whose divergence is to be determined.\n
+		  x1 -- The 'x' array\n
+		  x2 -- The 'y' array\n
+                  dx1 -- The grid spacing in 'x' direction.\n
+                  dx2 -- The grid spacing in 'y' direction.\n
+                  geometry -- The keyword *geometry* is by default set to 'cartesian'. It can be set to either one of the following : *cartesian*, *cylindrical*, *spherical* or *polar*. To calculate the divergence of the vector fields, respective geometric corrections are taken into account based on the value of this keyword.
+
+                **Outputs:**
+
+		  A 2D array with same shape as u1(or u2) having the values of divergence.
+
+		"""
+		(n1, n2) = u1.shape
+		Divergence = np.zeros(shape=(n1,n2))
+		du1 = np.zeros(shape=(n1,n2))
+		du2 = np.zeros(shape=(n1,n2))
+
+		A1 = np.zeros(shape=n1)
+		A2 = np.zeros(shape=n2)
+
+		dV1 = np.zeros(shape=(n1,n2))
+		dV2 = np.zeros(shape=(n1,n2))
+
+		if geometry == None : geometry = 'cartesian'
+		
+		#------------------------------------------------
+		#  define area and volume elements for the
+		#  different coordinate systems
+		#------------------------------------------------
+
+		if geometry == 'cartesian' :
+			A1[:] = 1.0
+			A2[:] = 1.0
+			dV1   = np.outer(dx1,A2)
+			dV2   = np.outer(A1,dx2)
+
+		if geometry == 'cylindrical' :
+			A1 = x1
+			A2[:] = 1.0
+			dV1 = np.meshgrid(x1*dx1,A2)[0].T*np.meshgrid(x1*dx1,A2)[1].T
+			for i in range(n1) : dV2[i,:] = dx2[:]
+		
+		if geometry == 'polar' :
+			A1    = x1
+			A2[:] = 1.0
+			dV1   = np.meshgrid(x1,A2)[0].T*np.meshgrid(x1,A2)[1].T
+			dV2   = np.meshgrid(x1,dx2)[0].T*np.meshgrid(x1,dx2)[1].T
+
+		if geometry == 'spherical' :
+			A1 = x1*x1
+			A2 = np.sin(x2)
+			for j in range(n2): dV1[:,j] = A1*dx1
+			dV2   = np.meshgrid(x1,np.sin(x2)*dx2)[0].T*np.meshgrid(x1,np.sin(x2)*dx2)[1].T
+
+		# ------------------------------------------------
+		#              Make divergence
+		# ------------------------------------------------
+		
+		
+		for i in range(1,n1-1):
+			du1[i,:] = 0.5*(A1[i+1]*u1[i+1,:] - A1[i-1]*u1[i-1,:])/dV1[i,:]
+		for j in range(1,n2-1):
+			du2[:,j] = 0.5*(A2[j+1]*u2[:,j+1] - A2[j-1]*u2[:,j-1])/dV2[:,j]
+
+		Divergence = du1 + du2
+		return Divergence
+
+
+
+	def RTh2Cyl(self,R,Th,X1,X2):
+		""" This method does the transformation from spherical coordinates to cylindrical ones.
+		
+                **Inputs:**
+
+                  R - 2D array of spherical radius coordinates.\n
+	          Th - 2D array of spherical theta-angle coordinates.\n
+		  X1 - 2D array of radial component of given vector\n
+		  X2 - 2D array of thetoidal component of given vector\n
+                
+		**Outputs:**
+
+                  This routine outputs two 2D arrays after transformation.
+				  
+                **Usage:**
+
+                  ``import pyPLUTO as pp``\n
+		  ``import numpy as np``\n
+                  ``D = pp.pload(0)``\n
+		  ``ppt=pp.Tools()``\n
+                  ``TH,R=np.meshgrid(D.x2,D.x1)``\n
+		  ``Br,Bz=ppt.RTh2Cyl(R,TH,D.bx1,D.bx2)``
+
+                D.bx1 and D.bx2 should be vectors in spherical coordinates. After transformation (Br,Bz) corresponds to vector in cilindrical coordinates.
+
+ 
+		"""
+		Y1=X1*np.sin(Th)+X2*np.cos(Th)
+		Y2=X1*np.cos(Th)-X2*np.sin(Th)
+		return Y1,Y2
+
+
+
+
+	def myInterpol(self,RR,N):
+		""" This method interpolates (linear interpolation) vector 1D vector RR to 1D N-length vector. Useful for stretched grid calculations. 
+		
+                **Inputs:**
+
+                  RR - 1D array to interpolate.\n
+		  N  - Number of grids to interpolate to.\n
+				  
+		**Outputs:**
+
+                  This routine outputs interpolated 1D array to the new grid (len=N).
+				  
+                **Usage:**
+
+                  ``import pyPLUTO as pp``\n
+		  ``import numpy as np``\n
+                  ``D = pp.pload(0)``\n
+		  ``ppt=pp.Tools()``\n
+                  ``x=linspace(0,1,10) #len(x)=10``\n
+		  ``y=x*x``\n
+		  ``Ri,Ni=ppt.myInterpol(y,100) #len(Ri)=100``
+
+                  Ri - interpolated numbers;
+		  Ni - grid for Ri
+ 
+		"""	
+		
+		NN=np.linspace(0,len(RR)-1,len(RR))
+		spline_fit=UnivariateSpline(RR,NN,k=3,s=0)
+		
+		RRi=np.linspace(RR[0],RR[-1],N)
+		NNi=spline_fit(RRi)
+		NNi[0]=NN[0]+0.00001
+		NNi[-1]=NN[-1]-0.00001
+		return RRi,NNi
+		
+	def getUniformGrid(self,r,th,rho,Nr,Nth):
+		""" This method transforms data with non-uniform grid (stretched) to uniform. Useful for stretched grid calculations. 
 		
                 **Inputs:**
 
@@ -978,25 +986,25 @@ class Tools(object):
 		  X2new - X2 interpolated grid len(X2new)=30
 		  res   - 2D array of interpolated variable
  
-        """	
+		"""	
 
-        Ri,NRi=self.myInterpol(r,Nr)
-        Ra=np.int32(NRi);Wr=NRi-Ra
-        YY=np.ones([Nr,len(th)])
-        for i in range(len(th)):
-              YY[:,i]=(1-Wr)*rho[Ra,i] + Wr*rho[Ra+1,i]
-        
-        THi,NTHi=self.myInterpol(th,Nth)
-        THa=np.int32(NTHi);Wth=NTHi-THa
-        
-        ZZ=np.ones([Nr,Nth])
-        for i in range(Nr):
-              ZZ[i,:]=(1-Wth)*YY[i,THa] + Wth*YY[i,THa+1]
-        
-        return Ri,THi,ZZ
-    
-    
-    def sph2cyl(self,D,Dx,rphi=None,theta0=None):
+		Ri,NRi=self.myInterpol(r,Nr)
+		Ra=np.int32(NRi);Wr=NRi-Ra
+
+		YY=np.ones([Nr,len(th)])
+		for i in range(len(th)):
+		      YY[:,i]=(1-Wr)*rho[Ra,i] + Wr*rho[Ra+1,i]
+
+		THi,NTHi=self.myInterpol(th,Nth)
+		THa=np.int32(NTHi);Wth=NTHi-THa
+
+		ZZ=np.ones([Nr,Nth])
+		for i in range(Nr):
+		      ZZ[i,:]=(1-Wth)*YY[i,THa] + Wth*YY[i,THa+1]
+
+		return Ri,THi,ZZ
+	
+        def sph2cyl(self,D,Dx,rphi=None,theta0=None):
 		""" This method transforms spherical data into cylindrical applying interpolation. Works for stretched grid as well, transforms poloidal (R-Theta) data by default. Fix theta and set rphi=True to get (R-Phi) transformation.
 				
                 **Inputs:**
@@ -1158,9 +1166,9 @@ class Tools(object):
 	    old = np.array( a.shape )
 	    ndims = len( a.shape )
 	    if len( newdims ) != ndims:
-		print("[congrid] dimensions error. " \
+		print "[congrid] dimensions error. " \
 		      "This routine currently only support " \
-		      "rebinning to the same number of dimensions.")
+		      "rebinning to the same number of dimensions."
 		return None
 	    newdims = np.asarray( newdims, dtype=float )
 	    dimlist = []
@@ -1187,7 +1195,7 @@ class Tools(object):
 		mint = scipy.interpolate.interp1d( olddims[-1], a, kind=method )
 		newa = mint( dimlist[-1] )
 
-		trorder = [ndims - 1] + list(range( ndims - 1))
+		trorder = [ndims - 1] + range( ndims - 1 )
 		for i in range( ndims - 2, -1, -1 ):
 		    newa = newa.transpose( trorder )
 
@@ -1205,7 +1213,7 @@ class Tools(object):
 		nslices = [ slice(0,j) for j in list(newdims) ]
 		newcoords = np.mgrid[nslices]
 
-		newcoords_dims = list(range(n.rank(newcoords)))
+		newcoords_dims = range(n.rank(newcoords))
 		#make first index last
 		newcoords_dims.append(newcoords_dims.pop(0))
 		newcoords_tr = newcoords.transpose(newcoords_dims)
@@ -1221,9 +1229,9 @@ class Tools(object):
 		newa = scipy.ndimage.map_coordinates(a, newcoords)
 		return newa
 	    else:
-		print("Congrid error: Unrecognized interpolation type.\n", \
+		print "Congrid error: Unrecognized interpolation type.\n", \
 		      "Currently only \'neighbour\', \'nearest\',\'linear\',", \
-		      "and \'spline\' are supported.")
+		      "and \'spline\' are supported."
 		return None
 
 
@@ -1330,7 +1338,7 @@ class Image(object):
             if (dictcbar[0] == True) and (dictcbar[2] =='each'):
                 colorbar(orientation=kwargs.get('cbar')[1])
             if dictcbar[0] == True and dictcbar[2]=='last':
-                if (j == np.max(list(range(mprod)))):colorbar(orientation=kwargs.get('cbar')[1])
+                if (j == np.max(range(mprod))):colorbar(orientation=kwargs.get('cbar')[1])
          
     def oplotbox(self, AMRLevel, lrange=[0,0], cval=['b','r','g','m','w','k'],\
                      islice=-1, jslice=-1, kslice=-1,geom='CARTESIAN'):
@@ -1530,7 +1538,7 @@ class Image(object):
           ``I.myfieldlines(D,x0arr,y0arr,colors='k',ls='--',lw=1.0)``
         """
 	       
-        if len(x0arr) != len(y0arr) : print("Input Arrays should have same size")
+        if len(x0arr) != len(y0arr) : print "Input Arrays should have same size"
         QxList=[]
         QyList=[]
         StreamFunction = []
@@ -1591,7 +1599,7 @@ class Image(object):
                     allvars.append('v1c')
                     allvars.append('v3c')
             else:
-                print("No x3 plane for 2D data")
+                print "No x3 plane for 2D data"
         else:
             R,TH = np.meshgrid(Data.x1,Data.x2)
             if Data.n3 != 1:
@@ -1655,7 +1663,7 @@ class Image(object):
         elif ang_coord is D.x3:
             x2r = D.x3r
         else:
-            print("Angular co-ordinate must be given")
+            print "Angular co-ordinate must be given"
             
         rcos = np.outer(np.cos(x2r), D.x1r)
         rsin = np.outer(np.sin(x2r), D.x1r)        
