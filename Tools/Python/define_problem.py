@@ -203,11 +203,11 @@ class DefineProblem(object):
         if (os.path.exists(self.work_dir+'/definitions.h')):
             pf = pfIO.PlutoFiles(self.work_dir+'/definitions.h')
             pf.UpdateListFromFile(Ents, Defs)
-        for i in range(len(Ents)):
-            if Defs[i] not in Opts[i]:
-                Defs[i] = Opts[i][0]
-            else:
-                pass
+            for i in range(len(Ents)):
+                if Defs[i] not in Opts[i]:
+                    Defs[i] = Opts[i][0]
+                else:
+                    pass
 
         # Provides Browsing options using the menu file in case of no automatic update flag.
         if self.auto_update == 0:
