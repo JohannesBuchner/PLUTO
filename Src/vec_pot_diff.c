@@ -35,6 +35,13 @@
     B_\phi   =   \frac{1}{r}\pd{(rA_\theta)}{r}                  
                - \frac{1}{r}\pd{A_r}{\theta}
     \f]
+
+  For staggered MHD the convention is the following:
+  
+  - <tt> Ax1[i,j,k] --> Ax1(0++) </tt> \f$= A_{x_1, i, j+\HALF, k+\HALF}\f$
+  - <tt> Ax2[i,j,k] --> Ax2(+0+) </tt> \f$= A_{x_2, i+\HALF, j, k+\HALF}\f$
+  - <tt> Ax3[i,j,k] --> Ax3(++0) </tt> \f$= A_{x_3, i+\HALF, j+\HALF, k}\f$
+
  
   For cell-centered MHD vector potential is compute at the cell-center.
   In the case of staggered MHD, the position of A is edge-centered and
@@ -61,22 +68,22 @@
   \endverbatim
  
  
-  \authors A. Mignone (mignone@ph.unito.it)\n
-           P. Tzeferacos (petros.tzeferacos@ph.unito.it)
-  \date   Sep 24, 2012
+  \last change  D. Mukherjee, A. Mignone (dipanjan.mukherjee@unito.it) \n
+  \date         May 21, 2018
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
 #if PHYSICS == MHD || PHYSICS == RMHD
 /* ********************************************************************* */
-void VectorPotentialDiff (double *b, int i, int j, int k, Grid *grid)
+void VectorPotentialDiff (double *b, Data *d, int i, int j, int k, Grid *grid)
 /*!
  * Assign face- or cell-centered magnetic field by differentiating
  * the vector potential.
  *
- * \param [out] b  array of magnetic field starting at 0, 
- *               \f$ B_{x_1} = b[0]\,, B_{x_2} = b[1]\,, B_{x_3} = b[2] \f$
+ * \param [out]    b  array of magnetic field starting at 0, 
+ *                 \f$ B_{x_1} = b[0]\,, B_{x_2} = b[1]\,, B_{x_3} = b[2] \f$
+ * \param [in/out] Data structure                
  * \param [in]  i  the cell index in the first coordinate direction
  * \param [in]  j  the cell index in the first coordinate direction
  * \param [in]  k  the cell index in the first coordinate direction
@@ -84,211 +91,200 @@ void VectorPotentialDiff (double *b, int i, int j, int k, Grid *grid)
  *
  *********************************************************************** */
 {
-  int    l_convert;
-  double dx1, x1, x1p, x1m;
-  double dx2, x2, x2p, x2m;
-  double dx3, x3, x3p, x3m;
+  double dx1,dx2,dx3;
+  double x1,x2,x3;
+  double x1p,x2p,x3p;
+  double x1m,x2m,x3m;
+  double x1f, x2f, x3f; 
   double bx, by, bz, br, bphi, bth;
-  double us_p[256], us_m[256];
-  double r_2;
-  double x1f, x2f, x3f; /* point at which magnetic field is desired */
 
-  x1 = grid[IDIR].x[i]; 
-  x2 = grid[JDIR].x[j]; 
-  x3 = grid[KDIR].x[k]; 
+  double ***A1, ***A2, ***A3;
+  double A1_x2p, A1_x3p;
+  double A1_x2m, A1_x3m;
+  double A2_x1p, A2_x3p;
+  double A2_x1m, A2_x3m;
+  double A3_x1p, A3_x2p;
+  double A3_x1m, A3_x2m;
 
-  dx1 = grid[IDIR].dx[i];
-  dx2 = grid[JDIR].dx[j];
-  dx3 = grid[KDIR].dx[k];
+  x1  = grid->x[IDIR][i]; 
+  x2  = grid->x[JDIR][j]; 
+  x3  = grid->x[KDIR][k];
+ 
+  dx1 = grid->dx[IDIR][i];
+  dx2 = grid->dx[JDIR][j];
+  dx3 = grid->dx[KDIR][k];
 
-  #ifdef STAGGERED_MHD   
-   x1p = grid[IDIR].xr[i]; x1m = grid[IDIR].xl[i];
-   x2p = grid[JDIR].xr[j]; x2m = grid[JDIR].xl[j];
-   x3p = grid[KDIR].xr[k]; x3m = grid[KDIR].xl[k];
-   x1f = grid[IDIR].xr[i]; /* for staggered MHD, we compute magnetic */
-   x2f = grid[JDIR].xr[j]; /* field at face centers                  */
-   x3f = grid[KDIR].xr[k];
-   
-  #else
-   x1p = grid[IDIR].x[i] + dx1; x1m = grid[IDIR].x[i] - dx1;
-   x2p = grid[JDIR].x[j] + dx2; x2m = grid[JDIR].x[j] - dx2;
-   x3p = grid[KDIR].x[k] + dx3; x3m = grid[KDIR].x[k] - dx3;
-   x1f = grid[IDIR].x[i]; /* for cell-centered MHD, we compute magnetic */
-   x2f = grid[JDIR].x[j]; /* field at cell-centers                      */
-   x3f = grid[KDIR].x[k];
-   
-   dx1 = 2.*grid[IDIR].dx[i]; /* redefine the spacing between cell-centers */
-   dx2 = 2.*grid[JDIR].dx[j];
-   dx3 = 2.*grid[KDIR].dx[k];
+/* -- Define pointers to A[] -- */
+  A1 = d->Ax1;  A2 = d->Ax2; A3 = d->Ax3; 
+
+
+  x1p = grid->xr[IDIR][i]; x1m = grid->xl[IDIR][i];
+  x2p = grid->xr[JDIR][j]; x2m = grid->xl[JDIR][j];
+  x3p = grid->xr[KDIR][k]; x3m = grid->xl[KDIR][k];
+  x1f = grid->xr[IDIR][i]; /* for staggered MHD, we compute magnetic */
+  x2f = grid->xr[JDIR][j]; /* field at face centers                  */
+  x3f = grid->xr[KDIR][k];
+  
+  A1_x2p = A1[k][j][i]; A1_x2m = A1[k][j-1][i];
+  A1_x3p = A1[k][j][i]; A1_x3m = A1[k-1][j][i];
+
+  A2_x1p = A2[k][j][i]; A2_x1m = A2[k][j][i-1];
+  A2_x3p = A2[k][j][i]; A2_x3m = A2[k-1][j][i];
+
+  A3_x1p = A3[k][j][i]; A3_x1m = A3[k][j][i-1];
+  A3_x2p = A3[k][j][i]; A3_x2m = A3[k][j-1][i];
+ 
+
+
+#if GEOMETRY == CARTESIAN
+/* -----------------------------------------------------
+    Compute Bx
+    - For cell centred: Bx = dely Az   - delz Ay
+    - For Staggered:    Bx =  (Az[++0] - Az[+-0])/dy
+                             -(Ay[+0+] - Ay[+0-])/dz
+   ----------------------------------------------------- */
+  bx = (A3_x2p - A3_x2m)/dx2;
+
+  #if DIMENSIONS == 3
+  bx -= (A2_x3p - A2_x3m)/dx3;
   #endif 
   
-  #if GEOMETRY == CARTESIAN
+/* -----------------------------------------------------
+    Compute By
+    - For cell centred: By = -delx Az  + delz Ax
+    - For Staggered:    By = -(Az[++0] - Az[-+0])/dx
+                             +(Ax[0++] - Ax[0+-])/dz
+   ----------------------------------------------------- */
+  by = -(A3_x1p - A3_x1m)/dx1;
+  #if DIMENSIONS == 3
+  by += (A1_x3p - A1_x3m)/dx3;
+  #endif 
 
-  /* ---- assign bx at i_f, j, k  ---- */
+/* -----------------------------------------------------
+    Compute Bz
+    - For cell centred: Bz =  delx Ay  - dely Ax
+    - For Staggered:    Bz =  (Ay[+0+] - Ay[-0+])/dx
+                             -(Ax[0++] - Ax[0-+])/dy
+   ----------------------------------------------------- */
+  bz =  (A2_x1p - A2_x1m)/dx1 - (A1_x2p - A1_x2m)/dx2;
 
-   Init (us_p, x1f, x2p, x3);
-   Init (us_m, x1f, x2m, x3);
+  b[0] = bx; b[1] = by; b[2] = bz;
 
-   bx = (us_p[AX3] - us_m[AX3])/dx2;
+#elif GEOMETRY == CYLINDRICAL  /* -- only 2D -- */
+/* -----------------------------------------------------
+   Compute Br   
+   - For cell centred: Br = - delz Aphi
 
-   #if DIMENSIONS == 3
-    Init (us_p, x1f, x2, x3p);
-    Init (us_m, x1f, x2, x3m);
+   Convention for  Components: 
+   - Field:      (Br, Bz)
+   - Potential:  (Ar, Az, -Aphi) = (AX1, AX2, AX3)
 
-    bx -= (us_p[AX2] - us_m[AX2])/dx3;
-   #endif
+   Note that A3 = -A_\phi since in cylindrical
+   coordinates (R,z) are not right-handed
+   -----------------------------------------------------*/
+   br = -(A3_x2p   - A3_x2m)/dx2;
 
-  /* ---- assign by at i, j_f, k  ---- */
+/* ----------------------------------------------------------
+   Compute Bz  
+   - For cell centred: Bz = 1/r delr (r*Aphi) 
+   - For Staggered:    Bz = (r+ A3[0,0] - r- A3[0,-])/(r dr)
+  -----------------------------------------------------------*/
+  bz =  (x1p*A3_x1p   - x1m*A3_x1m)/(x1*dx1);
 
-   Init (us_p, x1p, x2f, x3);
-   Init (us_m, x1m, x2f, x3);
+/* ----------------------------------------------
+    Compute Bphi  
+    - For cell centred: Bphi = delz Ar - delr Az  
+    - For Staggered:    Bphi = 0.
+   ----------------------------------------------*/
+  bphi = 0.0;
+  b[0] = br; b[1] = bz; b[2] = bphi;
 
-   by = -(us_p[AX3] - us_m[AX3])/dx1;
-
-   #if DIMENSIONS == 3
-    Init (us_p, x1, x2f, x3p);
-    Init (us_m, x1, x2f, x3m);
-   
-    by += (us_p[AX1] - us_m[AX1])/dx3;
-   #endif
-
-  /* ---- assign bz at i, j, k_f  ---- */
-
-   Init (us_p, x1p, x2, x3f);
-   Init (us_m, x1m, x2, x3f);
-   
-   bz = (us_p[AX2] - us_m[AX2])/dx1;
-
-   Init (us_p, x1, x2p, x3f);
-   Init (us_m, x1, x2m, x3f);
-   
-   bz -= (us_p[AX1] - us_m[AX1])/dx2;
-
-   b[0] = bx; b[1] = by; b[2] = bz;
-
-  #elif GEOMETRY == CYLINDRICAL  /* -- only 2D -- */
-  
-  /* ---- assign br at i_f, j, k  ---- */
-  
-   Init (us_p, x1f, x2p, x3);
-   Init (us_m, x1f, x2m, x3);
-   
-   br = - (us_p[AX3] - us_m[AX3])/dx2;
-
-  /* ---- assign bz at i, j_f, k  ---- */
-     
-   Init (us_p, x1p, x2f, x3);
-   Init (us_m, x1m, x2f, x3);
-   
-   bz = (x1p*us_p[AX3] - x1m*us_m[AX3])/(x1*dx1);
-
-  /* ---- assign bphi at i, j, k ---- */  /* -- Only non STAG-- */
-  
-   #ifdef STAGGERED_MHD   
-    bphi = 0.0;
-   #else
-    Init (us_p, x1, x2p, x3);
-    Init (us_m, x1, x2m, x3);
-    
-    bphi = (us_p[AX1] - us_m[AX1])/dx2;
-    
-    Init (us_p, x1p, x2, x3);
-    Init (us_m, x1m, x2, x3);
-    
-    bphi -= (us_p[AX2] - us_m[AX2])/dx1;
-   #endif
-   
-   b[0] = br; b[1] = bz; b[2] = bphi;
-
-  #elif GEOMETRY == POLAR 
-
-   /* ---- assign br at i_f, j, k ---- */
-
-   Init (us_p, x1f, x2p, x3);
-   Init (us_m, x1f, x2m, x3);
-   
-   br = (us_p[AX3] - us_m[AX3])/(x1f*dx2);
-
-   Init (us_p, x1f, x2, x3p);
-   Init (us_m, x1f, x2, x3m);
-
-   br -= (us_p[AX2] - us_m[AX2])/dx3;
-
-  /* ---- assign bphi at i, j_f, k  ---- */
-
-   Init (us_p, x1p, x2f, x3);
-   Init (us_m, x1m, x2f, x3);
-
-   bphi = -(us_p[AX3] - us_m[AX3])/dx1;
-     
-   #if DIMENSIONS == 3
-    Init (us_p, x1, x2f, x3p);
-    Init (us_m, x1, x2f, x3m);
-
-    bphi += (us_p[AX1] - us_m[AX1])/dx3;
-   #endif
-
-  /* ---- assign bz at i, j, k_f  ---- */
-
-   Init (us_p, x1p, x2, x3f);
-   Init (us_m, x1m, x2, x3f);
-
-   bz = (x1p*us_p[AX2] - x1m*us_m[AX2])/(x1*dx1);
-
-   Init (us_p, x1, x2p, x3f);
-   Init (us_m, x1, x2m, x3f);
-
-   bz -= (us_p[AX1] - us_m[AX1])/(x1*dx2);
-
-   b[0] = br; b[1] = bphi; b[2] = bz;
+#elif GEOMETRY == POLAR 
+/* ------------------------------------------------------------
+   Compute Br 
+     Convention for  Components: 
+    - Field:      (Br, Bphi, Bz)
+    - Potential:  (Ar, Aphi, Az)
  
-  #elif GEOMETRY == SPHERICAL
+    - For cell centred: Br =  1/r delphi Az - delz Aphi
+    - For Staggered:    Br =  (Az[++0]   - Az[+-0]  )/(r dphi)
+                             -(Aphi[+0+] - Aphi[+0-])/dz
+  --------------------------------------------------------------*/
+  br = (A3_x2p - A3_x2m)/(x1f*dx2);
 
-   /* ---- assign br at i_f, j, k ---- */
+  #if DIMENSIONS == 3
+  br -= (A2_x3p   - A2_x3m)/dx3;
+  #endif 
 
-   Init (us_p, x1f, x2p, x3);
-   Init (us_m, x1f, x2m, x3);
+/* -----------------------------------------------------------
+    Compute Bphi 
+    - For cell centred: Bphi = - delr Az + delz Ar
+    - For Staggered:    Bphi =  (Az[++0] - Az[-+0])/dr 
+		               -(Ar[0++] - Ar[0+-])/dz
+  -------------------------------------------------------------*/
+  bphi = -(A3_x1p   - A3_x1m)/dx1;
 
-   br = (sin(x2p)*us_p[AX3] - sin(x2m)*us_m[AX3])/(x1f*(cos(x2m) - cos(x2p)));
+  #if DIMENSIONS == 3
+  bphi += (A1_x3p - A1_x3m)/dx3;
+  #endif 
 
-   #if DIMENSIONS == 3
-    Init (us_p, x1f, x2, x3p);
-    Init (us_m, x1f, x2, x3m);
+/* ------------------------------------------------------------------
+   Compute Bz  
+    - For cell centred: Bz = 1/r( delr (r Aphi) - delphi Ar)
+    - For Staggered:    Bz = ((r+) Aphi[+0+] - (r-) Aphi[+0-])/(r dr)
+		            -(     Ar[0++]   -      Ar[0-+]  )/(r dphi) 
+   --------------------------------------------------------------------*/
+  bz =  (x1p*A2_x1p - x1m*A2_x1m)/(x1*dx1) - (A1_x2p - A1_x2m)/(x1*dx2);
+  b[0] = br; b[1] = bphi; b[2] = bz;
 
-    br -= 1.0/(x1f*sin(x2)*dx3)*(us_p[AX2] - us_m[AX2]);
-   #endif
-   
-  /* ---- assign btheta at i, j_f, k  ---- */
+#elif GEOMETRY == SPHERICAL
+/* ----------------------------------------------------------------------
+    Compute Br 
+     Convention for  Components: 
+    - Field:      (Br, Bth, Bphi)
+    - Potential:  (Ar, Ath, Aphi)
 
-   Init (us_p, x1p, x2f, x3);
-   Init (us_m, x1m, x2f, x3);
+    - For cell centred: 
+      Br = 1/(r sin_theta) (deltheta (sin_theta Aphi) - delphi Ath)
+	 =  (1/(-r del_costheta) (sin_theta Aphi)) 
+           -1/(r sin_theta) delphi Ath 
+    - For Staggered: 
+      Br = (sin(th+)Aphi[++0] - sin(th-)Aphi[+-0])/(r (cos(th-)-cos(th+)) ) 
+          -(Ath[+0+] - Ath[-0+])/(r sin(th) dphi)  
+   -------------------------------------------------------------------------*/
+  br = (A3_x2p*sin(x2p)   - A3_x2m*sin(x2m))/(x1f*(cos(x2m)-cos(x2p)));
 
-   bth = - (x1p*us_p[AX3] - x1m*us_m[AX3])/(x1*dx1);
+  #if DIMENSIONS == 3
+  br -= 1./(x1p*sin(x2)*dx3)*(A2_x3p - A2_x3m);
+  #endif 
 
-   #if DIMENSIONS == 3
-    Init (us_p, x1, x2f, x3p);
-    Init (us_m, x1, x2f, x3m);
-   
-    bth += (us_p[AX1] - us_m[AX1])/(x1*sin(x2f)*dx3);
-   #endif
+/* -------------------------------------------------------------
+   Compute Bth
+    - For cell centred: 
+      Bth = 1/(r) (-delr (r Aphi) +1/(sin_theta) delphi Ar)
+    - For Staggered: 
+      Bth = -( (r+) Aphi[++0] - (r-) Aphi[-+0])/(r dr)
+            +(Ar[0++] - Ar[0+-])/(r+ sin(th) dphi)
+   -------------------------------------------------------------*/
+  bth = -(x1p*A3_x1p   - x1m*A3_x1m)/(x1*dx1);
 
-  /* ---- assign bphi at i, j, k_f  ---- */
+  #if DIMENSIONS == 3
+  bth += 1./(x1p*sin(x2)*dx3)*(A1_x3p   - A1_x3m);
+  #endif 
 
-   bphi = 0.0;
+/* -------------------------------------------------------------
+    Compute Bphi
+    - For cell centred: 
+      Bphi = 1/(r) (delr (r Ath) - deltheta Ar)
+    - For Staggered:
+      Bphi = ((r+) Ath[+0+] - (r-) Ath[-0+])/(r dr)
+            -(Ar[0++] - Ar[0-+])/(r dth) 
+  -------------------------------------------------------------*/
+  bphi = (x1p*A2_x1p - x1m*A2_x1m)/(x1*dx1) - (A1_x2p     - A1_x2m)/(x1*dx2);
+  b[0] = br; b[1] = bth; b[2] = bphi;
 
-   Init (us_p, x1p, x2, x3f);
-   Init (us_m, x1m, x2, x3f);
-
-   bphi = (x1p*us_p[AX2] - x1m*us_m[AX2])/(x1*dx1);
- 
-   Init (us_p, x1, x2p, x3f);
-   Init (us_m, x1, x2m, x3f);
-
-   bphi -= (us_p[AX1] - us_m[AX1])/(x1*dx2);
-   
-   b[0] = br; b[1] = bth; b[2] = bphi;
-
-  #endif
+#endif /* GEOMETRY == SPHERICAL */
   
 }
 #endif /* PHYSICS == MHD || PHYSICS == RMHD */
+

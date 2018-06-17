@@ -124,6 +124,20 @@ void Init (double *us, double x1, double x2, double x3)
   us[VX2_D] = us[iVPHI];
 #endif
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 
@@ -143,9 +157,9 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
   double *x1, *x2, *x3, R, OmegaK, v[256];
   static int do_once = 1;
   
-  x1 = grid[IDIR].x;
-  x2 = grid[JDIR].x;
-  x3 = grid[KDIR].x;
+  x1 = grid->x[IDIR];
+  x2 = grid->x[JDIR];
+  x3 = grid->x[KDIR];
 
   #if DIMENSIONS == 3
   if (side == 0){

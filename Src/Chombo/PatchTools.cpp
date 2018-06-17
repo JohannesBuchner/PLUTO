@@ -20,160 +20,132 @@ using std::string;
 #include "LoHiSide.H"
 
 /* ********************************************************************* */
-void PatchPluto::saveFluxes (const State_1D *state, int beg, int end, 
-                             Grid *grid)
+void PatchPluto::saveFluxes (double **aflux, Grid *grid)
 /*! 
  *  Rebuild fluxes in a way suitable for AMR operation
- *  by adding pressure and multiplying by area.
+ *  by and multiplying by area.
  *
  *********************************************************************** */
 {
-  int  i, nv;
-  double **f, *p, r, area;
+  int   i, j, k, nv;
+  int   nxf, nyf, nzf;
+  int   nxb, nyb, nzb;
+  long int indf, ind1;
 
-  f = state->flux;
-  p = state->press;
+  RBox  fluxBox;
+  double A;
+  double mdx_dim = D_EXPAND(1.0, *m_dx, *m_dx);
+  double ***Ax1 = grid->A[IDIR], *x1 = grid->x[IDIR];
+  double ***Ax2 = grid->A[JDIR], *x2 = grid->x[JDIR];
+  double ***Ax3 = grid->A[KDIR], *x3 = grid->x[KDIR];
 
-  for (i = beg; i <= end; i++) f[i][MXn] += p[i];
+#if GEOMETRY == CARTESIAN
+  if (g_stretch_fact == 1.0) return;
+#endif
 
-  #if (GEOMETRY == CARTESIAN) && (CH_SPACEDIM > 1)
-    if ((g_dir == IDIR) && (g_stretch_fact != 1.)) {
-      for (i = beg; i <= end; i++) {
-        VAR_LOOP(nv) f[i][nv] *= g_stretch_fact;
-      }
+/* ------------------------------------------------------------
+   1. Compute flux*area for the X1 direction
+   ------------------------------------------------------------ */
+  g_dir = IDIR;
+  nxf = grid->np_int[IDIR] + (g_dir == IDIR);
+  nyf = grid->np_int[JDIR] + (g_dir == JDIR);
+  nzf = grid->np_int[KDIR] + (g_dir == KDIR);
+
+  nxb = grid->lbeg[IDIR] - (g_dir == IDIR);
+  nyb = grid->lbeg[JDIR] - (g_dir == JDIR);
+  nzb = grid->lbeg[KDIR] - (g_dir == KDIR);
+    
+  RBoxDefine (IBEG-1, IEND, JBEG, JEND, KBEG, KEND, CENTER, &fluxBox);
+
+  BOX_LOOP(&fluxBox,k,j,i){
+    ind1 = (k - nzb)*nyf*nxf + (j - nyb)*nxf + (i - nxb);
+    A = Ax1[k][j][i]/mdx_dim;
+
+    for (nv = 0; nv < NVAR; nv++){
+      indf = nv*nzf*nyf*nxf + ind1;
+      aflux[IDIR][indf] *= A;
     }
-   #if (CH_SPACEDIM == 3)
-    if ((g_dir == JDIR) && (g_x3stretch != 1.)) {
-      for (i = beg; i <= end; i++) {
-        VAR_LOOP(nv) f[i][nv] *= g_x3stretch;
-      }
+
+  /* -- Modify flux for angular momentum conservation -- */
+
+    #if GEOMETRY == POLAR && (COMPONENTS > 1) && (ENTROPY_SWITCH)
+    indf = (iMPHI)*nzf*nyf*nxf + ind1;
+    aflux[IDIR][indf] *= grid->xr[IDIR][i];
+    #elif (GEOMETRY == SPHERICAL) && (COMPONENTS == 3) && (ENTROPY_SWITCH)
+    indf = (iMPHI)*nzf*nyf*nxf + ind1;
+    aflux[IDIR][indf] *= grid->xr[IDIR][i]*sin(x2[j]);
+    #endif
+  }
+
+/* ------------------------------------------------------------
+   2. Compute flux*area for the X2 direction
+   ------------------------------------------------------------ */
+
+  g_dir = JDIR;
+  nxf = grid->np_int[IDIR] + (g_dir == IDIR);
+  nyf = grid->np_int[JDIR] + (g_dir == JDIR);
+  nzf = grid->np_int[KDIR] + (g_dir == KDIR);
+
+  nxb = grid->lbeg[IDIR] - (g_dir == IDIR);
+  nyb = grid->lbeg[JDIR] - (g_dir == JDIR);
+  nzb = grid->lbeg[KDIR] - (g_dir == KDIR);
+    
+  RBoxDefine (IBEG, IEND, JBEG-1, JEND, KBEG, KEND, CENTER, &fluxBox);
+
+  BOX_LOOP(&fluxBox,k,j,i){
+    ind1 = (k - nzb)*nyf*nxf + (j - nyb)*nxf + (i - nxb);
+
+    A = Ax2[k][j][i]/mdx_dim;
+    for (nv = 0; nv < NVAR; nv++){
+      indf = nv*nzf*nyf*nxf + ind1;
+      aflux[JDIR][indf] *= A;
     }
-    if ((g_dir == KDIR) && (g_x2stretch != 1.)) {
-      for (i = beg; i <= end; i++) {
-        VAR_LOOP(nv) f[i][nv] *= g_x2stretch;
-      }
-    }   
-   #endif
-  #endif
 
-  #if GEOMETRY == CYLINDRICAL
-   if (g_dir == IDIR){
-     for (i = beg; i <= end; i++) {
-     for (nv = 0; nv < NVAR; nv++) {
-       f[i][nv] *= grid[IDIR].A[i];
-       #if CH_SPACEDIM > 1
-        f[i][nv] *= g_x2stretch;
-       #endif
-     }}
-   }else{
-     area = fabs(grid[IDIR].x[g_i]);
-     for (i = beg; i <= end; i++) {
-     for (nv = 0; nv < NVAR; nv++) {
-       f[i][nv] *= area;
-     }}
-   }
-  #endif
+  /* -- Modify flux for angular momentum conservation -- */
 
-  #if GEOMETRY == SPHERICAL
-   if (g_dir == IDIR){
-    #if CH_SPACEDIM > 1
-     area = grid[JDIR].dV[g_j]/m_dx;
-     #if CH_SPACEDIM == 3
-      area *= g_x3stretch;
-     #endif 
+    #if GEOMETRY == POLAR && (COMPONENTS > 1) && (ENTROPY_SWITCH)
+    indf = (iMPHI)*nzf*nyf*nxf + ind1;
+    aflux[JDIR][indf] *= x1[i];
+    #elif (GEOMETRY == SPHERICAL) && (COMPONENTS == 3) && (ENTROPY_SWITCH)
+    indf = (iMPHI)*nzf*nyf*nxf + ind1;
+    aflux[JDIR][indf] *= x1[i]*sin(grid->xr[JDIR][j]);
     #endif
-     for (i = beg; i <= end; i++) {
-      for (nv = 0; nv < NVAR; nv++) {
-        f[i][nv] *= grid[IDIR].A[i];
-       #if CH_SPACEDIM > 1
-        f[i][nv] *= area;
-       #endif 
-      }
-      #if (COMPONENTS == 3) && (ENTROPY_SWITCH)
-       f[i][iMPHI] *= grid[IDIR].xr[i]*sin(grid[JDIR].x[g_j]);
-      #endif
-     }
-   }
-   if (g_dir == JDIR){
-     area = fabs(grid[IDIR].x[g_i]);
-     #if CHOMBO_LOGR == YES
-      area *= grid[IDIR].dx[g_i]/m_dx;
-     #endif
-     #if CH_SPACEDIM == 3
-      area *= g_x3stretch;
-     #endif
-     for (i = beg; i <= end; i++) {
-      for (nv = 0; nv < NVAR; nv++) {
-        f[i][nv] *= grid[JDIR].A[i]*area;
-      }
-      #if (COMPONENTS == 3) && (ENTROPY_SWITCH)
-       f[i][iMPHI] *= grid[IDIR].x[g_i]*sin(grid[JDIR].xr[i]);
-      #endif
-     }
-   }
-   if (g_dir == KDIR){
-     area = g_x2stretch*fabs(grid[IDIR].x[g_i]);
-    #if CHOMBO_LOGR == YES 
-     area *= grid[IDIR].dx[g_i]/m_dx;
-    #endif
-     for (i = beg; i <= end; i++) {
-      for (nv = 0; nv < NVAR; nv++) {
-        f[i][nv] *= area;
-      }
-      #if (COMPONENTS == 3) && (ENTROPY_SWITCH)
-       f[i][iMPHI] *= grid[IDIR].x[g_i]*sin(grid[JDIR].x[g_j]);
-      #endif
-     }
-   }
-  #endif
+  }
+  
+/* ------------------------------------------------------------
+   3. Compute flux*area for the X3 direction
+   ------------------------------------------------------------ */
 
-  #if GEOMETRY == POLAR
-   if (g_dir == IDIR){
-     for (i = beg; i <= end; i++) {
-      for (nv = 0; nv < NVAR; nv++) {
-        f[i][nv] *= grid[IDIR].A[i];
-       #if CH_SPACEDIM > 1
-        f[i][nv] *= g_x2stretch;
-       #endif
-       #if CH_SPACEDIM == 3
-        f[i][nv] *= g_x3stretch;
-       #endif
-      }
-      #if (COMPONENTS > 1) && (ENTROPY_SWITCH)
-       f[i][iMPHI] *= grid[IDIR].xr[i];
-      #endif
-     }
-   }
-   if (g_dir == JDIR) {
-     area = g_x3stretch;
-     #if CHOMBO_LOGR == YES
-      area *= grid[IDIR].dx[g_i]/m_dx;
-     #endif
-     if (area != 1.) {
-      for (i = beg; i <= end; i++) {
-      for (nv = 0; nv < NVAR; nv++) {
-        f[i][nv] *= area;
-     }}}
-     #if (COMPONENTS > 1) && (ENTROPY_SWITCH)
-      for (i = beg; i <= end; i++) f[i][iMPHI] *= grid[IDIR].x[g_i];
-     #endif
-   }
-   if (g_dir == KDIR) {
-     area = g_x2stretch*fabs(grid[IDIR].x[g_i]);
-    #if CHOMBO_LOGR == YES
-     area *= grid[IDIR].dx[g_i]/m_dx;
+#if DIMENSIONS == 3
+  g_dir = KDIR;
+  nxf = grid->np_int[IDIR] + (g_dir == IDIR);
+  nyf = grid->np_int[JDIR] + (g_dir == JDIR);
+  nzf = grid->np_int[KDIR] + (g_dir == KDIR);
+
+  nxb = grid->lbeg[IDIR] - (g_dir == IDIR);
+  nyb = grid->lbeg[JDIR] - (g_dir == JDIR);
+  nzb = grid->lbeg[KDIR] - (g_dir == KDIR);
+    
+  RBoxDefine (IBEG, IEND, JBEG, JEND, KBEG-1, KEND, CENTER, &fluxBox);
+
+  BOX_LOOP(&fluxBox,k,j,i){
+    ind1 = (k - nzb)*nyf*nxf + (j - nyb)*nxf + (i - nxb);
+    A = Ax3[k][j][i]/mdx_dim;
+    for (nv = 0; nv < NVAR; nv++){
+      indf = nv*nzf*nyf*nxf + ind1;
+      aflux[KDIR][indf] *= A;
+    }
+    #if GEOMETRY == POLAR && (COMPONENTS > 1) && (ENTROPY_SWITCH)
+    indf = (iMPHI)*nzf*nyf*nxf + ind1;
+    aflux[KDIR][indf] *= x1[i]*sin(x2[j]);
+    #elif (GEOMETRY == SPHERICAL) && (COMPONENTS == 3) && (ENTROPY_SWITCH)
+    indf = (iMPHI)*nzf*nyf*nxf + ind1;
+    aflux[KDIR][indf] *= x1[i]*sin(grid->xr[JDIR][j]);
     #endif
-     for (i = beg; i <= end; i++) {
-      for (nv = 0; nv < NVAR; nv++) {
-        f[i][nv] *= area;
-      }
-      #if (COMPONENTS > 1) && (ENTROPY_SWITCH)
-       f[i][iMPHI] *= grid[IDIR].x[g_i];
-      #endif
-     }
-   }
-  #endif
+  }
+#endif /* DIMENSIONS == 3 */  
 }
+
 /* ********************************************************************* */
 void PatchPluto::getPrimitiveVars (Data_Arr U, Data *d, Grid *grid)
 /*!
@@ -183,47 +155,49 @@ void PatchPluto::getPrimitiveVars (Data_Arr U, Data *d, Grid *grid)
  * \date June 25, 2015
  *********************************************************************** */
 {
-  int i,j,k;
-  int dir, err;
-  int nx, ny, nz;
-  int lft_side[3] = {0,0,0}, rgt_side[3]={0,0,0};
+  int   i,j,k;
+  int   dir, err;
+  int   nx, ny, nz;
+  int   lft_side[3] = {0,0,0}, rgt_side[3]={0,0,0};
   static unsigned char ***flagEntr;
-  RBox cbox, *box;
+  RBox  tbox, box; 
 
-  nx = grid[IDIR].np_tot;
-  ny = grid[JDIR].np_tot;
-  nz = grid[KDIR].np_tot;
+  nx = grid->np_tot[IDIR];
+  ny = grid->np_tot[JDIR];
+  nz = grid->np_tot[KDIR];
 
 /* ------------------------------------------------------- 
      Check whether the patch touches a physical boundary
    ------------------------------------------------------- */
 
   for (dir = 0; dir < DIMENSIONS; dir++){
-    lft_side[dir] = (grid[dir - IDIR].lbound != 0);
-    rgt_side[dir] = (grid[dir - IDIR].rbound != 0);
+    lft_side[dir] = (grid->lbound[dir - IDIR] != 0);
+    rgt_side[dir] = (grid->rbound[dir - IDIR] != 0);
   }
 
-/* ---------------------------------------------------
+/* ----------------------------------------------------------
     Extract the portion of the domain where U 
     is defined (i.e. NOT in the physical boundary).
-   --------------------------------------------------- */
+    Here tbox is the  "total box" defining the whole 
+    computational patch, while 'box' is defined from 
+    time to time.
+   --------------------------------------------------------- */
 
-  cbox.ib = 0; cbox.ie = nx - 1;
-  cbox.jb = 0; cbox.je = ny - 1;
-  cbox.kb = 0; cbox.ke = nz - 1;
+  RBoxDefine (0, nx-1, 0, ny-1, 0, nz-1, CENTER, &tbox);
+  box = tbox;
 
 /* -------------------------------------------------
     Exclude physical boundaries since the 
     conservative vector U is not yet defined.    
    ------------------------------------------------- */
 
-  D_EXPAND(if (lft_side[IDIR]) cbox.ib = IBEG;  ,
-           if (lft_side[JDIR]) cbox.jb = JBEG;  ,
-           if (lft_side[KDIR]) cbox.kb = KBEG;)
+  D_EXPAND(if (lft_side[IDIR]) box.ibeg = IBEG;  ,
+           if (lft_side[JDIR]) box.jbeg = JBEG;  ,
+           if (lft_side[KDIR]) box.kbeg = KBEG;)
 
-  D_EXPAND(if (rgt_side[IDIR]) cbox.ie = IEND;  ,
-           if (rgt_side[JDIR]) cbox.je = JEND;  ,
-           if (rgt_side[KDIR]) cbox.ke = KEND;)
+  D_EXPAND(if (rgt_side[IDIR]) box.iend = IEND;  ,
+           if (rgt_side[JDIR]) box.jend = JEND;  ,
+           if (rgt_side[KDIR]) box.kend = KEND;)
 
 /* ----------------------------------------------------------
     Convert conservative variables into primitive variables.
@@ -234,7 +208,9 @@ void PatchPluto::getPrimitiveVars (Data_Arr U, Data *d, Grid *grid)
     setting flagEntr.
    ---------------------------------------------------------- */
 
-#if ENTROPY_SWITCH
+#if    ENTROPY_SWITCH == SELECTIVE \
+    || ENTROPY_SWITCH == ALWAYS    \
+    || ENTROPY_SWITCH == CHOMBO_REGRID
   if (flagEntr == NULL) {
     flagEntr = ARRAY_3D(NX3_MAX, NX2_MAX, NX1_MAX, unsigned char);
     for (k = 0; k < NX3_MAX; k++){
@@ -250,9 +226,9 @@ void PatchPluto::getPrimitiveVars (Data_Arr U, Data *d, Grid *grid)
     flagEntr[k][j][i] |= FLAG_ENTROPY;
   }
 */
-  ConsToPrim3D(U, d->Vc, flagEntr, &cbox);
+  ConsToPrim3D(U, d->Vc, flagEntr, &box);
 #else
-  ConsToPrim3D(U, d->Vc, d->flag, &cbox);
+  ConsToPrim3D(U, d->Vc, d->flag, &box);
 #endif
   Boundary (d, ALL_DIR, grid);
 
@@ -262,37 +238,42 @@ void PatchPluto::getPrimitiveVars (Data_Arr U, Data *d, Grid *grid)
    -------------------------------------------------------------- */
 
 #if INTERNAL_BOUNDARY == YES
-  box = GetRBox(TOT, CENTER);
-  PrimToCons3D(d->Vc, U, box);
+  PrimToCons3D(d->Vc, U, &tbox);
 #else
   if (lft_side[IDIR]) {
-    box = GetRBox(X1_BEG, CENTER);
-    PrimToCons3D(d->Vc, U, box);
+    box      = tbox;
+    box.iend = IBEG-1;
+    PrimToCons3D(d->Vc, U, &box);
   }
 
   if (lft_side[JDIR]) {
-    box = GetRBox(X2_BEG, CENTER);
-    PrimToCons3D(d->Vc, U, box);
+    box      = tbox;
+    box.jend = JBEG-1;
+    PrimToCons3D(d->Vc, U, &box);
   }
 
   if (lft_side[KDIR]) {
-    box = GetRBox(X3_BEG, CENTER);
-    PrimToCons3D(d->Vc, U, box);
+    box      = tbox;
+    box.kend = KBEG-1;
+    PrimToCons3D(d->Vc, U, &box);
   }
 
   if (rgt_side[IDIR]) {
-    box = GetRBox(X1_END, CENTER);
-    PrimToCons3D(d->Vc, U, box);
+    box      = tbox;
+    box.ibeg = IEND+1;
+    PrimToCons3D(d->Vc, U, &box);
   }
 
   if (rgt_side[JDIR]) {
-    box = GetRBox(X2_END, CENTER);
-    PrimToCons3D(d->Vc, U, box);
+    box      = tbox;
+    box.jbeg = JEND+1;
+    PrimToCons3D(d->Vc, U, &box);
   }
 
   if (rgt_side[KDIR]) {
-    box = GetRBox(X3_END, CENTER);
-    PrimToCons3D(d->Vc, U, box);
+    box      = tbox;
+    box.kbeg = KEND+1;
+    PrimToCons3D(d->Vc, U, &box);
   }
 
 #endif
@@ -309,20 +290,16 @@ void PatchPluto::showPatch (Grid *grid)
   char pb[4]="*";  /* -- physical boundary -- */
   char ib[4]="o";  /* -- internal boundary -- */
 
-  Grid *Gx, *Gy, *Gz;
-
-  D_EXPAND(Gx = grid + IDIR;  ,
-           Gy = grid + JDIR;  ,
-           Gz = grid + KDIR;)
-
   print ("+-----------------------------------------------------------+\n");
-  print ("| Level = %d \n", grid[IDIR].level);
+  print ("| Level = %d \n", grid->level);
   print ("| ib,ie = [%d, %d], xb,xe = %s[%f, %f]%s\n", 
-             IBEG, IEND, (Gx->lbound != 0 ? pb:ib), 
-              Gx->xr[IBEG-1], Gx->xr[IEND],(Gx->rbound != 0 ? pb:ib));
+             IBEG, IEND, (grid->lbound[IDIR] != 0 ? pb:ib), 
+              grid->xr[IDIR][IBEG-1], grid->xr[IDIR][IEND],
+             (grid->rbound[IDIR] != 0 ? pb:ib));
   print ("| jb,je = [%d, %d], yb,ye = %s[%f, %f]%s\n", 
-            JBEG, JEND, (Gy->lbound != 0 ? pb:ib), 
-            Gy->xr[JBEG-1], Gy->xr[JEND], (Gy->rbound != 0 ? pb:ib));
+            JBEG, JEND, (grid->lbound[JDIR] != 0 ? pb:ib), 
+            grid->xr[JDIR][JBEG-1], grid->xr[JDIR][JEND],
+            (grid->rbound[JDIR] != 0 ? pb:ib));
   print ("+-----------------------------------------------------------+\n");
 
 }
@@ -363,9 +340,9 @@ void PatchPluto::convertFArrayBox(FArrayBox&  U)
     UU[nv] = ArrayBoxMap(kbeg,kend,jbeg,jend,ibeg,iend,U.dataPtr(nv));
   }
 
-  box.ib = ibeg+IOFFSET; box.ie = iend-IOFFSET;
-  box.jb = jbeg+JOFFSET; box.je = jend-JOFFSET;
-  box.kb = kbeg+KOFFSET; box.ke = kend-KOFFSET;
+  box.ibeg = ibeg+IOFFSET; box.iend = iend-IOFFSET;
+  box.jbeg = jbeg+JOFFSET; box.jend = jend-JOFFSET;
+  box.kbeg = kbeg+KOFFSET; box.kend = kend-KOFFSET;
 
 /* --------------------------------------------------------
     Conversion is done in the interior points only. 

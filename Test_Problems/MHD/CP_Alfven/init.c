@@ -8,26 +8,26 @@
   \f[
      \rho = 1                      \,,\quad
      v_x  = V_0                    \,,\quad
-     v_y  = |\epsilon|\cos(\phi)   \,,\quad
-     v_z  = |\epsilon|\sin(\phi)   \,,\quad
+     v_y  = |\epsilon|\sin(\phi)   \,,\quad
+     v_z  = |\epsilon|\cos(\phi)   \,,\quad
      B_x  = 1                      \,,\quad 
-     B_y  = \epsilon\cos(\phi)     \,,\quad
-     B_z  = \epsilon\cos(\phi)     \,,\quad
+     B_y  = \epsilon\sqrt{\rho}\sin(\phi)     \,,\quad
+     B_z  = \epsilon\sqrt{\rho}\cos(\phi)     \,,\quad
      P    = P_0                    \,,
   \f]
  
-  where \f$V_0\f$ is the translation velocity in the 1D \f$x\f$ direction,
-  \f$\psi\f$ is the phase (\f$k_xx\f$ in 1D and
+  where \f$V_0\f$ is the translation velocity in the \f$x\f$ direction,
+  \f$\phi\f$ is the phase (\f$k_xx\f$ in 1D and
   (\f$k_xx + k_yy\f$) in 2D), and \f$\epsilon\f$ is the wave amplitude
   (\f$\epsilon > 0\f$ implies right going waves;
   \f$\epsilon < 0\f$ implies left going waves).
 
   With this normalization, the Alfven velocity \f$V_A = B_x/\sqrt{\rho}\f$
-  is always one.
+  is always unity.
 
-  Rotations are specified by \f$t_a = k_y/k_x\f$ and \f$t_b = k_z/k_x\f$
-  expressing the ratios between the \f$y\f$- and \f$z\f$- components of
-  the wave vector with the \f$x\f$ component.
+  The configuration is rotated by specifying \f$t_a = k_y/k_x\f$ and
+  \f$t_b = k_z/k_x\f$ which express the ratios between the \f$y\f$- and
+  \f$z\f$- components of the wave vector with the \f$x\f$ component.
   We choose the wavelength in \f$x\f$-direction to be always 1, so that
   \f$k_x = 2\pi/l_x = 2\pi\f$, \f$k_y = 2\pi/l_y\f$, \f$k_z = 2\pi/l_z\f$
   so that \f$t_z = 1/l_y\f$, \f$t_y = 1/l_z\f$.
@@ -147,6 +147,20 @@ void Init (double *us, double x1, double x2, double x3)
    us[AX3] = AZ_VEC(x,y,z);
   #endif
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 
@@ -162,13 +176,13 @@ void Analysis (const Data *d, Grid *grid)
   FILE  *fp;
   
   Bx = d->Vc[BX1]; By = d->Vc[BX2]; Bz = d->Vc[BX3];
-  dx = grid[IDIR].dx; dy = grid[JDIR].dx; dz = grid[KDIR].dx;
+  dx = grid->dx[IDIR]; dy = grid->dx[JDIR]; dz = grid->dx[KDIR];
 
   if (Bx0 == NULL){
     Bx0 = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
     By0 = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
     Bz0 = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-    print1 ("ANALYSIS: Initializing bmag\n");
+    print ("ANALYSIS: Initializing bmag\n");
     DOM_LOOP(k,j,i){
       Bx0[k][j][i] = Bx[k][j][i];
       By0[k][j][i] = By[k][j][i];

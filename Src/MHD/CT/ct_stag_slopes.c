@@ -2,7 +2,7 @@
 static double MC_LIM2 (double dp, double dm);
 
 /* ********************************************************************* */
-void CT_StoreVelSlopes (EMF *emf, const State_1D *state, int beg, int end)
+void CT_StoreVelSlopes (EMF *emf, const Sweep *sweep, int beg, int end)
 /*!
  *
  *
@@ -10,56 +10,39 @@ void CT_StoreVelSlopes (EMF *emf, const State_1D *state, int beg, int end)
  *********************************************************************** */
 {
   int i=g_i, j=g_j, k=g_k;
-
-/* ----------------------------------------------------
-             Allocate static memory areas 
-   ---------------------------------------------------- */
-
-  if (emf->dvx_dx == NULL){
-
-    emf->dvx_dx = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-    emf->dvx_dy = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-
-    emf->dvy_dx = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-    emf->dvy_dy = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-
-    #if DIMENSIONS == 3
-     emf->dvx_dz = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-     emf->dvy_dz = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-
-     emf->dvz_dx = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-     emf->dvz_dy = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-     emf->dvz_dz = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-    #endif
-  }
+  const State *stateC = &(sweep->stateC);
+  const State *stateL = &(sweep->stateL);
+  const State *stateR = &(sweep->stateR);
+  double **vp   = stateL->v;
+  double **vm   = stateR->v-1;
 
   if (g_dir == IDIR){
 
     for (i = beg; i <= end; i++) {
-      emf->dvx_dx[k][j][i] = state->vp[i][VX1] - state->vm[i][VX1];
-      emf->dvy_dx[k][j][i] = state->vp[i][VX2] - state->vm[i][VX2];
+      emf->dvx_dx[k][j][i] = vp[i][VX1] - vm[i][VX1];
+      emf->dvy_dx[k][j][i] = vp[i][VX2] - vm[i][VX2];
       #if DIMENSIONS == 3
-       emf->dvz_dx[k][j][i] = state->vp[i][VX3] - state->vm[i][VX3];
+      emf->dvz_dx[k][j][i] = vp[i][VX3] - vm[i][VX3];
       #endif
     }
 
   }else if (g_dir == JDIR){
 
     for (j = beg; j <= end; j++) {
-      emf->dvx_dy[k][j][i] = state->vp[j][VX1] - state->vm[j][VX1];
-      emf->dvy_dy[k][j][i] = state->vp[j][VX2] - state->vm[j][VX2];
+      emf->dvx_dy[k][j][i] = vp[j][VX1] - vm[j][VX1];
+      emf->dvy_dy[k][j][i] = vp[j][VX2] - vm[j][VX2];
       #if DIMENSIONS == 3
-       emf->dvz_dy[k][j][i] = state->vp[j][VX3] - state->vm[j][VX3];
+      emf->dvz_dy[k][j][i] = vp[j][VX3] - vm[j][VX3];
       #endif
     }
 
   }else if (g_dir == KDIR){
 
     for (k = beg; k <= end; k++) {
-      emf->dvx_dz[k][j][i] = state->vp[k][VX1] - state->vm[k][VX1];
-      emf->dvy_dz[k][j][i] = state->vp[k][VX2] - state->vm[k][VX2];
+      emf->dvx_dz[k][j][i] = vp[k][VX1] - vm[k][VX1];
+      emf->dvy_dz[k][j][i] = vp[k][VX2] - vm[k][VX2];
       #if DIMENSIONS == 3
-       emf->dvz_dz[k][j][i] = state->vp[k][VX3] - state->vm[k][VX3];
+      emf->dvz_dz[k][j][i] = vp[k][VX3] - vm[k][VX3];
       #endif
     }
   }
@@ -83,17 +66,6 @@ void CT_GetStagSlopes (const Data_Arr b, EMF *emf, Grid *grid)
   D_EXPAND(bx = b[BX1s];  ,   
            by = b[BX2s];  ,
            bz = b[BX3s];)
-
-  if (emf->dbx_dy == NULL){
-    emf->dbx_dy = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-    emf->dby_dx = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-    #if DIMENSIONS == 3
-     emf->dbx_dz = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-     emf->dby_dz = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-     emf->dbz_dx = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-     emf->dbz_dy = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-    #endif
-  }
  
   for (k = KOFFSET; k < NX3_TOT - KOFFSET; k++){
   for (j = JOFFSET; j < NX2_TOT - JOFFSET; j++){

@@ -8,7 +8,7 @@
   coordinates.
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   Aug 24, 2015
+  \date   March 13, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -18,11 +18,11 @@ static void MakeGrid       (int, Runtime *, double *, double *, double *);
 static void stretch_fun (double, double *, double *, double *);
 
 /* ********************************************************************* */
-void SetGrid (Runtime *rtime, Grid *GXYZ)
+void SetGrid (Runtime *rtime, Grid *grid)
 /*! 
  *
- * \param [in]  rtime   pointer to a Runtime  structure
- * \param [out] GXYZ    pointer to array of Grid structures
+ * \param [in]     rtime   pointer to a Runtime  structure
+ * \param [in/out] grid    pointer to Grid structure
  * 
  *********************************************************************** */
 {
@@ -30,11 +30,10 @@ void SetGrid (Runtime *rtime, Grid *GXYZ)
   int  iL, iR, ngh;
   char fname[512];
   double *dx, *xlft, *xrgt;
-  Grid *G;
   FILE *fg;
   double xpatch_lft, xpatch_rgt;
 
-  InitializeGrid(rtime, GXYZ);
+  InitializeGrid(rtime, grid);
 
   i    = MAX(rtime->npoint[0], MAX(rtime->npoint[1], rtime->npoint[2]));
   dx   = ARRAY_1D(i + 2, double);
@@ -43,26 +42,25 @@ void SetGrid (Runtime *rtime, Grid *GXYZ)
 
   for (idim = 0; idim < 3; idim++) {
      
-    G   = GXYZ + idim;
-    ngh = G->nghost;
+    ngh = grid->nghost[idim];
 
     iL = ngh - 1;
     MakeGrid (idim, rtime, xlft, xrgt, dx);
-/*MakeGrid (idim, rtime, G->xl_glob + iL, G->xr_glob + iL, G->dx_glob + iL); */
+/*MakeGrid (idim, rtime, grid->xl_glob + iL, grid->xr_glob + iL, grid->dx_glob + iL); */
 
   /* ---- Assign values to grid structure members ----  */
 
     for (i = 1; i <= rtime->npoint[idim]; i++) {
-      G->dx_glob[i + ngh - 1] = dx[i];
-      G->xl_glob[i + ngh - 1] = xlft[i];
-      G->xr_glob[i + ngh - 1] = xrgt[i];
+      grid->dx_glob[idim][i + ngh - 1] = dx[i];
+      grid->xl_glob[idim][i + ngh - 1] = xlft[i];
+      grid->xr_glob[idim][i + ngh - 1] = xrgt[i];
     }
 
     iL = ngh;
     iR = rtime->npoint[idim] + ngh - 1;
     if (idim < DIMENSIONS){
-      G->xr_glob[iL - 1] = G->xl_glob[iL];
-      G->xl_glob[iR + 1] = G->xr_glob[iR];
+      grid->xr_glob[idim][iL - 1] = grid->xl_glob[idim][iL];
+      grid->xl_glob[idim][iR + 1] = grid->xr_glob[idim][iR];
     }
 /*  ----  fill boundary values by copying adjacent cells  ---- */
 
@@ -70,30 +68,37 @@ void SetGrid (Runtime *rtime, Grid *GXYZ)
         
      /*  ---- left boundary  ----  */        
      
-      G->dx_glob[i] = G->dx_glob[iL];
-      G->xl_glob[i] = G->xl_glob[iL] - (ngh - i)*G->dx_glob[iL];
-      G->xr_glob[i] = G->xl_glob[i] + G->dx_glob[iL];
+      grid->dx_glob[idim][i] = grid->dx_glob[idim][iL];
+      grid->xl_glob[idim][i] = grid->xl_glob[idim][iL]
+                               - (ngh - i)*grid->dx_glob[idim][iL];
+      grid->xr_glob[idim][i] = grid->xl_glob[idim][i] + grid->dx_glob[idim][iL];
       
      /*  ---- right boundary  ----  */   
           
-      G->dx_glob[iR + i + 1] = G->dx_glob[iR];
-      G->xl_glob[iR + i + 1] = G->xl_glob[iR] + (i + 1.0)*G->dx_glob[iR];
-      G->xr_glob[iR + i + 1] = G->xl_glob[iR] + (i + 2.0)*G->dx_glob[iR];
+      grid->dx_glob[idim][iR + i + 1] = grid->dx_glob[idim][iR];
+      grid->xl_glob[idim][iR + i + 1] = grid->xl_glob[idim][iR] + (i + 1.0)*grid->dx_glob[idim][iR];
+      grid->xr_glob[idim][iR + i + 1] = grid->xl_glob[idim][iR] + (i + 2.0)*grid->dx_glob[idim][iR];
     }
 
 /*  ----  define geometrical cell center  ----  */
 
     for (i = 0; i <= iR + ngh; i++) {
-      G->x_glob[i] = 0.5*(G->xl_glob[i] + G->xr_glob[i]);
+      grid->x_glob[idim][i] = 0.5*(grid->xl_glob[idim][i] + grid->xr_glob[idim][i]);
     }
     
-/*  ---- define leftmost and rightmost domain extrema  ---- */
+/*  ---- define leftmost and rightmost (global) domain extrema  ---- */
     
-    G->xi = G->xl_glob[iL];
-    G->xf = G->xr_glob[iR];
+    grid->xbeg_glob[idim] = grid->xl_glob[idim][iL];
+    grid->xend_glob[idim] = grid->xr_glob[idim][iR];
 
-    g_domBeg[idim] = G->xl_glob[iL];
-    g_domEnd[idim] = G->xr_glob[iR];
+    g_domBeg[idim] = grid->xl_glob[idim][iL];
+    g_domEnd[idim] = grid->xr_glob[idim][iR];
+
+/*  ---- Define leftmost and rightmost (local) domain coordinates  ---- */
+    
+    grid->xbeg[idim] = grid->xl[idim][ngh];
+    grid->xend[idim] = grid->xr[idim][grid->np_int[idim]+ngh-1];
+
   }
 
 /*  ----  free memory  ----  */
@@ -110,15 +115,15 @@ void SetGrid (Runtime *rtime, Grid *GXYZ)
 #ifdef PLUTO3_Grid
   fg = fopen(fname,"w");
   for (idim = 0; idim < 3; idim++) {
-    G   = GXYZ + idim;
-    ngh = G->nghost;
-    iL  = G->gbeg;
-    iR  = G->gend;
+    ngh = grid->nghost[idim];
+    iL  = grid->gbeg[idim];
+    iR  = grid->gend[idim];
     
     fprintf (fg, "%d \n", iR - iL + 1);
     for (i = iL; i <= iR; i++) {
       fprintf (fg, " %d   %12.6e    %12.6e  %12.6e  %12.6e\n", 
-        i-ngh+1, G->xl_glob[i], G->x_glob[i], G->xr_glob[i], G->dx_glob[i]);
+        i-ngh+1, grid->xl_glob[idim][i], grid->x_glob[idim][i],
+                 grid->xr_glob[idim][i], grid->dx_glob[idim][i]);
     }
   }
   fclose(fg);
@@ -153,19 +158,18 @@ void SetGrid (Runtime *rtime, Grid *GXYZ)
     for (idim = 0; idim < DIMENSIONS; idim++){
      fprintf (fg, "# X%d: [% f, % f], %d point(s), %d ghosts\n", idim+1,
               g_domBeg[idim], g_domEnd[idim], 
-              GXYZ[idim].np_int_glob, GXYZ[idim].nghost);
+              grid->np_int_glob[idim], grid->nghost[idim]);
     }
     fprintf (fg, "# ******************************************************\n");
     for (idim = 0; idim < 3; idim++) {
-      G   = GXYZ + idim;
-      ngh = G->nghost;
-      iL  = G->gbeg;
-      iR  = G->gend;
+      ngh = grid->nghost[idim];
+      iL  = grid->gbeg[idim];
+      iR  = grid->gend[idim];
     
       fprintf (fg, "%d \n", iR - iL + 1);
       for (i = iL; i <= iR; i++) {
        fprintf (fg, " %d   %18.12e    %18.12e\n", 
-          i-ngh+1, G->xl_glob[i], G->xr_glob[i]);
+          i-ngh+1, grid->xl_glob[idim][i], grid->xr_glob[idim][i]);
       }
     }
     fclose(fg);
@@ -174,63 +178,91 @@ void SetGrid (Runtime *rtime, Grid *GXYZ)
 
 /*  ----  define geometry factors, vol, area, etc...  ----  */
 
-  MakeGeometry(GXYZ);
+  MakeGeometry(grid);
 
 /* ----------------------------------------
          print domain specifications
    ---------------------------------------- */
 
+  print ("  Global grid:\n");
   for (idim = 0; idim < DIMENSIONS; idim++){
-   print1 ("  X%d: [% f, % f], %d point(s), %d ghosts\n", idim+1,
-            g_domBeg[idim], g_domEnd[idim], 
-            GXYZ[idim].np_int_glob, GXYZ[idim].nghost);
+    if (fabs(g_domEnd[idim] - g_domBeg[idim]) >= 1.e4) { /* Use scientific notation */
+      print ("  X%d: [ %12.6e, %12.6e], %6d point(s), %d ghosts\n", idim+1,
+               g_domBeg[idim], g_domEnd[idim], 
+               grid->np_int_glob[idim], grid->nghost[idim]);
+    }else{                                              /* Use float notation */
+      print ("  X%d: [ %8.4f, %8.4f], %6d point(s), %d ghosts\n", idim+1,
+               g_domBeg[idim], g_domEnd[idim], 
+               grid->np_int_glob[idim], grid->nghost[idim]);
+    }
+  }
+
+  print ("\n");
+  print ("  Local grid:\n");
+  for (idim = 0; idim < DIMENSIONS; idim++){
+    if (fabs(g_domEnd[idim] - g_domBeg[idim]) >= 1.e4) { /* Use scientific notation */
+      print ("  X%d: [ %-13.6e, %-13.6e], %6d point(s); %d ghosts;", idim+1,
+               grid->xbeg[idim], grid->xend[idim], 
+               grid->np_int[idim], grid->nghost[idim]);
+      print (" Active zones = [%d, %d]\n",
+               grid->nghost[idim], grid->np_int[idim] + grid->nghost[idim]-1);
+    }else{
+      print ("  X%d: [ %8.4f, %8.4f], %6d point(s); %d ghosts;", idim+1,
+               grid->xbeg[idim],   grid->xend[idim], 
+               grid->np_int[idim], grid->nghost[idim]);
+      print (" Active zones = [%d, %d]\n",
+               grid->nghost[idim], grid->np_int[idim] + grid->nghost[idim]-1);
+    }
   }
 }
 
 /* ********************************************************************* */
 void FreeGrid (Grid *grid)
 /*!
- * Free array memory allocated previously.
+ * Free array memory allocated previously (used by AMR)
  *
  *********************************************************************** */
 {
   int dir;
   
   for (dir = 0; dir < 3; dir++){
-    FreeArray1D(grid[dir].x);
-    FreeArray1D(grid[dir].xl);
-    FreeArray1D(grid[dir].xr);
-    FreeArray1D(grid[dir].dx);
-    FreeArray1D(grid[dir].xgc);
-    FreeArray1D(grid[dir].dV);
-    FreeArray1D(grid[dir].A-1);
-    FreeArray1D(grid[dir].r_1);
-    FreeArray1D(grid[dir].ct);
-    FreeArray1D(grid[dir].inv_dx);
-    FreeArray1D(grid[dir].inv_dxi);
+    FreeArray1D(grid->x[dir]);
+    FreeArray1D(grid->xl[dir]);
+    FreeArray1D(grid->xr[dir]);
+    FreeArray1D(grid->dx[dir]);
+    FreeArray1D(grid->xgc[dir]);
+    FreeArray1D(grid->inv_dx[dir]);
+    FreeArray1D(grid->inv_dxi[dir]);
   }
+  FreeArray3D((void *) grid->dV);
+  FreeArrayBox(grid->A[IDIR],  0,  0, -1);
+  FreeArrayBox(grid->A[JDIR],  0, -1,  0);
+  FreeArrayBox(grid->A[KDIR], -1,  0,  0);
+
+  FreeArray1D(grid->rt);
+  FreeArray1D(grid->sp);
+  FreeArray1D(grid->s);
+  FreeArray1D(grid->dmu);
 }
 
 /* ********************************************************************* */
-void InitializeGrid (Runtime *rtime, Grid *GXYZ)
+void InitializeGrid (Runtime *rtime, Grid *grid)
 /*!
  * Allocate memory for grid arrays, set shortcut pointers 
- * for local grids.
+ * for local gridd.
  * 
  *
  *********************************************************************** */
 {
   int    idim, ngh;
   int    np_int, np_tot, np_int_glob, np_tot_glob;
-  struct GRID *G;
 
   for (idim = 0; idim < 3; idim++) {
 
-    G = GXYZ + idim;
     if (GEOMETRY == CARTESIAN){
-      G->uniform = rtime->grid_is_uniform[idim];
+      grid->uniform[idim] = rtime->grid_is_uniform[idim];
     }else{ 
-      G->uniform = 0;
+      grid->uniform[idim] = 0;
     }
    
 /* ----------------------------------------------------------------
@@ -238,34 +270,38 @@ void InitializeGrid (Runtime *rtime, Grid *GXYZ)
    ---------------------------------------------------------------- */
 
     if (idim >= DIMENSIONS) {
-      G->np_int = G->np_tot = G->np_int_glob = G->np_tot_glob = 1;
-      ngh = G->nghost = G->beg = G->end = G->gbeg = G->gend = 
-            G->lbeg   = G->lend = 0;
-      G->nproc = 1;
+      grid->np_int[idim]      = grid->np_tot[idim]      = 1;
+      grid->np_int_glob[idim] = grid->np_tot_glob[idim] = 1;
+
+      ngh = grid->nghost[idim] = 0;
+      grid->beg[idim]  = grid->end[idim]  = 0;
+      grid->gbeg[idim] = grid->gend[idim] = 0;
+      grid->lbeg[idim] = grid->lend[idim] = 0;
+      grid->nproc[idim] = 1;
     } else {
-      ngh = G->nghost;
+      ngh = grid->nghost[idim];
     }
 
-    np_tot_glob = G->np_tot_glob;
-    np_int_glob = G->np_int_glob;
-    np_tot = G->np_tot;
-    np_int = G->np_int;
+    np_tot_glob = grid->np_tot_glob[idim];
+    np_int_glob = grid->np_int_glob[idim];
+    np_tot = grid->np_tot[idim];
+    np_int = grid->np_int[idim];
 
 /*  -----------------------------------------------------------
                  Memory allocation. 
     ----------------------------------------------------------- */
      
-    G->x_glob  = ARRAY_1D(np_tot_glob, double);
-    G->xr_glob = ARRAY_1D(np_tot_glob, double);
-    G->xl_glob = ARRAY_1D(np_tot_glob, double);
-    G->dx_glob = ARRAY_1D(np_tot_glob, double);
+    grid->x_glob[idim]  = ARRAY_1D(np_tot_glob, double);
+    grid->xr_glob[idim] = ARRAY_1D(np_tot_glob, double);
+    grid->xl_glob[idim] = ARRAY_1D(np_tot_glob, double);
+    grid->dx_glob[idim] = ARRAY_1D(np_tot_glob, double);
 
 /*  ----  define shortcuts for local grids  ----  */
 
-    G->x  = G->x_glob  + G->beg - ngh;
-    G->xr = G->xr_glob + G->beg - ngh;
-    G->xl = G->xl_glob + G->beg - ngh;
-    G->dx = G->dx_glob + G->beg - ngh;
+    grid->x[idim]  = grid->x_glob[idim]  + grid->beg[idim] - ngh;
+    grid->xr[idim] = grid->xr_glob[idim] + grid->beg[idim] - ngh;
+    grid->xl[idim] = grid->xl_glob[idim] + grid->beg[idim] - ngh;
+    grid->dx[idim] = grid->dx_glob[idim] + grid->beg[idim] - ngh;
   }
 }
 
@@ -469,7 +505,7 @@ void MakeGrid (int idim, Runtime *rtime, double *xlft, double *xrgt, double *dx)
 
         for (n = 0; n <= MAX_ITER; n++) {
           if (n == MAX_ITER) {
-            print1 ("Too many iterations during grid (%d) generation!\n",idim);
+            print ("Too many iterations during grid (%d) generation!\n",idim);
             QUIT_PLUTO(1);
           }
 
@@ -483,12 +519,12 @@ void MakeGrid (int idim, Runtime *rtime, double *xlft, double *xrgt, double *dx)
         }
 
         if (alpha > 1.2) {
-          print1 (" ! WARNING:  alpha=%12.6e > 1.05 , dimension %d\n", alpha, idim);
-          print1 (" ! While stretching segment %d\n", iseg);
+          print (" ! WARNING:  alpha=%12.6e > 1.05 , dimension %d\n", alpha, idim);
+          print (" ! While stretching segment %d\n", iseg);
           QUIT_PLUTO(1);
         }
 
-        print1 ("     - Stretched grid on dim %d (ratio: %f)\n",idim, alpha);
+        print ("     - Stretched grid on dim %d (ratio: %f)\n",idim, alpha);
 
         if (next_seg_is > iseg) {
           xrgt[nstart] = xR;

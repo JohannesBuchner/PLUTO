@@ -58,6 +58,20 @@ void Init (double *us, double x1, double x2, double x3)
   #endif
 
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 
@@ -94,7 +108,7 @@ void Analysis (const Data *d, Grid *grid)
     #endif
   }
 
-  vol  = grid[IDIR].dx[IBEG]*grid[JDIR].dx[JBEG];
+  vol  = grid->dx[IDIR][IBEG]*grid->dx[JDIR][JBEG];
   vol /= (g_domEnd[IDIR] - g_domBeg[IDIR])*(g_domEnd[JDIR] - g_domBeg[JDIR]);
 
   rhoe *= vol;

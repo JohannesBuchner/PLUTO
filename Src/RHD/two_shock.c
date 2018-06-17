@@ -10,7 +10,7 @@
   The formulation works with IDEAL or TAUB equation of state.
 
   On input, this function takes left and right primitive state vectors 
-  \c state->vL and \c state->vR at zone edge \c i+1/2.
+  \c stateL->v and \c stateR->v at zone edge \c i+1/2.
   On output, return flux and pressure vectors at the same interface 
   \c i+1/2 (note that the \c i refers to \c i+1/2).
   
@@ -22,7 +22,7 @@
        Fluid Dynamics", Mignone, Plewa and Bodo, ApJS (2005) 160,199.
        
   \authors A. Mignone (mignone@ph.unito.it)
-  \date    July 5, 2015
+  \date    Feb 13, 2018
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -42,13 +42,13 @@ static double TwoShock_RarefactionSpeed (double *u, int side);
 static double qglob_r[NFLX], qglob_l[NFLX], gmmr;
 
 /* *********************************************************************  */
-void TwoShock_Solver (const State_1D *state, int beg, int end, 
+void TwoShock_Solver (const Sweep *sweep, int beg, int end, 
                       double *cmax, Grid *grid)
 /*!
  * Solve Riemann problem for the relativistic HD equations using the 
  * two-shock Riemann solver of Mignone et al. (2005).
  * 
- * \param[in,out] state   pointer to State_1D structure
+ * \param[in,out] sweep   pointer to Sweep structure
  * \param[in]     beg     initial grid index
  * \param[out]    end     final grid index
  * \param[out]    cmax    1D array of maximum characteristic speeds
@@ -58,6 +58,11 @@ void TwoShock_Solver (const State_1D *state, int beg, int end,
 {
   int     iter, i, nv;
   int     k, nfail = 0, izone_fail[1024];
+
+  static State stateS; /* Solution state */
+  const State   *stateL = &(sweep->stateL);
+  const State   *stateR = &(sweep->stateR);
+
   double  Ustar[NFLX];
   double  gL, gR, gL1, gR1;
   double  uxR, uxR1, pR, j2R, wR, VR, VR1;
@@ -65,41 +70,31 @@ void TwoShock_Solver (const State_1D *state, int beg, int end,
   double  duR, duL, p1, u1, dp, a0, a1;
   double  tauR, tauL, am, ap;
   double  *ql, *qr, *qs;
-  static double  **fl, **us, **ws;
-  static double *hR, *hL, *a2L, *a2R, *cmax_loc, *cmin_loc;
+  static double *cmax_loc, *cmin_loc;
 
-  static double **fL, **fR, *prL, *prR;
+  double **fL = stateL->flux, **fR = stateR->flux;
+  double *prL = stateL->prs,  *prR = stateR->prs;
+  double *hL  = stateL->h,    *hR  = stateR->h;
+  double *a2L = stateL->a2,   *a2R = stateR->a2;
   double bmin, bmax;
   double SL, SR;
 
-  #if EOS == IDEAL
-   gmmr = g_gamma/(g_gamma - 1.0);
-  #endif
+#if EOS == IDEAL
+  gmmr = g_gamma/(g_gamma - 1.0);
+#endif
 
-  if (fl == NULL){
-    fl       = ARRAY_2D(NMAX_POINT, NFLX, double); 
-    us       = ARRAY_2D(NMAX_POINT, NVAR, double);  
-    ws       = ARRAY_2D(NMAX_POINT, NVAR, double);  
+  if (stateS.v == NULL){
+    StateStructAllocate(&stateS);
     cmax_loc = ARRAY_1D(NMAX_POINT, double);
     cmin_loc = ARRAY_1D(NMAX_POINT, double);
-
-    a2R      = ARRAY_1D(NMAX_POINT, double);
-    a2L      = ARRAY_1D(NMAX_POINT, double);
-    hR       = ARRAY_1D(NMAX_POINT, double);
-    hL       = ARRAY_1D(NMAX_POINT, double);
-
-    fL  = ARRAY_2D(NMAX_POINT, NVAR, double);
-    fR  = ARRAY_2D(NMAX_POINT, NVAR, double);
-    prL = ARRAY_1D(NMAX_POINT, double);
-    prR = ARRAY_1D(NMAX_POINT, double);
   }
 
 /* ----------------------------------------------------
         compute sound speed at zone interfaces
    ---------------------------------------------------- */
 
-  SoundSpeed2 (state->vL, a2L, hL, beg, end, FACE_CENTER, grid);
-  SoundSpeed2 (state->vR, a2R, hR, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (stateL, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (stateR, beg, end, FACE_CENTER, grid);
 
 /*  ---------------------------------------------------------------
                        SOLVE RIEMANN PROBLEM
@@ -108,10 +103,10 @@ void TwoShock_Solver (const State_1D *state, int beg, int end,
   for (i = beg; i <= end; i++) {
 
 #if SHOCK_FLATTENING == MULTID
-    if ((state->flag[i] & FLAG_HLL) || (state->flag[i+1] & FLAG_HLL)){        
-      HLL_Speed (state->vL, state->vR, a2L, a2R, &gL - i, &gR - i, i, i);
-      Flux  (state->uL, state->vL, a2L, fL, prL, i, i);
-      Flux  (state->uR, state->vR, a2R, fR, prR, i, i);
+    if ((sweep->flag[i] & FLAG_HLL) || (sweep->flag[i+1] & FLAG_HLL)){        
+      HLL_Speed (stateL, stateR, &gL - i, &gR - i, i, i);
+      Flux  (stateL, i, i);
+      Flux  (stateR, i, i);
 
       a0 = MAX(fabs(gR), fabs(gL));
       cmax[i] = a0;
@@ -120,17 +115,17 @@ void TwoShock_Solver (const State_1D *state, int beg, int end,
       gR = MAX(0.0, gR);
       a0 = 1.0/(gR - gL);
       for (nv = NFLX; nv--; ){
-        state->flux[i][nv]  = gL*gR*(state->uR[i][nv] - state->uL[i][nv])
+        sweep->flux[i][nv]  = gL*gR*(stateR->u[i][nv] - stateL->u[i][nv])
                              + gR*fL[i][nv] - gL*fR[i][nv];
-        state->flux[i][nv] *= a0;
+        sweep->flux[i][nv] *= a0;
       }
-      state->press[i] = (gR*prL[i] - gL*prR[i])*a0;
+      sweep->press[i] = (gR*prL[i] - gL*prR[i])*a0;
       continue;
     }
 #endif
 
-    ql = state->vL[i];
-    qr = state->vR[i];
+    ql = stateL->v[i];
+    qr = stateR->v[i];
 
     gR = TwoShock_Lorentz (qr,0);
     gL = TwoShock_Lorentz (ql,1);
@@ -220,7 +215,7 @@ void TwoShock_Solver (const State_1D *state, int beg, int end,
       nfail++;
       izone_fail[nfail] = i;
       for (nv = NFLX; nv--; ){
-        ws[i][nv] = ql[nv];
+        stateS.v[i][nv] = ql[nv];
       }
       continue;
     } 
@@ -265,16 +260,16 @@ void TwoShock_Solver (const State_1D *state, int beg, int end,
       #endif
 
       if (am >= 0.0) {                      /* --  region L  -- */
-        for (nv = NFLX; nv--;) ws[i][nv] = ql[nv];
+        for (nv = NFLX; nv--;) stateS.v[i][nv] = ql[nv];
 
       }else if (ap <= 0.0) {                /* -- region L1 -- */
 
-        for (nv = NFLX; nv--;) ws[i][nv] = Ustar[nv];
+        for (nv = NFLX; nv--;) stateS.v[i][nv] = Ustar[nv];
 
       }else{    /*  Solution is inside rarefaction fan, --> interpolate  */
 
         for (nv = NFLX; nv--;) {
-          ws[i][nv] = (am*Ustar[nv] - ap*ql[nv])/(am - ap);
+          stateS.v[i][nv] = (am*Ustar[nv] - ap*ql[nv])/(am - ap);
         }
       }
           
@@ -303,40 +298,45 @@ void TwoShock_Solver (const State_1D *state, int beg, int end,
 
       if (ap <= 0.0) {                        /* -- Shock speed -- */
 
-        for (nv = NFLX; nv--;) ws[i][nv] = qr[nv];
+        for (nv = NFLX; nv--;) stateS.v[i][nv] = qr[nv];
 
       }else if (am >= 0.0){              /*   region R1   */
 
-        for (nv = NFLX; nv--;) ws[i][nv] = Ustar[nv];
+        for (nv = NFLX; nv--;) stateS.v[i][nv] = Ustar[nv];
 
       }else{      /*  Solution is inside rarefaction fan, --> interpolate  */
 
         for (nv = NFLX; nv--;) {
-          ws[i][nv] = (ap*Ustar[nv] - am*qr[nv])/(ap - am);
+          stateS.v[i][nv] = (ap*Ustar[nv] - am*qr[nv])/(ap - am);
         }
       }
     }
  
-/* ----------------------------------------------------------
-                      Compute Fluxes               
-   ---------------------------------------------------------- */
+  /* -- Compute Flux -- */
 
-    PrimToCons (ws, us, i, i);
-    SoundSpeed2 (ws, a2R, hR, i, i, FACE_CENTER, grid);
-    Flux (us, ws, a2R, state->flux, state->press, i, i);
-    MaxSignalSpeed (ws, a2R, cmin_loc, cmax_loc, i, i);
+    PrimToCons (stateS.v, stateS.u, i, i);
+    SoundSpeed2 (&stateS, i, i, FACE_CENTER, grid);  // ?? WHAT ABOUT a2 and h ? //
+    Flux (&stateS, i, i);
+    for (nv = 0; nv < NFLX; nv++) {
+      sweep->flux[i][nv] = stateS.flux[i][nv];
+    }
+    sweep->press[i] = stateS.prs[i];
+
+  /* -- Compute max wave speed -- */
+
+    MaxSignalSpeed (&stateS, cmin_loc, cmax_loc, i, i);
     a0 = MAX(fabs(cmax_loc[i]), fabs(cmin_loc[i]));
     cmax[i] = a0;
 
-  }
+  }  /* end loop i = beg, end  */
 
-    /* -- Add artificial viscosity -- */
+  /* -- Add artificial viscosity -- */
 
 #ifdef ARTIFICIAL_VISC
   for (i = beg; i <= end; i++){
-    a0 = ARTIFICIAL_VISC*(MAX(0.0, state->vL[i][VXn] - state->vR[i][VXn]));
+    a0 = ARTIFICIAL_VISC*(MAX(0.0, stateL->v[i][VXn] - stateR->v[i][VXn]));
     for (nv = 0; nv < NFLX; nv++) {
-      state->flux[i][nv] += a0*(state->uL[i][nv] - state->uR[i][nv]);
+      sweep->flux[i][nv] += a0*(stateL->u[i][nv] - stateR->u[i][nv]);
     }
   }  
 #endif
@@ -347,9 +347,9 @@ void TwoShock_Solver (const State_1D *state, int beg, int end,
    --------------------------------------------------------- */
 
   for (k = 1; k <= nfail; k++){ 
-    print1 ("! Failure in Riemann - substituting HLL flux: ");
+    print ("! Failure in Riemann - substituting HLL flux: ");
     Where (izone_fail[k],NULL);
-    HLL_Solver (state, izone_fail[k]-2, izone_fail[k]+3, cmax, grid);
+    HLL_Solver (sweep, izone_fail[k]-2, izone_fail[k]+3, cmax, grid);
   }
 
 }
@@ -386,7 +386,7 @@ double TwoShock_Lorentz (double *U, int n)
 /* ********************************************************************* */
 void TwoShock_Shock (double tau0, double u0, double p0, double g0, 
             double V0, double h0, double p1, double *u1,
-            double *dudp, double *zeta, int istate)
+            double *dudp, double *zeta, int isweep)
 /*!
  * Compute post shock quantities  u1, dudp, zeta, for a given
  * value of the post-shock pressure p1
@@ -439,7 +439,7 @@ void TwoShock_Shock (double tau0, double u0, double p0, double g0,
    d_htau1 = -(da*dx*dx + db*dx + dc)/(2.0*a*dx + b);
   #endif
 
-  g1    = ((double)istate)*sqrt(V0*V0 + (1.0 - u0*u0)*j2);
+  g1    = ((double)isweep)*sqrt(V0*V0 + (1.0 - u0*u0)*j2);
   *zeta = (V0*u0 + g1) / (1.0 - u0*u0);
 
 /* ***********************************************************
@@ -471,20 +471,28 @@ double TwoShock_RarefactionSpeed (double w[], int iside)
 {
   int    nv;
   double   vx, vt2, vel2;
-  double   sroot, delta2, cs2[1], h[1];
+  double   sroot, delta2, cs2, h;
+  static State local;
   static double **q;
   
-  if (q == NULL) q = ARRAY_2D(10, NFLX, double);
+  if (local.v == NULL) {  /* Allocate essential state members */
+    local.v  = ARRAY_2D(8, NFLX, double);
+    local.a2 = ARRAY_1D(8, double);
+    local.h  = ARRAY_1D(8, double);
+  }
   
-  for (nv = 0; nv < NFLX; nv++) q[0][nv] = w[nv];
+  for (nv = 0; nv < NFLX; nv++) local.v[0][nv] = w[nv];
    
-  SoundSpeed2(q, cs2, h, 0, 0, FACE_CENTER, NULL);
+  SoundSpeed2(&local, 0, 0, FACE_CENTER, NULL);
   
+  cs2 = local.a2[0];
+  h   = local.h[0];
+
   vx   = w[VXn];
   vt2  = EXPAND(0.0, + w[VXt]*w[VXt], + w[VXb]*w[VXb]);
   vel2 = vx*vx + vt2;
 
-  sroot = cs2[0]*(1.0 - vx*vx - vt2*cs2[0])*(1.0 - vel2);   /* this is eta/gamma */
+  sroot = cs2*(1.0 - vx*vx - vt2*cs2)*(1.0 - vel2);   /* this is eta/gamma */
     
   if (sroot < 0.0){
     print ("! sroot < 0 in RIemann \n");
@@ -495,8 +503,8 @@ double TwoShock_RarefactionSpeed (double w[], int iside)
   }
   sroot = sqrt(sroot);   /*this is eta/gamma */
   
-  delta2   = 1.0 - vel2*cs2[0];
-  return( (vx*(1.0 - cs2[0]) + (double)iside*sroot)/delta2);
+  delta2   = 1.0 - vel2*cs2;
+  return( (vx*(1.0 - cs2) + (double)iside*sroot)/delta2);
 }
 
 #undef  MAX_ITER

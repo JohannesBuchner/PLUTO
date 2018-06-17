@@ -35,13 +35,13 @@
 #include "pluto.h"
 
 /* ********************************************************************* */
-void CoolingSource (const Data *d, double dt, Time_Step *Dts, Grid *GXYZ)
+void CoolingSource (const Data *d, double dt, timeStep *Dts, Grid *GXYZ)
 /*!
  * Integrate cooling and reaction source terms.
  *
  * \param [in,out]  d   pointer to Data structure
  * \param [in]     dt   the time step to be taken
- * \param [out]    Dts  pointer to the Time_Step structure
+ * \param [out]    Dts  pointer to the timeStep structure
  * \param [in]    GXYZ  pointer to an array of Grid structures
  *
  *********************************************************************** */
@@ -80,7 +80,7 @@ void CoolingSource (const Data *d, double dt, Time_Step *Dts, Grid *GXYZ)
      -------------------------------------------------- */ 
 
     #if INTERNAL_BOUNDARY == YES
-     if (d->flag[k][j][i] & FLAG_INTERNAL_BOUNDARY) continue;
+    if (d->flag[k][j][i] & FLAG_INTERNAL_BOUNDARY) continue;
     #endif
     if (d->flag[k][j][i] & FLAG_SPLIT_CELL) continue;
     
@@ -94,9 +94,9 @@ void CoolingSource (const Data *d, double dt, Time_Step *Dts, Grid *GXYZ)
     mu0 = MeanMolecularWeight(v0);
     T0  = v0[PRS]/v0[RHO]*KELVIN*mu0;
     #if EOS == IDEAL
-     v0[RHOE] = v1[RHOE] = prs/(g_gamma-1.0);
+    v0[RHOE] = v1[RHOE] = prs/(g_gamma-1.0);
     #else
-     v1[RHOE] = v0[RHOE] = InternalEnergy(v0, T0);
+    v1[RHOE] = v0[RHOE] = InternalEnergy(v0, T0);
     #endif
 
     if (T0 <= 0.0){

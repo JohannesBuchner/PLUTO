@@ -16,7 +16,7 @@
   average between the left and the right states.
   
   On input, this function takes left and right primitive state vectors 
-  \c state->vL and \c state->vR at zone edge i+1/2;
+  \c stateL->v and \c stateR->v at zone edge i+1/2;
   On output, return flux and pressure vectors at the same interface 
   \c i+1/2 (note that the \c i refers to \c i+1/2).
   
@@ -29,19 +29,19 @@
        Problems", Toth and Odstrcil, JCP (1996), 128,82
        
   \authors A. Mignone (mignone@ph.unito.it)
-  \date    April 7, 2014
+  \date    July 20, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
 /* ********************************************************************* */
-void LF_Solver (const State_1D *state, int beg, int end, 
+void LF_Solver (const Sweep *sweep, int beg, int end, 
                 double *cmax, Grid *grid)
 /*!
  * Solve Riemann problem for the adiabatic MHD equations using the 
  * Lax-Friedrichs (Rusanov) Riemann solver.
  * 
- * \param[in,out] state   pointer to State_1D structure
+ * \param[in,out] sweep   pointer to Sweep structure
  * \param[in]     beg     initial grid index
  * \param[out]    end     final grid index
  * \param[out]    cmax    1D array of maximum characteristic speeds
@@ -50,61 +50,55 @@ void LF_Solver (const State_1D *state, int beg, int end,
  *********************************************************************** */
 {
   int     nv, i;
-  double    cRL;
-  double  *uR, *uL;
-  static double **fL, **fR, **vRL;
-  static double *pR, *pL, *cmin_RL, *cmax_RL, *a2L, *a2R;
-  static double **VL, **VR, **UL, **UR;
-  double **bgf;
 
-  if (fR == NULL){
-    fR  = ARRAY_2D(NMAX_POINT, NFLX, double);
-    fL  = ARRAY_2D(NMAX_POINT, NFLX, double);
+  State        stateRL;  
+  const State *stateL = &(sweep->stateL);
+  const State *stateR = &(sweep->stateR);
+
+  double  cRL, *uR, *uL, **bgf;
+  double **fL = stateL->flux, **fR = stateR->flux;
+  double *a2L = stateL->a2,   *a2R = stateR->a2;
+  double  *pL = stateL->prs,   *pR = stateR->prs;
+  static double **vRL,  *cmin_RL, *cmax_RL;
+
+/* --------------------------------------------------------
+   0. Allocate memory
+   -------------------------------------------------------- */
+
+  if (vRL == NULL){
     vRL = ARRAY_2D(NMAX_POINT, NFLX, double);
     cmin_RL = ARRAY_1D(NMAX_POINT, double);
     cmax_RL = ARRAY_1D(NMAX_POINT, double);
-    pR      = ARRAY_1D(NMAX_POINT, double);
-    pL      = ARRAY_1D(NMAX_POINT, double);
-
-    a2R     = ARRAY_1D(NMAX_POINT, double);
-    a2L     = ARRAY_1D(NMAX_POINT, double);
-    #ifdef GLM_MHD
-     VL = ARRAY_2D(NMAX_POINT, NVAR, double);
-     VR = ARRAY_2D(NMAX_POINT, NVAR, double);
-     UL = ARRAY_2D(NMAX_POINT, NVAR, double);
-     UR = ARRAY_2D(NMAX_POINT, NVAR, double);
-    #endif
   }
 
-  #if BACKGROUND_FIELD == YES
-   bgf = GetBackgroundField (beg, end, FACE_CENTER, grid);
-  #endif
+/* --------------------------------------------------------
+   1. Do some preliminary operations...
+   -------------------------------------------------------- */
+  
+#if BACKGROUND_FIELD == YES
+  GetBackgroundField (stateL, beg, end, FACE_CENTER, grid);
+#endif
 
-  #ifdef GLM_MHD
-   GLM_Solve (state, VL, VR, beg, end, grid);
-   PrimToCons (VL, UL, beg, end);
-   PrimToCons (VR, UR, beg, end);
-  #else
-   VL = state->vL; UL = state->uL;
-   VR = state->vR; UR = state->uR;
-  #endif
+#ifdef GLM_MHD
+  GLM_Solve (sweep, beg, end, grid);
+#endif
 
-/* ----------------------------------------------------
-     compute sound speed & fluxes at zone interfaces
-   ---------------------------------------------------- */
+/* --------------------------------------------------------
+   2. Compute sound speed & fluxes at zone interfaces
+   -------------------------------------------------------- */
 
-  SoundSpeed2 (VL, a2L, NULL, beg, end, FACE_CENTER, grid);
-  SoundSpeed2 (VR, a2R, NULL, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (stateL, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (stateR, beg, end, FACE_CENTER, grid);
 
-  Flux (UL, VL, a2L, bgf, fL, pL, beg, end);
-  Flux (UR, VR, a2R, bgf, fR, pR, beg, end);
+  Flux (stateL, beg, end);
+  Flux (stateR, beg, end);
 
-/* ------------------------------------------------------
-            Compute max eigenvalue and fluxes
-   ------------------------------------------------------ */
+/* --------------------------------------------------------
+   3. Compute max eigenvalue and fluxes
+   -------------------------------------------------------- */
 
   for (i = beg; i <= end; i++) {
-    VAR_LOOP(nv) vRL[i][nv] = 0.5*(VL[i][nv] + VR[i][nv]);
+    NVAR_LOOP(nv) vRL[i][nv] = 0.5*(stateL->v[i][nv] + stateR->v[i][nv]);
     #if EOS == IDEAL
      g_maxMach = MAX(g_maxMach, 
                      fabs(vRL[i][VXn])/sqrt(g_gamma*vRL[i][PRS]/vRL[i][RHO])); 
@@ -116,27 +110,54 @@ void LF_Solver (const State_1D *state, int beg, int end,
     #endif
   }
 
-  SoundSpeed2    (vRL, a2R, NULL, beg, end, FACE_CENTER, grid);
-  MaxSignalSpeed (vRL, a2R, cmin_RL, cmax_RL, bgf, beg, end);
+  stateRL.v    = vRL;
+  stateRL.a2   = a2R;   /* Reuse a2R for convenience */
+  stateRL.Bbck = stateL->Bbck;
+  SoundSpeed2    (&stateRL, beg, end, FACE_CENTER, grid);
+  MaxSignalSpeed (&stateRL, cmin_RL, cmax_RL, beg, end);
 
   for (i = beg; i <= end; i++) {
     cRL = MAX(fabs(cmin_RL[i]), fabs(cmax_RL[i]));
-    state->SL[i] = -cRL;
-    state->SR[i] =  cRL;
+    sweep->SL[i] = -cRL;
+    sweep->SR[i] =  cRL;
     cmax[i] = cRL;
-    uL = UL[i];
-    uR = UR[i];
+    uL = stateL->u[i];
+    uR = stateR->u[i];
     for (nv = NFLX; nv--;    ) {
-      state->flux[i][nv] = 0.5*(fL[i][nv] + fR[i][nv] - cRL*(uR[nv] - uL[nv]));
+      sweep->flux[i][nv] = 0.5*(fL[i][nv] + fR[i][nv] - cRL*(uR[nv] - uL[nv]));
     }
-    state->press[i] = 0.5*(pL[i] + pR[i]);
+    sweep->press[i] = 0.5*(pL[i] + pR[i]);
   }
 
 /* --------------------------------------------------------
-              initialize source term
+   4. Compute source term
    -------------------------------------------------------- */
 
-  #if DIVB_CONTROL == EIGHT_WAVES
-   Roe_DivBSource (state, beg + 1, end, grid);
+#if DIVB_CONTROL == EIGHT_WAVES
+  Roe_DivBSource (sweep, beg + 1, end, grid);
+#endif
+
+/* ----------------------------------------------------------
+   5. Add CR flux contribution using simplified upwinding.
+   ---------------------------------------------------------- */
+
+#ifdef PARTICLES
+  #if (PARTICLES_TYPE == COSMIC_RAYS) && (PARTICLES_CR_FEEDBACK == YES) 
+  Particles_CR_Flux (stateL, beg, end);
+  Particles_CR_Flux (stateR, beg, end);
+
+  for (i = beg; i <= end; i++){
+    if (sweep->flux[i][RHO] > 0.0) {
+      for (nv = NFLX; nv--; ) sweep->flux[i][nv] += stateL->fluxCR[i][nv];
+    }else if (sweep->flux[i][RHO] < 0.0){
+      for (nv = NFLX; nv--; ) sweep->flux[i][nv] += stateR->fluxCR[i][nv];
+    }else{
+      for (nv = NFLX; nv--; ) {
+        sweep->flux[i][nv] += 0.5*(stateL->fluxCR[i][nv] + stateR->fluxCR[i][nv]);
+      }
+    }
+  }  
   #endif
+#endif
+
 }

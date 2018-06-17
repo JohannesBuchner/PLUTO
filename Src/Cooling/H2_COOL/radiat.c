@@ -141,7 +141,7 @@ void Radiat (double *v, double *rhs)
   rho = v[RHO];
   mu  = MeanMolecularWeight(v); 
   if (mu < 0.0){
-    print1 ("! Radiat: mu = %f < 0 \n",mu);
+    print ("! Radiat: mu = %f < 0 \n",mu);
     QUIT_PLUTO(1);
   }
   #if EOS == IDEAL
@@ -167,7 +167,7 @@ void Radiat (double *v, double *rhs)
   n_el = N_H*(hn + 0.5*CONST_AZ*frac_Z);  /* -- electron number density, in cm^{-3} -- */
   
   if (n_el < 0){
-    print1 ("! Radiat: negative electron density\n");
+    print ("! Radiat: negative electron density\n");
     QUIT_PLUTO(1);
   }
 

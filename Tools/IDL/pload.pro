@@ -1,6 +1,8 @@
 ; ----------------------------------------------------------------------
 ;  PLOAD.PRO: main driver to read different data formats (flt, dbl, 
-;             flt.h5, dbl.h5, hdf5 written by the PLUTO code
+;             flt.h5, dbl.h5, hdf5 written by the PLUTO code.
+;
+;  LAST MODIFIED:  Apr 25, 2015
 ; ----------------------------------------------------------------------
 
 COMMON PLUTO_GRID,  nx1,nx2,nx3,x1,x2,x3,$
@@ -9,10 +11,10 @@ COMMON PLUTO_GRID,  nx1,nx2,nx3,x1,x2,x3,$
                                       ;  ** loaded when HDF5LOAD is called **
 
 COMMON PLUTO_VAR, NVAR, rho, vx1, vx2, vx3, $
-                             bx1, bx2, bx3, $
                              Ax1, Ax2, Ax3, $
-                             bx1s, bx2s, bx3s,$
-                             tmp, mu, gmm, rhoe, $  ; User defined                             
+                             Bx1, Bx2, Bx3, $
+                             Bx1s, Bx2s, Bx3s,$
+                             Ex1, Ex2, Ex3,qg,$
                          ; ----------------------------------------
                              v1, v2, v3, $   ; Kept for backward
                              b1, b2, b3, $   ; compatibility with 
@@ -20,7 +22,7 @@ COMMON PLUTO_VAR, NVAR, rho, vx1, vx2, vx3, $
                              b1s, b2s, b3s, $ ;
                              pr,            $ ;
                          ; -----------------------------------------
-                  prs, psi_glm, $
+                  prs, phi_glm, psi_glm, $
                   tr1, tr2, tr3, tr4, $
                   x_HI, x_HII, x_H2, x_heI, x_heII,$
                   x_cI, x_cII, x_cIII, x_cIV, x_cV,$
@@ -29,6 +31,7 @@ COMMON PLUTO_VAR, NVAR, rho, vx1, vx2, vx3, $
                   x_neI, x_neII, x_neIII, x_neIV, x_neV,$
                   x_sI, x_sII, x_sIII, x_sIV, x_sV, $
                   rho_d, vx1_d, vx2_d, vx3_d, $  ; Dust
+                  particles, particles_reduced, $ ; Particles
                   vars, vname
 COMMON PLUTO_RUN,  t, dt, nlast, first_call
 
@@ -39,7 +42,6 @@ COMMON PLUTO_RUN,  t, dt, nlast, first_call
 ;   rho variable contained in the PLUTO_VAR common block
 ;
 ; *************************************************************************
-
 PRO MATCH_VARNAME, vpt, name, silent=silent
 
  COMMON PLUTO_GRID
@@ -49,9 +51,9 @@ PRO MATCH_VARNAME, vpt, name, silent=silent
  match  = 0
  match3 = 0
 
- ; --------------------------------------------
- ; Backward compatibility for vector names
- ; --------------------------------------------
+ ; ----------------------------------------------------------------
+ ; Backward compatibility for vector names (PLUTO 3.xx or earlier)
+ ; ----------------------------------------------------------------
 
  CASE name OF
    "v1":  BEGIN v1  = vpt & match3 = 1 & END
@@ -79,16 +81,24 @@ PRO MATCH_VARNAME, vpt, name, silent=silent
    "vx1":  BEGIN vx1  = vpt & match = 1 & END
    "vx2":  BEGIN vx2  = vpt & match = 1 & END
    "vx3":  BEGIN vx3  = vpt & match = 1 & END
-   "bx1":  BEGIN bx1  = vpt & match = 1 & END
-   "bx2":  BEGIN bx2  = vpt & match = 1 & END
-   "bx3":  BEGIN bx3  = vpt & match = 1 & END
-   "bx1s": BEGIN bx1s = vpt & match = 1 & END
-   "bx2s": BEGIN bx2s = vpt & match = 1 & END
-   "bx3s": BEGIN bx3s = vpt & match = 1 & END
    "Ax1":  BEGIN Ax1  = vpt & match = 1 & END
    "Ax2":  BEGIN Ax2  = vpt & match = 1 & END
    "Ax3":  BEGIN Ax3  = vpt & match = 1 & END
+   "Bx1":  BEGIN Bx1  = vpt & match = 1 & END
+   "Bx2":  BEGIN Bx2  = vpt & match = 1 & END
+   "Bx3":  BEGIN Bx3  = vpt & match = 1 & END
+   "bx1":  BEGIN Bx1  = vpt & match = 1 & END
+   "bx2":  BEGIN Bx2  = vpt & match = 1 & END
+   "bx3":  BEGIN Bx3  = vpt & match = 1 & END
+   "Ex1":  BEGIN Ex1  = vpt & match = 1 & END
+   "Ex2":  BEGIN Ex2  = vpt & match = 1 & END
+   "Ex3":  BEGIN Ex3  = vpt & match = 1 & END
+   "qg":   BEGIN qg   = vpt & match = 1 & END
+   "Bx1s": BEGIN Bx1s = vpt & match = 1 & END
+   "Bx2s": BEGIN Bx2s = vpt & match = 1 & END
+   "Bx3s": BEGIN Bx3s = vpt & match = 1 & END
    "psi_glm": BEGIN psi_glm = vpt & match = 1 & END
+   "phi_glm": BEGIN phi_glm = vpt & match = 1 & END
 
    "prs": BEGIN prs = vpt & match = 1 & END
    "tr1": BEGIN tr1 = vpt & match = 1 & END
@@ -96,13 +106,6 @@ PRO MATCH_VARNAME, vpt, name, silent=silent
    "tr3": BEGIN tr3 = vpt & match = 1 & END
    "tr4": BEGIN tr4 = vpt & match = 1 & END
  
-  ; -- User-defined
-
-    "tmp": BEGIN tmp = vpt & match = 1 & END
-    "mu":  BEGIN mu  = vpt & match = 1 & END
-    "gmm": BEGIN gmm = vpt & match = 1 & END
-    "rhoe": BEGIN rhoe = vpt & match = 1 & END
-
   ; -- Ion fractions --
 
    "X_HI":   BEGIN x_hI   = vpt & match = 1 & END
@@ -160,6 +163,16 @@ PRO MATCH_VARNAME, vpt, name, silent=silent
    IF (NOT KEYWORD_SET(SILENT)) THEN PRINT,"> Reading ",name, " (PLUTO-3 Data)"
  ENDIF
 
+; -- Now check user-defined variables --
+
+  CATCH, err_status                ; Error handler just in case
+  IF (err_status NE 0) THEN BEGIN  ; MATCH_USERDEF_VARNAME does not exist
+    vpt = 0; free memory
+    RETURN
+  ENDIF
+
+  MATCH_USERDEF_VARNAME,vpt, name, silent=silent
+  
  vpt = 0; free memory
 
 END
@@ -218,7 +231,7 @@ PRO READ_PLUTO_GRID, dir, silent=silent
  id = STRMID(s,0,1)
  IF (id EQ '#') THEN BEGIN; reading PLUTO 4 Grid file
 
-   IF (NOT KEYWORD_SET(SILENT)) THEN PRINT,"> Using PLUTO 4.0 Grid file"
+   IF (NOT KEYWORD_SET(SILENT)) THEN PRINT,"> Using PLUTO 4 Grid file"
    WHILE (id EQ '#') DO BEGIN
      POINT_LUN, -U, pos
      READF, U, s 
@@ -572,10 +585,10 @@ END
 ;
 ;      rho           = density
 ;      vx1, vx2, vx3 = velocity components
-;      bx1, bx2, bx3 = magnetic field components
+;      Bx1, Bx2, Bx3 = magnetic field components
 ;      prs           = pressure
 ;      tr1, ...      = passive scalars
-;      bx1s, bx2s, bx3s = staggered components of magnetic field (only with 
+;      Bx1s, Bx2s, Bx3s = staggered components of magnetic field (only with 
 ;                         double precision binary data files) available with 
 ;                         constrained transport.
 ;                      
@@ -701,7 +714,7 @@ END
 ;
 ; LAST MODIFIED:
 ;
-;  Aug 17, 2015 by A. Mignone (mignone@ph.unito.it)
+;  May 25, 2018 by A. Mignone (mignone@ph.unito.it)
 ;
 ;-
 
@@ -739,7 +752,7 @@ PRO PLOAD, NOUT, ASSOC=ASSOC, DIR=DIR, FLOAT=FLOAT, H5=H5, HDF5=HDF5, $
   IF (STRPOS(dir,'/',strlen(DIR)-1) EQ -1) THEN dir = dir+'/'
 
 ; -----------------------------------------------
-;  if data is data is from HDF5 (Chombo),
+;  If data is data is from HDF5 (Chombo),
 ;  go directly to HDF5LOAD and skip the rest
 ; -----------------------------------------------
 
@@ -752,7 +765,7 @@ PRO PLOAD, NOUT, ASSOC=ASSOC, DIR=DIR, FLOAT=FLOAT, H5=H5, HDF5=HDF5, $
     H5F_CLOSE,ifil
 
     IF ( dim EQ 1) THEN BEGIN
-      HDF5LOAD_ONED, nout, dir, /SILENT,  _EXTRA=extra
+      HDF5LOAD_ONED, nout, dir,  _EXTRA=extra
     ENDIF ELSE BEGIN
       HDF5LOAD, nout, dir, var=var, $
                 x1range=x1range,x2range=x2range,x3range=x3range,$
@@ -764,7 +777,7 @@ PRO PLOAD, NOUT, ASSOC=ASSOC, DIR=DIR, FLOAT=FLOAT, H5=H5, HDF5=HDF5, $
   ENDIF
 
 ; ----------------------------------
-;     read pluto grid file
+;  Read pluto grid file
 ; ----------------------------------
 
   READ_PLUTO_GRID, DIR, SILENT=SILENT
@@ -798,11 +811,11 @@ PRO PLOAD, NOUT, ASSOC=ASSOC, DIR=DIR, FLOAT=FLOAT, H5=H5, HDF5=HDF5, $
   IF (NOT KEYWORD_SET(SILENT)) THEN PRINT, "> Reading ",outname
   scrh = READ_ASCII(outname,count = nlast)
 
-  timestr = strarr(nlast)
-  t       = fltarr(nlast)
-  dt      = fltarr(nlast)
-  mode    = strarr(nlast)
-  endn    = strarr(nlast)
+  timestr = STRARR(nlast)
+  t       = FLTARR(nlast)
+  dt      = FLTARR(nlast)
+  mode    = STRARR(nlast)
+  endn    = STRARR(nlast)
 
   numvar = intarr(nlast)
   names  = strarr(nlast,64)
@@ -819,11 +832,11 @@ PRO PLOAD, NOUT, ASSOC=ASSOC, DIR=DIR, FLOAT=FLOAT, H5=H5, HDF5=HDF5, $
   CLOSE,1
 
   FOR n = 0, nlast DO BEGIN
-    q = strsplit (timestr(n),' ',/extract)
-    t(n)     = q(1)
-    dt(n)    = q(2)
-    mode(n)  = q(4)
-    endn(n)  = q(5)
+    q = STRSPLIT (timestr(n),' ',/extract)
+    t(n)     = q[1]
+    dt(n)    = q[2]
+    mode(n)  = q[4]
+    endn(n)  = q[5]
 
     sq6 = size(q(6:*))
     numvar(n) = sq6[1]
@@ -962,12 +975,11 @@ PRO PLOAD, NOUT, ASSOC=ASSOC, DIR=DIR, FLOAT=FLOAT, H5=H5, HDF5=HDF5, $
 ;  Begin main loop on variables:
 ;  for each variable:
 ;
-;    * open the corresponding file (in MULTIPLE_FILES mode)
-;    * associate a pointer to the the file
-;    * store the arrays into memory (only if
-;       /assoc has not been given)
-;    * copy the pointer content into a variable
-;    * increment offset
+;  * open the corresponding file (in MULTIPLE_FILES mode)
+;  * associate a pointer to the the file
+;  * store the arrays into memory (only if /ASSOC has not been given)
+;  * copy the pointer content into a variable
+;  * increment offset
 ; ----------------------------------------------------------
 
   offset = ulong64(0)
@@ -1009,9 +1021,9 @@ PRO PLOAD, NOUT, ASSOC=ASSOC, DIR=DIR, FLOAT=FLOAT, H5=H5, HDF5=HDF5, $
   ; **** set extra zones for staggered fields ****
 
     n1p = 0 & n2p = 0 & n3p = 0
-    IF (names(nout,nv) EQ "bx1s") THEN n1p = 1
-    IF (names(nout,nv) EQ "bx2s") THEN n2p = 1
-    IF (names(nout,nv) EQ "bx3s") THEN n3p = 1
+    IF (names(nout,nv) EQ "Bx1s") THEN n1p = 1
+    IF (names(nout,nv) EQ "Bx2s") THEN n2p = 1
+    IF (names(nout,nv) EQ "Bx3s") THEN n3p = 1
 
   ; **** check if either one of shrink/xyassoc/xranges have been given ****
 
@@ -1052,6 +1064,7 @@ PRO PLOAD, NOUT, ASSOC=ASSOC, DIR=DIR, FLOAT=FLOAT, H5=H5, HDF5=HDF5, $
   ; ---------------------------------------------
 
     MATCH_VARNAME,vpt, names(nout,nv), silent=silent
+
     vpt = 0; free memory
 
     OFFSET:
@@ -1060,9 +1073,9 @@ PRO PLOAD, NOUT, ASSOC=ASSOC, DIR=DIR, FLOAT=FLOAT, H5=H5, HDF5=HDF5, $
       n2_off = ulong64(NX2)
       n3_off = ulong64(NX3)
 
-      IF (names(nout,nv) EQ "bx1s") THEN n1_off = ulong64(NX1 + 1)
-      IF (names(nout,nv) EQ "bx2s") THEN n2_off = ulong64(NX2 + 1)
-      IF (names(nout,nv) EQ "bx3s") THEN n3_off = ulong64(NX3 + 1)
+      IF (names(nout,nv) EQ "Bx1s") THEN n1_off = ulong64(NX1 + 1)
+      IF (names(nout,nv) EQ "Bx2s") THEN n2_off = ulong64(NX2 + 1)
+      IF (names(nout,nv) EQ "Bx3s") THEN n3_off = ulong64(NX3 + 1)
 
       offset = offset + ulong64(n1_off*n2_off*n3_off*NBYTES)
       POINT_LUN,unit,offset; move file pointer 

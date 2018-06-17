@@ -45,26 +45,28 @@
   different geometries are explored:
 
   <CENTER>
-  Conf.|GEOMETRY  |DIM|T.STEPPING |divB|RESISTIVITY
-  -----|----------|---|-----------|----| ----------
-   #01 |CARTESIAN | 3 |  RK2      | 8W | EXPLICIT
-   #02 |CARTESIAN | 3 |  HANCOCK  | GLM| STS
-   #03 |CARTESIAN | 3 |  RK3      | CT | EXPLICIT
-   #04 |CARTESIAN | 3 |  HANCOCK  | GLM| EXPLICIT
-   #05 |POLAR     | 3 |  RK2      | 8W | EXPLICIT
-   #06 |POLAR     | 3 |  RK2      | 8W | STS
-   #07 |SPHERICAL | 3 |  RK2      | 8W | EXPLICIT
-   #08 |SPHERICAL | 3 |  RK2      | 8W | STS
-   #09 |SPHERICAL | 3 |  RK3      | CT | EXPLICIT
-   #10 |CARTESIAN | 2 |  HANCOCK  | CT | EXPLICIT
-   #11 |CARTESIAN | 3 |  HANCOCK  | CT | EXPLICIT
-   #12 |CARTESIAN | 2 |  HANCOCK  | CT | STS
-   #13 |SPHERICAL | 3 |  RK2      | CT | STS
+  Conf.|GEOMETRY  |DIM|T.STEPPING|divB|RESISTIVITY
+  -----|----------|---|----------|----| ----------
+   #01 |CARTESIAN | 3 | RK2      | 8W | EXPLICIT
+   #02 |CARTESIAN | 3 | HANCOCK  | GLM| STS
+   #03 |CARTESIAN | 3 | RK3      | CT | EXPLICIT
+   #04 |CARTESIAN | 3 | HANCOCK  | GLM| EXPLICIT
+   #05 |POLAR     | 3 | RK2      | 8W | EXPLICIT
+   #06 |POLAR     | 3 | RK2      | 8W | STS
+   #07 |SPHERICAL | 3 | RK2      | 8W | EXPLICIT
+   #08 |SPHERICAL | 3 | RK2      | 8W | STS
+   #09 |SPHERICAL | 3 | RK3      | CT | EXPLICIT
+   #10 |CARTESIAN | 2 | HANCOCK  | CT | EXPLICIT
+   #11 |CARTESIAN | 3 | HANCOCK  | CT | EXPLICIT
+   #12 |CARTESIAN | 2 | HANCOCK  | CT | STS
+   #13 |SPHERICAL | 3 | RK2      | CT | STS
+   #14 |CARTESIAN | 3 | HANCOCK  | GLM| RKL
+   #13 |SPHERICAL | 3 | RK2      | GLM| RKL
   </CENTER>
 
   \authors A. Mignone (mignone@ph.unito.it) \n
            T. Matsakos (titos@oddjob.uchicago.edu)
-  \date   Sept 17, 2014
+  \date    March 03, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -79,6 +81,20 @@ void Init (double *us, double x1, double x2, double x3)
 {
   BoundValues(us, x1, x2, x3, 1.0);
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
@@ -113,9 +129,9 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
 
   t = g_time + 1.0;
 
-  x = grid[IDIR].x; xp = grid[IDIR].xr;
-  y = grid[JDIR].x; yp = grid[JDIR].xr;
-  z = grid[KDIR].x; zp = grid[KDIR].xr;
+  x = grid->x[IDIR]; xp = grid->xr[IDIR];
+  y = grid->x[JDIR]; yp = grid->xr[JDIR];
+  z = grid->x[KDIR]; zp = grid->xr[KDIR];
 
   if (side == X1_BEG || side == X2_BEG || side == X3_BEG ||
       side == X1_END || side == X2_END || side == X3_END){  /* -- All Boundaries -- */

@@ -42,7 +42,7 @@ Riemann_Solver *SetSolver (const char *solver)
 
   }
 
-  print1 ("\n! SetSolver: '%s' is not available.\n", solver);
+  print ("\n! SetSolver: '%s' is not available.\n", solver);
   QUIT_PLUTO(1);
     
 }

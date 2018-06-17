@@ -1,246 +1,314 @@
-\form#0:$\propto T^{-1}$
-\form#1:\[ \Big(\delta v_x\,, \delta v_y\Big) = - (y_c,\,x_c)\frac{\epsilon}{2\pi} \exp\left(\frac{1-r_c^2}{2}\right) \,,\quad T = \frac{p}{\rho} = 1 - \frac{(\Gamma-1)\epsilon^2}{8\Gamma\pi^2}\exp(1-r_c^2)\,,\quad s = \frac{p}{\rho^\Gamma} \]
-\form#2:$ (x_c,\,y_c) = (x-5,\,y-5),\, r_c=\sqrt{x_c^2+y_c^2},\,\epsilon=5$
-\form#3:$\Gamma = 1.4$
-\form#4:$ \rho_a = \eta $
-\form#5:$\eta$
-\form#6:$ p = 1/\Gamma $
-\form#7:$ p = p(\rho_a, T_a) $
-\form#8:\[ V_{ij} = \left\{\begin{array}{ll} V_{\rm jet} & \quad\mathrm{for}\quad r_i < 1 \\ \noalign{\medskip} \mathrm{Reflect}(V) & \quad\mathrm{otherwise} \end{array}\right. \]
-\form#9:$ V_{\rm jet} = (\rho,v,p)_{\rm jet} = (1,M,1/\Gamma)$
-\form#10:$ v = M$
-\form#11:$ \pi/3 $
-\form#12:\[ \left(\rho,v_x,v_y,p\right) = \left\{\begin{array}{ll} (1.4,0,0,1) & \qquad {\rm for} \quad x >x_s(0) \\ \noalign{\medskip} (8,8,25,-8.25,116.5) & \qquad {\rm otherwise} \end{array}\right. \]
-\form#13:$x_s(t) = 10t/\sin\alpha + 1/6 + y/\tan\alpha$
-\form#14:$ \Gamma = 1.4$
-\form#15:$ x < x_s(t) = 10 t/\sin\alpha + 1/6 + 1.0/\tan\alpha $
-\form#16:$x > 0$
-\form#17:$y > 0$
-\form#18:\[ \rho = \rho_{\rm PP} \,,\quad\quad P = P_{\rm PP} \,,\quad\quad v_x = v_{x\,{\rm PP}} \,,\quad\quad v_y = v_{y\,{\rm PP}}\,. \]
-\form#19:$y < 0$
-\form#20:$x < 0$
-\form#21:\[ \begin{array}{lcll} \left(\rho,\, v_x,\, p\right)_L &=& \left(1, 0, 1\right) & \qquad\mathrm{for}\quad x < 0.5 \\ \noalign{\medskip} \left(\rho,\, v_x,\, p\right)_R &=& \left(\frac{1}{8}, 0, \frac{1}{10}\right) & \qquad\mathrm{for}\quad x > 0.5 \end{array} \]
-\form#22:\[ \rho = \rho_a \,,\qquad p = p_a\,,\qquad \vec{v} = v_{csm}\hvec{j} \]
-\form#23:\[ r^2v_r\rho = \rho_0 V_0^2r_0^2 \,,\qquad v_r = V_0\hvec{r} \,,\qquad p = \frac{c_s^2}{\Gamma}\rho^\Gamma \]
-\form#24:$ r_0 = V_0 = \rho_0 = 1$
-\form#25:\[ g = \left\{\begin{array}{ll} -1/R^2 & \quad{\rm for} \quad R > 1 \\ \noalign{\medskip} aR + bR^2 + cR^3 & \quad{\rm for} \quad R < 1 \end{array}\right.\,, \]
-\form#26:$R = \sqrt{r^2 + z^2}$
-\form#27:$a$
-\form#28:$b$
-\form#29:$c$
-\form#30:$g$
-\form#31:$P = \rho/a$
-\form#32:\[ \frac{1}{\rho} \frac{d\rho}{dr} = ag\,, \]
-\form#33:$\rho = 1$
-\form#34:$R = 1$
-\form#35:\[ P_{\rm jet} = \frac{P_{\rm ratio}}{\Gamma}\left(\frac{2}{\Gamma + 1}\right)^{\Gamma/(\Gamma - 1)} \,,\quad \rho_{\rm jet} = \rho_{\rm ratio}\left(\frac{2}{\Gamma + 1}\right)^{1/(\Gamma - 1)} \,,\quad v_{\rm jet} = \sqrt{\frac{\Gamma P_{\rm jet}}{\rho_{\rm jet}}}\,. \]
-\form#36:$\rho_{\rm ratio}$
-\form#37:$P_{\rm ratio}$
-\form#38:$ R_{\rm int}$
-\form#39:$ R_{\rm ext}$
-\form#40:$\omega$
-\form#41:\[ {\rm Re} = \Omega R_{int}\left(R_{\rm ext} - R_{\rm int}\right) \frac{\rho}{\nu_1} \]
-\form#42:${\rm Re} > {\rm Re}_{\rm critical}\sim 130$
-\form#43:$\kappa = 2 \pi / \lambda$
-\form#44:$(r,\phi)$
-\form#45:$\rho = 1,\, p = 1/\Gamma$
-\form#46:\[ V_r = U\left(1 - \frac{1}{r^2}\right)\cos\theta \,,\qquad V_\phi = -U\left(1 + \frac{1}{r^2}\right)\sin\theta \]
-\form#47:$ \rho = 1 $
-\form#48:\[ p = \left\{\begin{array}{ll} p_{\rm in} & \qquad\mathrm{for}\quad r < r_0 \\ \noalign{\medskip} p_{\rm out} & \qquad\mathrm{otherwise} \\ \end{array}\right.\,;\qquad \vec{B} = B_0\left( \sin\theta\cos\phi\hvec{x} + \sin\theta\sin\phi\hvec{y} + \cos\theta\hvec{z}\right) \]
-\form#49:$p_{\rm in},\, p_{\rm out},\, B_0,\, \theta,\, \phi,\, r_0$
-\form#50:$\delta\rho/\rho\sim 1.2$
-\form#51:\[ \rho = 1 \,,\quad v_x = V_0 \,,\quad v_y = |\epsilon|\cos(\phi) \,,\quad v_z = |\epsilon|\sin(\phi) \,,\quad B_x = 1 \,,\quad B_y = \epsilon\cos(\phi) \,,\quad B_z = \epsilon\cos(\phi) \,,\quad P = P_0 \,, \]
-\form#52:$V_0$
-\form#53:$x$
-\form#54:$\psi$
-\form#55:$k_xx$
-\form#56:$k_xx + k_yy$
-\form#57:$\epsilon$
-\form#58:$\epsilon > 0$
-\form#59:$\epsilon < 0$
-\form#60:$V_A = B_x/\sqrt{\rho}$
-\form#61:$t_a = k_y/k_x$
-\form#62:$t_b = k_z/k_x$
-\form#63:$y$
-\form#64:$z$
-\form#65:$k_x = 2\pi/l_x = 2\pi$
-\form#66:$k_y = 2\pi/l_y$
-\form#67:$k_z = 2\pi/l_z$
-\form#68:$t_z = 1/l_y$
-\form#69:$t_y = 1/l_z$
-\form#70:$L_y/l_y = 1,2,3,4...$
-\form#71:$L_z/l_z$
-\form#72:$L_x = 1$
-\form#73:$L_y = 1/t_a$
-\form#74:$L_z = 1/t_b$
-\form#75:$N$
-\form#76:$L_y = N/t_a$
-\form#77:$L_z = N/t_b$
-\form#78:$t_z = t_y = 0$
-\form#79:$V_A = \omega/|k|$
-\form#80:$1/T = \sqrt{1 + t_a^2 + t_b^2}$
-\form#81:$(r,\theta,\phi$
-\form#82:$ 1/r^2$
-\form#83:\[ \rho = \frac{1}{R^{3/2}}\exp\left[\frac{\sin(\theta) - 1}{c_0^2}\right] \,,\qquad p = c_s^2\rho\ ,,\qquad v_\phi = \frac{1}{\sqrt{r}}\left(1 - \frac{5}{2\sin\theta}c_0^2\right) \]
-\form#84:$R = r\sin\theta$
-\form#85:$c_0 = H/R$
-\form#86:$c_s = H/R^{3/2}$
-\form#87:$ H/R $
-\form#88:$\Delta T = 2\pi$
-\form#89:\[ A_\phi = A_0\frac{\sin(2\pi R) - R\cos(2\pi R)}{R} \exp\left[-\left(\frac{z}{H}\right)^4\right] \exp\left[-\left(\frac{R-6}{2}\right)^4\right] \]
-\form#90:$ z/H > 2.5$
-\form#91:$ R < 2.5$
-\form#92:$ x\in[-1,1],\, y\in[-0.5,0.5] $
-\form#93:$ 2N_y\times N_y$
-\form#94:\[ \vec{v} = V_0(\cos\alpha, \sin\alpha) \]
-\form#95:$V_0 = \sqrt{5},\,\sin \alpha = 1/\sqrt{5},\, \cos \alpha = 2/\sqrt{5}$
-\form#96:\[ A_z = \left\{ \begin{array}{ll} A_0(R-r) & \textrm{if} \quad R_1 < r \leq R \,, \\ \noalign{\medskip} 0 & \textrm{if} \quad r > R \,, \end{array} \right. \]
-\form#97:$ A_0 = 10^{-3},\, R = 0.3,\, r = \sqrt{x^2+y^2}$
-\form#98:\[ A_z = \left\{ \begin{array}{ll} a_0 + a_2r^2 & \textrm{if} \quad 0 \leq r \leq R_1 \,, \\ \noalign{\medskip} A_0(R-r) & \textrm{if} \quad R_1 < r \leq R \,, \\ \noalign{\medskip} 0 & \textrm{if} \quad r > R \,, \end{array} \right. \]
-\form#99:$R_1=0.2 R,\, a_2 = -0.5A_0/R_1,\, a_0 = A_0(R-R_1) - a_2R_1^2$
-\form#100:$ (R,z) $
-\form#101:$ \rho_a $
-\form#102:$ p_a $
-\form#103:$ R_j $
-\form#104:$ B_z $
-\form#105:$ B_\phi(R) $
-\form#106:\[ \left\{\begin{array}{lcl} \rho(R) &=& \rho_j \\ \noalign{\medskip} v_z(R) &=& v_j \\ \noalign{\medskip} B_\phi(R) &=& \DS \left\{\begin{array}{ll} -B_m R/a & \quad{\rm for}\quad R<a \\ \noalign{\medskip} -B_m a/R & \quad{\rm for}\quad R>a \end{array}\right. \\ \noalign{\medskip} B_z(R) &=& B_{z0}\quad\mathrm{(const)} \end{array}\right. \]
-\form#107:$ v_R = B_R = 0 $
-\form#108:\[ \frac{dp}{dR} = \frac{\rho v_\phi^2}{R} - \frac{1}{2}\left[\frac{1}{R^2}\frac{d(R^2B^2_\phi)}{dR} +\frac{dB_z^2}{dR}\right] \]
-\form#109:\[ p(R) = p_a + B_m^2\left[1-\min\left(\frac{R^2}{a^2},1\right)\right] \]
-\form#110:\[ p(R=0) \equiv p_j = p_a + B_m^2 \]
-\form#111:$p_a$
-\form#112:$R_j=1$
-\form#113:$\rho_a=1$
-\form#114:$c_a = \Gamma p_a/\rho_a = 1$
-\form#115:$p_a = 1/\Gamma$
-\form#116:$ \eta = \rho_j/\rho_a \qquad\Longrightarrow\qquad \rho_j = \eta $
-\form#117:$ v_j $
-\form#118:\[ \left\{\begin{array}{ll} \sigma_z &= \DS \frac{B_z^2}{2p_a} \\ \noalign{\medskip} \sigma_\phi &= \DS \frac{<B_\phi^2>}{2p_a} \end{array}\right. \qquad\Longrightarrow\qquad \left\{\begin{array}{ll} B_z^2 &= \DS 2\sigma_zp_a \\ \noalign{\medskip} B_m^2 &= \DS \frac{2\sigma_\phi}{a^2(1/2-2\log a)}p_a \end{array}\right. \]
-\form#119:$B^2_\phi$
-\form#120:\[ <B^2_\phi> = \frac{\int_0^1 B^2_\phi R\,dR}{\int_0^1 R\,dR} = B_m^2a^2\left(\frac{1}{2} - 2\log a\right) \]
-\form#121:$ R \le 1 $
-\form#122:$[0,2\pi]^D$
-\form#123:\[ \vec{v} = \left(-\sin y,\, \sin x, 0\right) \,,\qquad \vec{B} = \left(-\sin y,\, \sin 2x, 0\right) \,,\qquad \rho = 25/9\,,\qquad p = 5/3 \]
-\form#124:\[ \rho(y) = \left\{\begin{array}{ll} 1 & \quad{\rm for} \quad y \le 0 \\ \noalign{\medskip} \eta & \quad{\rm for} \quad y > 0 \end{array}\right. \,,\qquad p = p_0 + \rho y g \]
-\form#125:$ \eta $
-\form#126:\[ \vec{B} = \chi B_c\hvec{i} \,,\qquad B_c \equiv \sqrt{(\rho_{\rm hi} - \rho_{\rm lo})L|g|}\quad \to\quad \sqrt{(\eta - 1.0)|g|} \]
-\form#127:$\chi$
-\form#128:$ 1/\sqrt{4\pi} $
-\form#129:\[ B_x(y) = B_0 \tanh(y/l) \]
-\form#130:\[ \rho(y) = \rho_0 \cosh^{-2}(y/l) + \rho_{\infty} \]
-\form#131:$ \rho_0=1 $
-\form#132:$ \rho_{\infty} = 0.2 $
-\form#133:$ p = c_s^2 \rho $
-\form#134:$ c_s^2 = \frac{B_0^2}{2\rho_0} $
-\form#135:\[ \begin{array}{lcl} B_x(x,y) &=& \DS -\Psi_0\frac{\pi}{L_y}\cos\left(\frac{2\pi x}{L_x}\right) \sin\left(\frac{\pi y}{L_y}\right), \\ \noalign{\medskip} B_y(x,y) &=& \DS +\Psi_0 \frac{2\pi}{L_x}\sin\left(\frac{2\pi x}{L_x}\right) \cos\left(\frac{\pi y}{L_y}\right). \end{array} \]
-\form#136:$ S $
-\form#137:\[ S = \frac{v_A L}{\eta} \]
-\form#138:$ v_A $
-\form#139:$ v_A = \DS \frac{B}{\sqrt{\rho}}$
-\form#140:$ L $
-\form#141:$\mathcal{E} = \DS \frac{v_{in}}{v_{out}}$
-\form#142:$ v_{in} $
-\form#143:$ v_{out}$
-\form#144:$\mathcal{E} \sim \frac{\delta}{L} \sim \frac{1}{\sqrt{S}}$
-\form#145:$ \frac{\delta}{L} $
-\form#146:$ \eta = 10^{-2} - 10^{-4} $
-\form#147:$\Psi_0$
-\form#148:$ \eta_{x1}$
-\form#149:$ \eta_{x2}$
-\form#150:$ \eta_{x3}$
-\form#151:$ \tens{\eta}$
-\form#152:\[ \vec{J} \times \vec{B} = 0 \qquad\Longrightarrow\qquad \vec{J} = \nabla\times\vec{B} = \mu \vec{B} \]
-\form#153:$\vec{J}$
-\form#154:$\vec{B}$
-\form#155:$ \mu $
-\form#156:\[ B_z(r) = B_0 J_1(r) \,,\qquad B_\phi(r) = B_0 J_0(r) \]
-\form#157:\[ \frac{d\vec{B}}{dt} = - \nabla\times (\eta \vec{J}) = - \nabla\times (\eta \mu \vec{B}) = -\eta \mu^2 \vec{B} \]
-\form#158:$\vec{B}(r,t) = \vec{B}(r,0) \exp(-\eta\mu^2 t)$
-\form#159:\[ B_x(y,t) = \exp(-y^2/4\eta_zt)/\sqrt{t} \quad\quad\quad B_y(x,t) = \exp(-x^2/4\eta_zt)/\sqrt{t} \quad\quad\quad B_z(x,y,t) = \exp(-x^2/4\eta_yt)\exp(-y^2/4\eta_xt)/t \]
-\form#160:\[ \begin{array}{lcl} B_x(y,z,t) &=& \exp(-y^2/4\eta_zt)\exp(-z^2/4\eta_yt)/t \\ \noalign{\medskip} B_y(x,z,t) &=& \exp(-x^2/4\eta_zt)\exp(-z^2/4\eta_xt)/t \\ \noalign{\medskip} B_z(x,y,t) &=& \exp(-x^2/4\eta_yt)\exp(-y^2/4\eta_xt)/t \end{array} \]
-\form#161:$ \nabla\times\vec{J}=\nabla\times(\eta\nabla\times\vec{B})$
-\form#162:$B_x = 5/\sqrt{4\pi}$
-\form#163:$ \omega $
-\form#164:\[ (\rho, v_\phi) = \left\{\begin{array}{ll} (10, \omega r) & \qquad {\rm for}\quad r < r_0 \\ \noalign{\medskip} (1+9f,f\omega r_0) & \qquad {\rm for}\quad r_0 \le r \le r_1 \\ \noalign{\medskip} (1,0) & \qquad {\rm otherwise} \end{array}\right. \]
-\form#165:$ r_0=0.1$
-\form#166:$ = (r_1-r)/(r_1-r_0)$
-\form#167:\[ \rho = \left\{\begin{array}{ll} 1 & \quad{\rm(unstratified)} \\ \noalign{\medskip} \exp(-z^2/H^2) & \quad{\rm(stratified)} \end{array}\right. ;\quad v_y = -q\Omega x\,; \quad p = \rho c_s^2\,; \quad \vec{B} = \left\{\begin{array}{ll} (0,0,B_z) & \quad{\rm(net\,flux)} \\ \noalign{\medskip} (0,0,B_z\sin 2\pi x/L_x) & \quad{\rm(no\,net\,flux)} \end{array}\right. \]
-\form#168:$\Omega = 1$
-\form#169:$ q = 3/2 $
-\form#170:$ H = \sqrt{2}c_s/\Omega $
-\form#171:$ B_z = \sqrt{2c_s^2/\beta} $
-\form#172:$ c_s $
-\form#173:\[ \left\{\begin{array}{lcl} \DS \frac{dp}{dz} &=& \rho g_z \\ \noalign{\medskip} p &=& \rho c_s^2 \end{array}\right. \qquad\Longrightarrow\qquad \frac{p_{k+1}-p_k}{\Delta z} = \frac{p_{k} + p_{k+1}}{2c_s^2}g_z \]
-\form#174:$g_z$
-\form#175:$p_k$
-\form#176:$k=k_b-1$
-\form#177:\[ \left\{\begin{array}{lcl} p_k &=& \DS p_{k+1} \frac{1-a}{1+a} \\ \noalign{\medskip} \rho_k &=& \DS \frac{p_k}{c_s^2} \end{array}\right. \qquad\mathrm{where}\qquad a = \frac{\Delta z g_z}{2c_s^2} > 0 \]
-\form#178:$ \kappa_\| $
-\form#179:$ \kappa_\bot $
-\form#180:$ \phi $
-\form#181:$ F_{\rm sat} = 5\phi\rho c_{\rm iso}^3 $
-\form#182:$ \kappa_\parallel $
-\form#183:$ \kappa_\perp $
-\form#184:\[ \left(\begin{array}{l} \rho \\ \noalign{\medskip} v_x \\ \noalign{\medskip} p \\ \noalign{\medskip} B_y \\ \noalign{\medskip} B_z \end{array}\right) = \left(\begin{array}{l} 3.86859 \\ \noalign{\medskip} 0 \\ \noalign{\medskip} 167.345 \\ \noalign{\medskip} B_{\rm post} \\ \noalign{\medskip} -B_{\rm post} \\ \noalign{\medskip} \end{array}\right) \quad\mathrm{for}\quad x < 0.6\,,\qquad\qquad \left(\begin{array}{l} \rho \\ \noalign{\medskip} v_x \\ \noalign{\medskip} p \\ \noalign{\medskip} B_y \\ \noalign{\medskip} B_z \end{array}\right) = \left(\begin{array}{l} 1 \\ \noalign{\medskip} -11.2536 \\ \noalign{\medskip} 1 \\ \noalign{\medskip} B_{\rm pre} \\ \noalign{\medskip} -B_{\rm pre} \\ \noalign{\medskip} \end{array}\right) \quad\mathrm{for}\quad x > 0.6\,,\qquad \]
-\form#185:$R$
-\form#186:$r_0 = (x_0,y_0,z_0) = (0.8, 0.5, 0.5)$
-\form#187:$\rho = 10$
-\form#188:\[ \rho = \rho_{\rm out} + \frac{\rho_{\rm in} - \rho_{\rm out}}{\cosh\left[10(r/r_0)^{10}\right]}\,, \quad\quad\quad T = \left\{\begin{array}{ll} T_{\rm in} & \quad{\rm for} \quad r \le r_0 \\ \noalign{\medskip} T_{\rm out} & \quad{\rm for} \quad r > r_0 \end{array}\right.\,, \]
-\form#189:$r_0$
-\form#190:\[ \frac{\partial T}{\partial t} = a\frac{\partial}{\partial s} \left(T^n\frac{\partial T}{\partial s}\right) \]
-\form#191:\[ T = T_c\left(1 - \frac{s^2}{s_f^2}\right)^{1/n} \]
-\form#192:\[ T_c = \left(\frac{Q^2}{at}\right)^{1/(n+2)} \left(\frac{n}{2(n+2)}\zeta_0^2\right)^{1/n}\,, \quad\quad\quad s_f = (aQ^nt)^{1/(n+2)}\zeta_0\,, \quad\quad\quad \zeta_0 = \left[\frac{(n+2)^{1+n}2^{1-n}}{n\pi^{n/2}}\right]^{1/(n+2)} \left[\frac{\Gamma(1/2 + 1/n)}{\Gamma(1/n)}\right]^{n/(n+2)}\,, \]
-\form#193:$Q$
-\form#194:$\Gamma$
-\form#195:\[ -\frac{1}{R} + \frac{1}{2(1-a)}\frac{L_k^2}{r^{2-2a}} +(n+1)\frac{p}{\rho} = const \]
-\form#196:$p = K\rho^\gamma $
-\form#197:$ n = 1/(\gamma-1) $
-\form#198:$ 1+n = \gamma/(\gamma-1) $
-\form#199:$ a = 0 $
-\form#200:\[ -\frac{1}{R} + \frac{1}{2}\frac{L_k^2}{r^2} + \frac{\gamma}{\gamma-1}K\rho^{\gamma-1} = c = -\frac{1}{r_{\min}} + \frac{1}{2}\frac{L_k^2}{r_{\min}^2} \]
-\form#201:\[ K = \frac{\gamma-1}{\gamma}\left[ c + \frac{1}{r_{\max}} - \frac{1}{2}\frac{L_k^2}{r_{\max}^2} \right]\frac{1}{\rho_{\max}^{\gamma-1}}\,;\qquad \rho = \left[\frac{\gamma-1}{K\gamma}\left(c + \frac{1}{R} - \frac{1}{2}\frac{L_k^2}{r^2}\right)\right]^{1/(\gamma-1)} \]
-\form#202:$ r_{\min} $
-\form#203:$ r_{\max} $
-\form#204:$ \rho_{\max}$
-\form#205:$v_\phi = L_k/r$
-\form#206:\[ \rho_a(R) = \eta\rho_{\max} \exp\left[\left(\frac{1}{R}-\frac{1}{r_{\min}}\right) \frac{GM}{a^2}\right] \]
-\form#207:$(r_{\min},0)$
-\form#208:$p_t > p_a$
-\form#209:$ [\rho] = \rho_{\max}$
-\form#210:$ [L] = R_{*} $
-\form#211:$ [v^2] = GM/L $
-\form#212:$ H=GM/a^2$
-\form#213:\[ A_\phi = B_0(\rho_t - \rho_{\rm cut}) \]
-\form#214:$ v_z = \beta$
-\form#215:$\theta = 5^\circ$
-\form#216:\[ \left(\rho,\, v_x,\, p\right) = \left\{\begin{array}{ll} \left(\rho,\, v_x,\, p\right)_L & \quad\mathrm{for}\quad x < 0.5 \\ \noalign{\medskip} \left(\rho,\, v_x,\, p\right)_R & \quad\mathrm{otherwise} \end{array}\right. \]
-\form#217:\[ (\rho,\, p) = \left\{\begin{array}{lcl} (\rho_{\rm in},\, p_{\rm in}) & \quad\mathrm{or}\quad & r < r_c \\ \noalign{\medskip} (\rho_{\rm out},\, p_{\rm out}) & \quad\mathrm{or}\quad & r \ge r_c \end{array}\right. \,,\qquad |\vec{B}| = B_0 \]
-\form#218:$ r_c<r<1$
-\form#219:$ \{\rho,\, p\} \to \eta^2\{\rho,\,p\},\, B \to \eta B $
-\form#220:$ (r,z) $
-\form#221:\[ \left\{\begin{array}{lcl} \rho(R) &=& \rho_j \\ \noalign{\medskip} v_z(R) &=& v_j \\ \noalign{\medskip} B_\phi(R) &=& \DS \left\{\begin{array}{ll} -\gamma_j b_m R/a & \quad{\rm for}\quad r<a \\ \noalign{\medskip} -\gamma_j b_m a/R & \quad{\rm for}\quad r>a \end{array}\right. \\ \noalign{\medskip} B_z(R) &=& B_{z0}\quad\mathrm{(const)} \end{array}\right. \]
-\form#222:$ v_r = B_r = 0 $
-\form#223:\[ p(R) = p_j + b_m^2\left[1-\min\left(\frac{r^2}{a^2},1\right)\right] \]
-\form#224:$p_j=p_a$
-\form#225:$ M = v_j/cs $
-\form#226:$c_s=\sqrt{\Gamma p_j/(\rho h)}$
-\form#227:$\rho h = \rho + \Gamma p_j/(\Gamma-1)$
-\form#228:$p_j$
-\form#229:$p = p_0$
-\form#230:$M = v/c_s$
-\form#231:$c_s=\sqrt{\Gamma p/w}$
-\form#232:$c_s = \sqrt{\frac{p}{3w}\frac{5w - 8p}{w - p}}$
-\form#233:$ w = \rho h$
-\form#234:\[ \vec{B} = \left(\sqrt{2\sigma_{\rm pol}p_0},\, 0,\, \sqrt{2\sigma_{\rm tor}p_0}\right) \]
-\form#235:$\sigma_{\rm pol}$
-\form#236:$\sigma_{\rm tor}$
-\form#237:\[ \left(\rho, p, v_x, v_y, B_x\right) = \left\{\begin{array}{ll} \left(10, 1,-\omega y,\,\omega x,\, 1\right) & \quad\mathrm{for}\quad r < 0.1 \\ \noalign{\medskip} \left(1,\, 1,\, 0,\, 0,\, 1\right) & \quad\mathrm{otherwise} \end{array}\right. \]
-\form#238:$\omega = 9.95$
-\form#239:$ \rho = 10 $
-\form#240:$ (0.8,0) $
-\form#241:$ x=0 $
-\form#242:$ x < 0 $
-\form#243:\[ (\rho,\, B_z,\, p) = (39.5052, 1.9753,\, 129.72386) \]
-\form#244:\[ \begin{array}{lcll} (\rho,\, v_z,\, B_z,\, p) &=& (42.5942,\,0,\, -2.12971,\, 127.9483) & \qquad\mathrm{Ideal}\quad\mathrm{EOS, [MB06]} \\ \noalign{\medskip} (\rho,\, v_z,\, B_z,\, p) &=& (39.5052,\,0,\, 1.9753,\, 129.72386) & \qquad\mathrm{TM}\quad\mathrm{EOS, [Mig12]} \end{array} \]
-\form#245:\[ (\rho,\, v_z,\, B_z,\, p) = (1, \, -\sqrt{0.99}, \,0.5,\, 10^{-3}) \]
+\form#0:\[ \Big(\delta v_x\,, \delta v_y\Big) = - (y_c,\,x_c)\frac{\epsilon}{2\pi} \exp\left(\frac{1-r_c^2}{2}\right) \,,\quad T = \frac{p}{\rho} = 1 - \frac{(\Gamma-1)\epsilon^2}{8\Gamma\pi^2}\exp(1-r_c^2)\,,\quad s = \frac{p}{\rho^\Gamma} \]
+\form#1:$ (x_c,\,y_c) = (x-5,\,y-5),\, r_c=\sqrt{x_c^2+y_c^2},\,\epsilon=5$
+\form#2:$\Gamma = 1.4$
+\form#3:$ \rho_a = \eta $
+\form#4:$\eta$
+\form#5:$ p = 1/\Gamma $
+\form#6:$ p = p(\rho_a, T_a) $
+\form#7:\[ V_{ij} = \left\{\begin{array}{ll} V_{\rm jet} & \quad\mathrm{for}\quad r_i < 1 \\ \noalign{\medskip} \mathrm{Reflect}(V) & \quad\mathrm{otherwise} \end{array}\right. \]
+\form#8:$ V_{\rm jet} = (\rho,v,p)_{\rm jet} = (1,M,1/\Gamma)$
+\form#9:$ v = M$
+\form#10:$ \pi/3 $
+\form#11:\[ \left(\rho,v_x,v_y,p\right) = \left\{\begin{array}{ll} (1.4,0,0,1) & \qquad {\rm for} \quad x >x_s(0) \\ \noalign{\medskip} (8,8,25,-8.25,116.5) & \qquad {\rm otherwise} \end{array}\right. \]
+\form#12:$x_s(t) = 10t/\sin\alpha + 1/6 + y/\tan\alpha$
+\form#13:$ \Gamma = 1.4$
+\form#14:$ x < x_s(t) = 10 t/\sin\alpha + 1/6 + 1.0/\tan\alpha $
+\form#15:$x > 0$
+\form#16:$y > 0$
+\form#17:\[ \rho = \rho_{\rm PP} \,,\quad\quad P = P_{\rm PP} \,,\quad\quad v_x = v_{x\,{\rm PP}} \,,\quad\quad v_y = v_{y\,{\rm PP}}\,. \]
+\form#18:$y < 0$
+\form#19:$x < 0$
+\form#20:\[ \begin{array}{lcll} \left(\rho,\, v_x,\, p\right)_L &=& \left(1, 0, 1\right) & \qquad\mathrm{for}\quad x < 0.5 \\ \noalign{\medskip} \left(\rho,\, v_x,\, p\right)_R &=& \left(\frac{1}{8}, 0, \frac{1}{10}\right) & \qquad\mathrm{for}\quad x > 0.5 \end{array} \]
+\form#21:\[ \rho = \rho_a \,,\qquad p = p_a\,,\qquad \vec{v} = v_{csm}\hvec{j} \]
+\form#22:\[ r^2v_r\rho = \rho_0 V_0^2r_0^2 \,,\qquad v_r = V_0\hvec{r} \,,\qquad p = \frac{c_s^2}{\Gamma}\rho^\Gamma \]
+\form#23:$ r_0 = V_0 = \rho_0 = 1$
+\form#24:\[ g = \left\{\begin{array}{ll} -1/R^2 & \quad{\rm for} \quad R > 1 \\ \noalign{\medskip} aR + bR^2 + cR^3 & \quad{\rm for} \quad R < 1 \end{array}\right.\,, \]
+\form#25:$R = \sqrt{r^2 + z^2}$
+\form#26:$a$
+\form#27:$b$
+\form#28:$c$
+\form#29:$g$
+\form#30:$P = \rho/a$
+\form#31:\[ \frac{1}{\rho} \frac{d\rho}{dr} = ag\,, \]
+\form#32:$\rho = 1$
+\form#33:$R = 1$
+\form#34:\[ P_{\rm jet} = \frac{P_{\rm ratio}}{\Gamma}\left(\frac{2}{\Gamma + 1}\right)^{\Gamma/(\Gamma - 1)} \,,\quad \rho_{\rm jet} = \rho_{\rm ratio}\left(\frac{2}{\Gamma + 1}\right)^{1/(\Gamma - 1)} \,,\quad v_{\rm jet} = \sqrt{\frac{\Gamma P_{\rm jet}}{\rho_{\rm jet}}}\,. \]
+\form#35:$\rho_{\rm ratio}$
+\form#36:$P_{\rm ratio}$
+\form#37:$ R_{\rm int}$
+\form#38:$ R_{\rm ext}$
+\form#39:$\omega$
+\form#40:\[ {\rm Re} = \Omega R_{int}\left(R_{\rm ext} - R_{\rm int}\right) \frac{\rho}{\nu_1} \]
+\form#41:${\rm Re} > {\rm Re}_{\rm critical}\sim 130$
+\form#42:$\kappa = 2 \pi / \lambda$
+\form#43:$(r,\phi)$
+\form#44:$\rho = 1,\, p = 1/\Gamma$
+\form#45:\[ V_r = U\left(1 - \frac{1}{r^2}\right)\cos\theta \,,\qquad V_\phi = -U\left(1 + \frac{1}{r^2}\right)\sin\theta \]
+\form#46:$ \rho = 1 $
+\form#47:\[ p = \left\{\begin{array}{ll} p_{\rm in} & \qquad\mathrm{for}\quad r < r_0 \\ \noalign{\medskip} p_{\rm out} & \qquad\mathrm{otherwise} \\ \end{array}\right.\,;\qquad \vec{B} = B_0\left( \sin\theta\cos\phi\hvec{x} + \sin\theta\sin\phi\hvec{y} + \cos\theta\hvec{z}\right) \]
+\form#48:$p_{\rm in},\, p_{\rm out},\, B_0,\, \theta,\, \phi,\, r_0$
+\form#49:$\delta\rho/\rho\sim 1.2$
+\form#50:\[ \rho = 1 \,,\quad v_x = V_0 \,,\quad v_y = |\epsilon|\sin(\phi) \,,\quad v_z = |\epsilon|\cos(\phi) \,,\quad B_x = 1 \,,\quad B_y = \epsilon\sqrt{\rho}\sin(\phi) \,,\quad B_z = \epsilon\sqrt{\rho}\cos(\phi) \,,\quad P = P_0 \,, \]
+\form#51:$V_0$
+\form#52:$x$
+\form#53:$\phi$
+\form#54:$k_xx$
+\form#55:$k_xx + k_yy$
+\form#56:$\epsilon$
+\form#57:$\epsilon > 0$
+\form#58:$\epsilon < 0$
+\form#59:$V_A = B_x/\sqrt{\rho}$
+\form#60:$t_a = k_y/k_x$
+\form#61:$t_b = k_z/k_x$
+\form#62:$y$
+\form#63:$z$
+\form#64:$k_x = 2\pi/l_x = 2\pi$
+\form#65:$k_y = 2\pi/l_y$
+\form#66:$k_z = 2\pi/l_z$
+\form#67:$t_z = 1/l_y$
+\form#68:$t_y = 1/l_z$
+\form#69:$L_y/l_y = 1,2,3,4...$
+\form#70:$L_z/l_z$
+\form#71:$L_x = 1$
+\form#72:$L_y = 1/t_a$
+\form#73:$L_z = 1/t_b$
+\form#74:$N$
+\form#75:$L_y = N/t_a$
+\form#76:$L_z = N/t_b$
+\form#77:$t_z = t_y = 0$
+\form#78:$V_A = \omega/|k|$
+\form#79:$1/T = \sqrt{1 + t_a^2 + t_b^2}$
+\form#80:$(r,\theta,\phi$
+\form#81:$ 1/r^2$
+\form#82:\[ \rho = \frac{1}{R^{3/2}}\exp\left[\frac{\sin(\theta) - 1}{c_0^2}\right] \,,\qquad p = c_s^2\rho\ ,,\qquad v_\phi = \frac{1}{\sqrt{r}}\left(1 - \frac{5}{2\sin\theta}c_0^2\right) \]
+\form#83:$R = r\sin\theta$
+\form#84:$c_0 = H/R$
+\form#85:$c_s = H/R^{3/2}$
+\form#86:$ H/R $
+\form#87:$\Delta T = 2\pi$
+\form#88:\[ A_\phi = A_0\frac{\sin(2\pi R) - R\cos(2\pi R)}{R} \exp\left[-\left(\frac{z}{H}\right)^4\right] \exp\left[-\left(\frac{R-6}{2}\right)^4\right] \]
+\form#89:$ z/H > 2.5$
+\form#90:$ R < 2.5$
+\form#91:$ x\in[-1,1],\, y\in[-0.5,0.5] $
+\form#92:$ 2N_y\times N_y$
+\form#93:\[ \vec{v} = V_0(\cos\alpha, \sin\alpha) \]
+\form#94:$V_0 = \sqrt{5},\,\sin \alpha = 1/\sqrt{5},\, \cos \alpha = 2/\sqrt{5}$
+\form#95:\[ A_z = \left\{ \begin{array}{ll} A_0(R-r) & \textrm{if} \quad R_1 < r \leq R \,, \\ \noalign{\medskip} 0 & \textrm{if} \quad r > R \,, \end{array} \right. \]
+\form#96:$ A_0 = 10^{-3},\, R = 0.3,\, r = \sqrt{x^2+y^2}$
+\form#97:\[ A_z = \left\{ \begin{array}{ll} a_0 + a_2r^2 & \textrm{if} \quad 0 \leq r \leq R_1 \,, \\ \noalign{\medskip} A_0(R-r) & \textrm{if} \quad R_1 < r \leq R \,, \\ \noalign{\medskip} 0 & \textrm{if} \quad r > R \,, \end{array} \right. \]
+\form#98:$R_1=0.2 R,\, a_2 = -0.5A_0/R_1,\, a_0 = A_0(R-R_1) - a_2R_1^2$
+\form#99:$ J_z$
+\form#100:$ t = 57 $
+\form#101:$ \int_{0}^{L_x/2} B_y dx $
+\form#102:\[ \begin{array}{lcl} \left(\nabla\times\vec{B}\right)_{x_1} &=& \DS \frac{1}{d_{23}}\pd{}{x_2}(a_{23}B_{x_3}) - \frac{1}{d_{32}}\pd{B_{x_2}}{x_3} \\ \noalign{\bigskip} \left(\nabla\times\vec{B}\right)_{x_2} &=& \DS \frac{1}{d_{31}}\pd{B_{x_1}}{x_3} - \frac{1}{d_{13}}\pd{}{x_1}(a_{13}B_{x_3}) \\ \noalign{\bigskip} \left(\nabla\times\vec{B}\right)_{x_3} &=& \DS \frac{1}{d_{12}}\pd{}{x_1}(a_{12}B_{x_2}) - \frac{1}{d_{21}}\pd{B_{x_1}}{x_2} \end{array} \]
+\form#103:$d_{nm}=1$
+\form#104:$a_{nm}=1$
+\form#105:\[ \begin{array}{lll} d_{nm} = 1; & \quad a_{nm} = 1; & \qquad ({\rm Cartesian}) \\ \noalign{\medskip} d_{13} = r\,,\qquad & d_{32} = d_{31} = \infty; \quad a_{13} = r; & \qquad ({\rm Cylindrical}) \\ \noalign{\medskip} d_{23} = d_{12} = d_{21} = r; & \quad a_{12} = r; & \qquad ({\rm Polar}) \\ \noalign{\medskip} d_{23} = d_{32} = d_{31} = r\sin\theta \,,\qquad d_{13} = d_{12} = d_{21} = r; & \quad a_{23} = \sin\theta\,,\qquad a_{13} = a_{12} = r; & \qquad ({\rm Spherical}) \end{array} \]
+\form#106:$d_{nm} \to 1/(d_{nm}\Delta x_n)$
+\form#107:$ d_{13} (d_{12}) \quad\mathrm{at}\quad r=0$
+\form#108:\[ d_{13} = r_{i+\HALF}\Delta r \quad\to\quad \frac{r_{i+1}|r_{i+1}| - r_i |r_i|}{2}\,,\qquad a_{13} = r_i \quad\to\quad |r_i|. \]
+\form#109:\[ U \quad\Longrightarrow \quad U + \Delta t R(V) \]
+\form#110:\[ \omega = \frac{k^2_x B}{e n_e} \]
+\form#111:$k_x = 2\pi m/L_x$
+\form#112:$ L_x $
+\form#113:$ e $
+\form#114:$ n_e $
+\form#115:$\vec{B} = B_0 \hvec{e_x} $
+\form#116:$ \delta B_y = +\delta B \cos(2\pi m x/Lx) $
+\form#117:$ \delta B_z = -\delta B \sin(2\pi m x/Lx) $
+\form#118:$ m = 1, 2, ..., $
+\form#119:$ B_0 = 100 $
+\form#120:$ \delta B = 10^{-3} $
+\form#121:$ \rho = en_e = 1 $
+\form#122:$B_y$
+\form#123:$ m $
+\form#124:$B_x = B_0 + B_1 \cos(k_x y) \cos(k_x x)$
+\form#125:$B_y = B_1 \sin(k_x y) \sin(k_x x)$
+\form#126:$ B_z = \sqrt{2} B_1 \sin(k_x y) \cos(k_x x)$
+\form#127:$ B_0 = 10^3 $
+\form#128:$B_1 = 1$
+\form#129:$ x $
+\form#130:\[ v_w = -\frac{c}{4 e n_0} \frac{\sqrt{2} }{L_y} m B_0 \]
+\form#131:$ L_y$
+\form#132:$ B_y $
+\form#133:$ t = 0 $
+\form#134:$\vec{B} = B_0 \hvec{e}_x $
+\form#135:$ (R,z) $
+\form#136:$ \rho_a $
+\form#137:$ p_a $
+\form#138:$ R_j $
+\form#139:$ B_z $
+\form#140:$ B_\phi(R) $
+\form#141:\[ \left\{\begin{array}{lcl} \rho(R) &=& \rho_j \\ \noalign{\medskip} v_z(R) &=& v_j \\ \noalign{\medskip} B_\phi(R) &=& \DS \left\{\begin{array}{ll} -B_m R/a & \quad{\rm for}\quad R<a \\ \noalign{\medskip} -B_m a/R & \quad{\rm for}\quad R>a \end{array}\right. \\ \noalign{\medskip} B_z(R) &=& B_{z0}\quad\mathrm{(const)} \end{array}\right. \]
+\form#142:$ v_R = B_R = 0 $
+\form#143:\[ \frac{dp}{dR} = \frac{\rho v_\phi^2}{R} - \frac{1}{2}\left[\frac{1}{R^2}\frac{d(R^2B^2_\phi)}{dR} +\frac{dB_z^2}{dR}\right] \]
+\form#144:\[ p(R) = p_a + B_m^2\left[1-\min\left(\frac{R^2}{a^2},1\right)\right] \]
+\form#145:\[ p(R=0) \equiv p_j = p_a + B_m^2 \]
+\form#146:$p_a$
+\form#147:$R_j=1$
+\form#148:$\rho_a=1$
+\form#149:$c_a = \Gamma p_a/\rho_a = 1$
+\form#150:$p_a = 1/\Gamma$
+\form#151:$ \eta = \rho_j/\rho_a \qquad\Longrightarrow\qquad \rho_j = \eta $
+\form#152:$ v_j $
+\form#153:\[ \left\{\begin{array}{ll} \sigma_z &= \DS \frac{B_z^2}{2p_a} \\ \noalign{\medskip} \sigma_\phi &= \DS \frac{<B_\phi^2>}{2p_a} \end{array}\right. \qquad\Longrightarrow\qquad \left\{\begin{array}{ll} B_z^2 &= \DS 2\sigma_zp_a \\ \noalign{\medskip} B_m^2 &= \DS \frac{2\sigma_\phi}{a^2(1/2-2\log a)}p_a \end{array}\right. \]
+\form#154:$B^2_\phi$
+\form#155:\[ <B^2_\phi> = \frac{\int_0^1 B^2_\phi R\,dR}{\int_0^1 R\,dR} = B_m^2a^2\left(\frac{1}{2} - 2\log a\right) \]
+\form#156:$ R \le 1 $
+\form#157:$[0,2\pi]^D$
+\form#158:\[ \vec{v} = \left(-\sin y,\, \sin x, 0\right) \,,\qquad \vec{B} = \left(-\sin y,\, \sin 2x, 0\right) \,,\qquad \rho = 25/9\,,\qquad p = 5/3 \]
+\form#159:\[ \rho(y) = \left\{\begin{array}{ll} 1 & \quad{\rm for} \quad y \le 0 \\ \noalign{\medskip} \eta & \quad{\rm for} \quad y > 0 \end{array}\right. \,,\qquad p = p_0 + \rho y g \]
+\form#160:$ \eta $
+\form#161:\[ \vec{B} = \chi B_c\hvec{i} \,,\qquad B_c \equiv \sqrt{(\rho_{\rm hi} - \rho_{\rm lo})L|g|}\quad \to\quad \sqrt{(\eta - 1.0)|g|} \]
+\form#162:$\chi$
+\form#163:$ 1/\sqrt{4\pi} $
+\form#164:\[ B_x(y) = B_0 \tanh(y/l) \]
+\form#165:\[ \rho(y) = \rho_0 \cosh^{-2}(y/l) + \rho_{\infty} \]
+\form#166:$ \rho_0=1 $
+\form#167:$ \rho_{\infty} = 0.2 $
+\form#168:$ p = c_s^2 \rho $
+\form#169:$ c_s^2 = \frac{B_0^2}{2\rho_0} $
+\form#170:\[ \begin{array}{lcl} B_x(x,y) &=& \DS -\Psi_0\frac{\pi}{L_y}\cos\left(\frac{2\pi x}{L_x}\right) \sin\left(\frac{\pi y}{L_y}\right), \\ \noalign{\medskip} B_y(x,y) &=& \DS +\Psi_0 \frac{2\pi}{L_x}\sin\left(\frac{2\pi x}{L_x}\right) \cos\left(\frac{\pi y}{L_y}\right). \end{array} \]
+\form#171:$ S $
+\form#172:\[ S = \frac{v_A L}{\eta} \]
+\form#173:$ v_A $
+\form#174:$ v_A = \DS \frac{B}{\sqrt{\rho}}$
+\form#175:$ L $
+\form#176:$\mathcal{E} = \DS \frac{v_{in}}{v_{out}}$
+\form#177:$ v_{in} $
+\form#178:$ v_{out}$
+\form#179:$\mathcal{E} \sim \frac{\delta}{L} \sim \frac{1}{\sqrt{S}}$
+\form#180:$ \frac{\delta}{L} $
+\form#181:$ \eta = 10^{-2} - 10^{-4} $
+\form#182:$\Psi_0$
+\form#183:$ \eta_{x1}$
+\form#184:$ \eta_{x2}$
+\form#185:$ \eta_{x3}$
+\form#186:$ \tens{\eta}$
+\form#187:\[ \vec{J} \times \vec{B} = 0 \qquad\Longrightarrow\qquad \vec{J} = \nabla\times\vec{B} = \mu \vec{B} \]
+\form#188:$\vec{J}$
+\form#189:$\vec{B}$
+\form#190:$ \mu $
+\form#191:\[ B_z(r) = B_0 J_1(\mu r) \,,\qquad B_\phi(r) = B_0 J_0(\mu r) \]
+\form#192:\[ A_z(r) = - \int J_1(\mu r)\,dr = \frac{1}{\mu}J_0(\mu r) \,,\qquad A_\phi(r) = - \frac{1}{r}\int rJ_0(\mu r)\,dr = \frac{1}{\mu}J_0(\mu r) \]
+\form#193:\[ \frac{d\vec{B}}{dt} = - \nabla\times (\eta \vec{J}) = - \nabla\times (\eta \mu \vec{B}) = -\eta \mu^2 \vec{B} \]
+\form#194:$\vec{B}(r,t) = \vec{B}(r,0) \exp(-\eta\mu^2 t)$
+\form#195:$\mu = \eta = 1$
+\form#196:\[ B_x(y,t) = \exp(-y^2/4\eta_zt)/\sqrt{t} \quad\quad\quad B_y(x,t) = \exp(-x^2/4\eta_zt)/\sqrt{t} \quad\quad\quad B_z(x,y,t) = \exp(-x^2/4\eta_yt)\exp(-y^2/4\eta_xt)/t \]
+\form#197:\[ \begin{array}{lcl} B_x(y,z,t) &=& \exp(-y^2/4\eta_zt)\exp(-z^2/4\eta_yt)/t \\ \noalign{\medskip} B_y(x,z,t) &=& \exp(-x^2/4\eta_zt)\exp(-z^2/4\eta_xt)/t \\ \noalign{\medskip} B_z(x,y,t) &=& \exp(-x^2/4\eta_yt)\exp(-y^2/4\eta_xt)/t \end{array} \]
+\form#198:$ \nabla\times\vec{J}=\nabla\times(\eta\nabla\times\vec{B})$
+\form#199:$B_x = 5/\sqrt{4\pi}$
+\form#200:$ \omega $
+\form#201:\[ (\rho, v_\phi) = \left\{\begin{array}{ll} (10, \omega r) & \qquad {\rm for}\quad r < r_0 \\ \noalign{\medskip} (1+9f,f\omega r_0) & \qquad {\rm for}\quad r_0 \le r \le r_1 \\ \noalign{\medskip} (1,0) & \qquad {\rm otherwise} \end{array}\right. \]
+\form#202:$ r_0=0.1$
+\form#203:$ = (r_1-r)/(r_1-r_0)$
+\form#204:\[ \rho = \left\{\begin{array}{ll} 1 & \quad{\rm(unstratified)} \\ \noalign{\medskip} \exp(-z^2/H^2) & \quad{\rm(stratified)} \end{array}\right. ;\quad v_y = -q\Omega x\,; \quad p = \rho c_s^2\,; \quad \vec{B} = \left\{\begin{array}{ll} (0,0,B_z) & \quad{\rm(net\,flux)} \\ \noalign{\medskip} (0,0,B_z\sin 2\pi x/L_x) & \quad{\rm(no\,net\,flux)} \end{array}\right. \]
+\form#205:$\Omega = 1$
+\form#206:$ q = 3/2 $
+\form#207:$ H = \sqrt{2}c_s/\Omega $
+\form#208:$ B_z = \sqrt{2c_s^2/\beta} $
+\form#209:$ c_s $
+\form#210:\[ \left\{\begin{array}{lcl} \DS \frac{dp}{dz} &=& \rho g_z \\ \noalign{\medskip} p &=& \rho c_s^2 \end{array}\right. \qquad\Longrightarrow\qquad \frac{p_{k+1}-p_k}{\Delta z} = \frac{p_{k} + p_{k+1}}{2c_s^2}g_z \]
+\form#211:$g_z$
+\form#212:$p_k$
+\form#213:$k=k_b-1$
+\form#214:\[ \left\{\begin{array}{lcl} p_k &=& \DS p_{k+1} \frac{1-a}{1+a} \\ \noalign{\medskip} \rho_k &=& \DS \frac{p_k}{c_s^2} \end{array}\right. \qquad\mathrm{where}\qquad a = \frac{\Delta z g_z}{2c_s^2} > 0 \]
+\form#215:$ \kappa_\| $
+\form#216:$ \kappa_\bot $
+\form#217:$ \phi $
+\form#218:$ F_{\rm sat} = 5\phi\rho c_{\rm iso}^3 $
+\form#219:$ \kappa_\parallel $
+\form#220:$ \kappa_\perp $
+\form#221:\[ \left(\begin{array}{l} \rho \\ \noalign{\medskip} v_x \\ \noalign{\medskip} p \\ \noalign{\medskip} B_y \\ \noalign{\medskip} B_z \end{array}\right) = \left(\begin{array}{l} 3.86859 \\ \noalign{\medskip} 0 \\ \noalign{\medskip} 167.345 \\ \noalign{\medskip} B_{\rm post} \\ \noalign{\medskip} -B_{\rm post} \\ \noalign{\medskip} \end{array}\right) \quad\mathrm{for}\quad x < 0.6\,,\qquad\qquad \left(\begin{array}{l} \rho \\ \noalign{\medskip} v_x \\ \noalign{\medskip} p \\ \noalign{\medskip} B_y \\ \noalign{\medskip} B_z \end{array}\right) = \left(\begin{array}{l} 1 \\ \noalign{\medskip} -11.2536 \\ \noalign{\medskip} 1 \\ \noalign{\medskip} B_{\rm pre} \\ \noalign{\medskip} -B_{\rm pre} \\ \noalign{\medskip} \end{array}\right) \quad\mathrm{for}\quad x > 0.6\,,\qquad \]
+\form#222:$R$
+\form#223:$r_0 = (x_0,y_0,z_0) = (0.8, 0.5, 0.5)$
+\form#224:$\rho = 10$
+\form#225:\[ \rho = \rho_{\rm out} + \frac{\rho_{\rm in} - \rho_{\rm out}}{\cosh\left[10(r/r_0)^{10}\right]}\,, \quad\quad\quad T = \left\{\begin{array}{ll} T_{\rm in} & \quad{\rm for} \quad r \le r_0 \\ \noalign{\medskip} T_{\rm out} & \quad{\rm for} \quad r > r_0 \end{array}\right.\,, \]
+\form#226:$r_0$
+\form#227:\[ \frac{\partial T}{\partial t} = a\frac{\partial}{\partial s} \left(T^n\frac{\partial T}{\partial s}\right) \]
+\form#228:\[ T = T_c\left(1 - \frac{s^2}{s_f^2}\right)^{1/n} \]
+\form#229:\[ T_c = \left(\frac{Q^2}{at}\right)^{1/(n+2)} \left(\frac{n}{2(n+2)}\zeta_0^2\right)^{1/n}\,, \quad\quad\quad s_f = (aQ^nt)^{1/(n+2)}\zeta_0\,, \quad\quad\quad \zeta_0 = \left[\frac{(n+2)^{1+n}2^{1-n}}{n\pi^{n/2}}\right]^{1/(n+2)} \left[\frac{\Gamma(1/2 + 1/n)}{\Gamma(1/n)}\right]^{n/(n+2)}\,, \]
+\form#230:$Q$
+\form#231:$\Gamma$
+\form#232:\[ \label{eq:internal_energy} \pd{(\rho\epsilon)}{t} = \pd{}{x}\left[\kappa T^{5/2}\pd{T}{x}\right] \]
+\form#233:$\rho\epsilon$
+\form#234:$T$
+\form#235:$\kappa = 9.22\cdot 10^{-7}$
+\form#236:\[ \rho\epsilon = \frac{p}{\gamma-1} = \frac{2nk_BT}{\gamma-1} \qquad\qquad\Longrightarrow\qquad\qquad \pd{T}{x} = a \pd{}{x}\left(T^{5/2}\pd{T}{x}\right) \]
+\form#237:$n=10^{10} \,{\rm cm}^{-3}$
+\form#238:$10^{9}$
+\form#239:$\gamma=5/3$
+\form#240:\[ a = \frac{(\gamma-1)\kappa}{2nk_B} \approx 0.226 \qquad (Titos\quad uses\quad 4.212 \quad ) \]
+\form#241:$t = t_0 \tilde{t}$
+\form#242:$x = L_0\tilde{x}$
+\form#243:\[\label{eq:internal_energy_code} \pd{(\widetilde{\rho\epsilon})}{\tilde{t}} = \left(\kappa \frac{t_0}{L_0^2}\frac{T_0^{5/2}}{2nk_B} \right) \pd{}{\tilde{x}}\left[\tilde{T}^{5/2} \pd{\tilde{T}}{\tilde{x}}\right] \]
+\form#244:$ t_0 = 1\,{\rm s}$ and $L_0 = 10^8\,{\rm cm} $
+\form#245:\[ v_0 = \frac{L_0}{t_0}\,,\qquad T_0 = \frac{m}{2k_B}v_0^2 \]
+\form#246:\[ -\frac{1}{R} + \frac{1}{2(1-a)}\frac{L_k^2}{r^{2-2a}} +(n+1)\frac{p}{\rho} = const \]
+\form#247:$p = K\rho^\gamma $
+\form#248:$ n = 1/(\gamma-1) $
+\form#249:$ 1+n = \gamma/(\gamma-1) $
+\form#250:$ a = 0 $
+\form#251:\[ -\frac{1}{R} + \frac{1}{2}\frac{L_k^2}{r^2} + \frac{\gamma}{\gamma-1}K\rho^{\gamma-1} = c = -\frac{1}{r_{\min}} + \frac{1}{2}\frac{L_k^2}{r_{\min}^2} \]
+\form#252:\[ K = \frac{\gamma-1}{\gamma}\left[ c + \frac{1}{r_{\max}} - \frac{1}{2}\frac{L_k^2}{r_{\max}^2} \right]\frac{1}{\rho_{\max}^{\gamma-1}}\,;\qquad \rho = \left[\frac{\gamma-1}{K\gamma}\left(c + \frac{1}{R} - \frac{1}{2}\frac{L_k^2}{r^2}\right)\right]^{1/(\gamma-1)} \]
+\form#253:$ r_{\min} $
+\form#254:$ r_{\max} $
+\form#255:$ \rho_{\max}$
+\form#256:$v_\phi = L_k/r$
+\form#257:\[ \rho_a(R) = \eta\rho_{\max} \exp\left[\left(\frac{1}{R}-\frac{1}{r_{\min}}\right) \frac{GM}{a^2}\right] \]
+\form#258:$(r_{\min},0)$
+\form#259:$p_t > p_a$
+\form#260:$ [\rho] = \rho_{\max}$
+\form#261:$ [L] = R_{*} $
+\form#262:$ [v^2] = GM/L $
+\form#263:$ H=GM/a^2$
+\form#264:\[ A_\phi = B_0(\rho_t - \rho_{\rm cut}) \]
+\form#265:$ v_z = \beta$
+\form#266:$\theta = 5^\circ$
+\form#267:\[ \left(\rho,\, v_x,\, p\right) = \left\{\begin{array}{ll} \left(\rho,\, v_x,\, p\right)_L & \quad\mathrm{for}\quad x < 0.5 \\ \noalign{\medskip} \left(\rho,\, v_x,\, p\right)_R & \quad\mathrm{otherwise} \end{array}\right. \]
+\form#268:\[ (\rho,\, p) = \left\{\begin{array}{lcl} (\rho_{\rm in},\, p_{\rm in}) & \quad\mathrm{or}\quad & r < r_c \\ \noalign{\medskip} (\rho_{\rm out},\, p_{\rm out}) & \quad\mathrm{or}\quad & r \ge r_c \end{array}\right. \,,\qquad |\vec{B}| = B_0 \]
+\form#269:$ r_c<r<1$
+\form#270:$ \{\rho,\, p\} \to \eta^2\{\rho,\,p\},\, B \to \eta B $
+\form#271:$ (r,z) $
+\form#272:\[ \left\{\begin{array}{lcl} \rho(R) &=& \rho_j \\ \noalign{\medskip} v_z(R) &=& v_j \\ \noalign{\medskip} B_\phi(R) &=& \DS \left\{\begin{array}{ll} -\gamma_j b_m R/a & \quad{\rm for}\quad r<a \\ \noalign{\medskip} -\gamma_j b_m a/R & \quad{\rm for}\quad r>a \end{array}\right. \\ \noalign{\medskip} B_z(R) &=& B_{z0}\quad\mathrm{(const)} \end{array}\right. \]
+\form#273:$ v_r = B_r = 0 $
+\form#274:\[ p(R) = p_j + b_m^2\left[1-\min\left(\frac{r^2}{a^2},1\right)\right] \]
+\form#275:$p_j=p_a$
+\form#276:$ M = v_j/cs $
+\form#277:$c_s=\sqrt{\Gamma p_j/(\rho h)}$
+\form#278:$\rho h = \rho + \Gamma p_j/(\Gamma-1)$
+\form#279:$p_j$
+\form#280:$p = p_0$
+\form#281:$M = v/c_s$
+\form#282:$c_s=\sqrt{\Gamma p/w}$
+\form#283:$c_s = \sqrt{\frac{p}{3w}\frac{5w - 8p}{w - p}}$
+\form#284:$ w = \rho h$
+\form#285:\[ \vec{B} = \left(\sqrt{2\sigma_{\rm pol}p_0},\, 0,\, \sqrt{2\sigma_{\rm tor}p_0}\right) \]
+\form#286:$\sigma_{\rm pol}$
+\form#287:$\sigma_{\rm tor}$
+\form#288:\[ \left(\rho, p, v_x, v_y, B_x\right) = \left\{\begin{array}{ll} \left(10, 1,-\omega y,\,\omega x,\, 1\right) & \quad\mathrm{for}\quad r < 0.1 \\ \noalign{\medskip} \left(1,\, 1,\, 0,\, 0,\, 1\right) & \quad\mathrm{otherwise} \end{array}\right. \]
+\form#289:$\omega = 9.95$
+\form#290:$ \rho = 10 $
+\form#291:$ (0.8,0) $
+\form#292:$ x=0 $
+\form#293:$ x < 0 $
+\form#294:\[ \begin{array}{lcll} (\rho,\, v_z,\, B_z,\, p) &=& (42.5942,\,0,\, -2.12971,\, 127.9483) & \qquad\mathrm{Ideal}\quad\mathrm{EOS, [MB06]} \\ \noalign{\medskip} (\rho,\, v_z,\, B_z,\, p) &=& (39.5052,\,0,\, 1.9753,\, 129.72386) & \qquad\mathrm{TM}\quad\mathrm{EOS, [Mig12]} \end{array} \]
+\form#295:\[ (\rho,\, v_z,\, B_z,\, p) = (1, \, -\sqrt{0.99}, \,0.5,\, 10^{-3}) \]
+\form#296:$x_1$
+\form#297:$x_2$
+\form#298:$x_3$
+\form#299:$ \phi = k_0x_0 = \vec{k}\cdot\vec{x} $
+\form#300:$ \vec{k} $
+\form#301:$ \vec{x} $
+\form#302:$ k_0 $
+\form#303:$ x_0 $
+\form#304:\[ \tan(\alpha) = \frac{L_x}{L_y} = \frac{k_y}{k_x} \,,\quad \tan(\beta) = \frac{L_x}{L_z} = \frac{k_z}{k_x} \]
+\form#305:$ k_x = 2\pi/L_x,\, k_y = 2\pi/L_y$
+\form#306:$ k_z = 2\pi/L_z $
+\form#307:\[ |\vec{k}| = \sqrt{k_x^2 + k_y^2 + k_z^2} = 2\pi\sqrt{\frac{1}{L_x^2} + \frac{1}{L_y^2} + \frac{1}{L_z^2}} \]
+\form#308:$ |\vec{k}| = 2\pi $
+\form#309:$ \sqrt{5} $
+\form#310:$ \sqrt{5}/2 $
+\form#311:\[ \begin{array}{cccl} x_1 & x_2 & x_3 & \mathrm{Geometry} \\ \noalign{\medskip} \hline x & y & z & \mathrm{Cartesian} \\ \noalign{\medskip} R & z & - & \mathrm{cylindrical} \\ \noalign{\medskip} R & \phi & z & \mathrm{polar} \\ \noalign{\medskip} r & \theta & \phi & \mathrm{spherical} \end{array} \]
+\form#312:$\propto T^{-1}$
+\form#313:$\omega = 8.5$

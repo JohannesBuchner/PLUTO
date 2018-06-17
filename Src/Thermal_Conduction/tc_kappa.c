@@ -11,7 +11,7 @@
   
   \authors A. Mignone (mignone@ph.unito.it)\n
            T. Matsakos  
-  \date    Oct 31, 2012
+  \date    April 12, 2016
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -42,12 +42,15 @@ void TC_kappa(double *v, double x1, double x2, double x3,
   T    = v[PRS]/v[RHO]*mu*KELVIN;
 
   *kpar = 5.6e-7*T*T*sqrt(T);
-  #if PHYSICS == MHD
-   B2_cgs  = EXPAND(v[BX1]*v[BX1], + v[BX2]*v[BX2], + v[BX3]*v[BX3]) + 1.e-12;
-   B2_cgs *= 4.0*CONST_PI*UNIT_DENSITY*UNIT_VELOCITY*UNIT_VELOCITY;
-   nH    = v[RHO]*UNIT_DENSITY/CONST_mp;
-   *knor = 3.3e-16*nH*nH/(sqrt(T)*B2_cgs);
-  #endif
   
+#if PHYSICS == MHD
+  *knor = 0.0;
+#endif
+  
+/* Normalize to code units */
+
+  (*kpar) *= CONST_mp*mu/(UNIT_DENSITY*UNIT_VELOCITY*UNIT_LENGTH*CONST_kB);
+  (*knor) *= CONST_mp*mu/(UNIT_DENSITY*UNIT_VELOCITY*UNIT_LENGTH*CONST_kB);
+
   *phi = 0.3;
 }

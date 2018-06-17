@@ -4,9 +4,36 @@
   \brief PLUTO header file for function-like macros.
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   July 31, 2014
+  \date   June 15, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
+
+#ifndef DEBUG
+  #define DEBUG FALSE
+#endif
+
+#if DEBUG == TRUE
+  #define DEBUG_FUNC_BEG(a)                          \
+    char d_funcName[64];                             \
+    sprintf (d_funcName,"%s",a);                     \
+    d_indent += 2;                                   \
+    if (d_condition) { print("%*c", d_indent, ' ');  \
+                       print (">>[%s]\n",a );  }
+
+  #define DEBUG_FUNC_END(a)  \
+    if (d_condition) {print("%*c", d_indent, ' ');  \
+                     print("<<[%s]\n",a ); }        \
+     d_indent -= 2;                           
+  
+  #define DEBUG_FUNC_NAME  d_funcName
+
+#else
+  #define DEBUG_FUNC_BEG(a)
+  #define DEBUG_FUNC_END(a)
+  #define DEBUG_FUNC_NAME "Not Set"
+#endif
+  
+  
 
 /* #####################################################################
     1. Macros that can be placed at any point in the code
@@ -51,12 +78,6 @@
 #define X2_END_LOOP(k,j,i) KTOT_LOOP(k) JEND_LOOP(j) ITOT_LOOP(i)
 #define X3_END_LOOP(k,j,i) KEND_LOOP(k) JTOT_LOOP(j) ITOT_LOOP(i)
 
-#define TRANSVERSE_LOOP(indx, ip, i,j,k) \
- if (g_dir == IDIR) {ip = &i; indx.pt1 = &j; indx.pt2 = &k;}  \
- if (g_dir == JDIR) {ip = &j; indx.pt1 = &i; indx.pt2 = &k;}  \
- if (g_dir == KDIR) {ip = &k; indx.pt1 = &i; indx.pt2 = &j;}  \
- for (*(indx.pt2) = indx.t2_beg; *(indx.pt2) <= indx.t2_end; *(indx.pt2) += 1) \
- for (*(indx.pt1) = indx.t1_beg; *(indx.pt1) <= indx.t1_end; *(indx.pt1) += 1)
 /**@} */
 
 /*! The BOX_LOOP() macro implements a loop over (i,j,k) in a rectangular 
@@ -68,13 +89,31 @@
     (e.g. B->ib <= B->ie or not). 
 */
 #define BOX_LOOP(B,k,j,i) \
- for ((B)->dk = ((k=(B)->kb) <= (B)->ke ? 1:-1); k != (B)->ke+(B)->dk; k += (B)->dk)\
- for ((B)->dj = ((j=(B)->jb) <= (B)->je ? 1:-1); j != (B)->je+(B)->dj; j += (B)->dj)\
- for ((B)->di = ((i=(B)->ib) <= (B)->ie ? 1:-1); i != (B)->ie+(B)->di; i += (B)->di)
+ for ((B)->dk = ((k=(B)->kbeg) <= (B)->kend ? 1:-1); k != (B)->kend+(B)->dk; k += (B)->dk)\
+ for ((B)->dj = ((j=(B)->jbeg) <= (B)->jend ? 1:-1); j != (B)->jend+(B)->dj; j += (B)->dj)\
+ for ((B)->di = ((i=(B)->ibeg) <= (B)->iend ? 1:-1); i != (B)->iend+(B)->di; i += (B)->di)
 
-/*! The FOR_EACH(p, beg, intList) macro implements a loop over the
-    elements of the array \c intList->indx starting at \c beg (in a
-    similar way to Python lists).
+
+#define IBOX_LOOP(B,i) \
+ for ((B)->di = ((i=(B)->ibeg) <= (B)->iend ? 1:-1); i != (B)->iend+(B)->di; i += (B)->di)
+
+#define JBOX_LOOP(B,j) \
+ for ((B)->dj = ((j=(B)->jbeg) <= (B)->jend ? 1:-1); j != (B)->jend+(B)->dj; j += (B)->dj)
+
+#define KBOX_LOOP(B,k) \
+ for ((B)->dk = ((k=(B)->kbeg) <= (B)->kend ? 1:-1); k != (B)->kend+(B)->dk; k += (B)->dk)
+
+
+#define BOX_TRANSVERSE_LOOP(box,k,j,i)                                     \
+  if      (g_dir == IDIR) {(box)->n = &i; (box)->t = &j; (box)->b = &k;}   \
+  else if (g_dir == JDIR) {(box)->n = &j; (box)->t = &i; (box)->b = &k;}   \
+  else if (g_dir == KDIR) {(box)->n = &k; (box)->t = &i; (box)->b = &j;}   \
+  for (*((box)->b) = *(box)->bbeg; *((box)->b) <= *(box)->bend; *((box)->b) +=1) \
+  for (*((box)->t) = *(box)->tbeg; *((box)->t) <= *(box)->tend; *((box)->t) +=1)
+
+
+/*! The FOR_EACH(p, intList) macro implements a loop over the elements
+    of the array \c intList->indx (in a similar way to Python lists).
 
     Example:
     \code
@@ -83,11 +122,11 @@
       list.indx[0] = 2;
       list.indx[1] = 5;
       list.indx[2] = 17;
-      FOR_EACH(nv, 0, list) printf ("value is = %d\n",nv);
+      FOR_EACH(nv, &list) printf ("value is = %d\n",nv);
     \endcode
 */
-#define FOR_EACH(nv, beg, list)  \
-  for ((list)->i = beg, nv = (list)->indx[beg]; \
+#define FOR_EACH(nv, list)  \
+  for ((list)->i = 0, nv = (list)->indx[0]; \
        (list)->i < (list)->nvar; \
        nv = (list)->indx[++((list)->i)])
 
@@ -115,9 +154,14 @@
 #define SWAP_VAR(x) SwapEndian(&x, sizeof(x));
 
 /*! Exit macro. For Chombo it is defined elsewhere. */
+/* See
+http://stackoverflow.com/questions/11303135/broadcast-message-for-all-processes-to-exitmpi
+*/
+
 #ifdef PARALLEL
  #define QUIT_PLUTO(e_code)   \
-        {MPI_Abort(MPI_COMM_WORLD, e_code);MPI_Finalize(); exit(e_code);}
+        {print ("! abort\n"); MPI_Abort(MPI_COMM_WORLD, e_code); \
+         MPI_Finalize(); exit(e_code);}
 #elif (defined CH_MPI)
  #define QUIT_PLUTO(e_code)   \
         {MPI_Abort(MPI_COMM_WORLD, e_code); exit(e_code);}
@@ -226,71 +270,98 @@
 #define VAR_LOOP(n)   for ((n) = NVAR; (n)--;    )
 #define DIM_LOOP(d)   for ((d) = 0; (d) < DIMENSIONS; (d)++)
 
-
-
-/* -- some new macros.
-   CDIFF: Central DIFFerencing
-   FDIFF: Forward DIFFerencing
-   
+/*! \name Forward and central finite differences macros.
+    The following set of macros provide a compact way to perform 
+    two-point, undivided finite difference operations in a specified
+    direction.
+    Differences can be either \c forward or \c central.
+    For instance, \c FDIFF_X2(Q,k,j,i) will compute a forward
+    difference of \c Q in the \c y direction, \c (Q[j+1]-Q[j]), while
+    \c CDIFF_X3(Q,k,j,i) will compute a central different approximation
+    of \c Q in the \c z direction: \c (Q[k+1] - Q[k-1])/2.
 */
- #define FDIFF_X1(b,k,j,i) (b[k][j][i+1] - b[k][j][i])
- #define FDIFF_X2(b,k,j,i) (b[k][j+1][i] - b[k][j][i])
- #define FDIFF_X3(b,k,j,i) (b[k+1][j][i] - b[k][j][i])
-
- #define CDIFF_X1(b,k,j,i) 0.5*(b[k][j][i+1] - b[k][j][i-1])
- #define CDIFF_X2(b,k,j,i) 0.5*(b[k][j+1][i] - b[k][j-1][i])
- #define CDIFF_X3(b,k,j,i) 0.5*(b[k+1][j][i] - b[k-1][j][i])
-
-/* -- in 2D we set the derivative with respect to the third coordinate = 0 */
-
-#if DIMENSIONS == 2
- #undef CDIFF_X3
- #undef FDIFF_X3
-
- #define CDIFF_X3(b,i,j,k)  0.0
- #define FDIFF_X3(b,i,j,k)  0.0
-#endif
-
-/* ---- define average macros ---- */
-
-#define AVERAGE_X(q,k,j,i)   0.5*(q[k][j][i] + q[k][j][i+1])
-#define AVERAGE_Y(q,k,j,i)   0.5*(q[k][j][i] + q[k][j+1][i])
-#define AVERAGE_Z(q,k,j,i)   0.5*(q[k][j][i] + q[k+1][j][i])
-
-#define AVERAGE_XY(q,k,j,i)   0.25*(  q[k][j][i]   + q[k][j][i+1] \
-                                    + q[k][j+1][i] + q[k][j+1][i+1])
-#define AVERAGE_XZ(q,k,j,i)   0.25*(  q[k][j][i]   + q[k][j][i+1] \
-                                    + q[k+1][j][i] + q[k+1][j][i+1])
-#define AVERAGE_YZ(q,k,j,i)   0.25*(  q[k][j][i]   + q[k][j+1][i] \
-                                    + q[k+1][j][i] + q[k+1][j+1][i])
-
-/* -- re-define the macros for 1 or 2 dimensions -- */
+/**@{ */
+#define FDIFF_X1(Q,k,j,i)     (Q[k][j][i+1] - Q[k][j][i])
+#define CDIFF_X1(Q,k,j,i) (0.5*(Q[k][j][i+1] - Q[k][j][i-1]))
 
 #if DIMENSIONS == 1
 
- #undef AVERAGE_Y
- #undef AVERAGE_Z
+ #define FDIFF_X2(Q,k,j,i)  (0.0)
+ #define CDIFF_X2(Q,k,j,i)  (0.0)
 
- #undef AVERAGE_XY
- #undef AVERAGE_XZ
- #undef AVERAGE_YZ
-
- #define AVERAGE_Y(q,k,j,i)    (q[0][0][i])
- #define AVERAGE_Z(q,k,j,i)    (q[0][0][i])
-
- #define AVERAGE_XY(q,k,j,i)   AVERAGE_X(q,0,0,i)
- #define AVERAGE_XZ(q,k,j,i)   AVERAGE_X(q,0,0,i)
- #define AVERAGE_YZ(q,k,j,i)   (q[0][0][i])
+ #define FDIFF_X3(Q,i,j,k)  (0.0)
+ #define CDIFF_X3(Q,i,j,k)  (0.0)
 
 #elif DIMENSIONS == 2
 
- #undef AVERAGE_Z
- #undef AVERAGE_XZ
- #undef AVERAGE_YZ
+ #define FDIFF_X2(Q,k,j,i)      (Q[k][j+1][i] - Q[k][j][i])
+ #define CDIFF_X2(Q,k,j,i) (0.5*(Q[k][j+1][i] - Q[k][j-1][i]))
 
- #define AVERAGE_Z(q,k,j,i)    (q[0][j][i])
- #define AVERAGE_XZ(q,k,j,i)   0.5*(q[0][j][i] + q[0][j][i+1])
- #define AVERAGE_YZ(q,k,j,i)   0.5*(q[0][j][i] + q[0][j+1][i])
+ #define CDIFF_X3(Q,i,j,k)  0.0
+ #define FDIFF_X3(Q,i,j,k)  0.0
+
+#elif DIMENSIONS == 3
+
+ #define FDIFF_X2(Q,k,j,i)      (Q[k][j+1][i] - Q[k][j][i])
+ #define CDIFF_X2(Q,k,j,i) (0.5*(Q[k][j+1][i] - Q[k][j-1][i]))
+
+ #define FDIFF_X3(Q,k,j,i)      (Q[k+1][j][i] - Q[k][j][i])
+ #define CDIFF_X3(Q,k,j,i) (0.5*(Q[k+1][j][i] - Q[k-1][j][i]))
 
 #endif
+/**@} */
+
+/*! \name Spatial averages macros.
+    The following set of macros provide a compact way to perform multi-D
+    averages from cell centered values to interfaces.
+    For instance, \C AVERAGE_X(q,k,j,i) will simply take the
+    arithmetic average betwen q(i) and q(i+1) at the i+1/2 interface.
+    Likewise, AVERAGE_YZ(q,k,j,i) will produce an average at the
+    j+1/2 and k+1/2 edge.
+*/
+/**@{ */
+#define AVERAGE_X(q,k,j,i)   (0.5*(q[k][j][i] + q[k][j][i+1]))
+
+#if DIMENSIONS == 1
+
+  #define AVERAGE_Y(q,k,j,i)    (q[0][0][i])
+  #define AVERAGE_Z(q,k,j,i)    (q[0][0][i])
+
+  #define AVERAGE_XY(q,k,j,i)   AVERAGE_X(q,0,0,i)
+  #define AVERAGE_XZ(q,k,j,i)   AVERAGE_X(q,0,0,i)
+  #define AVERAGE_YZ(q,k,j,i)   (q[0][0][i])
+ 
+  #define AVERAGE_XYZ(q,k,j,i)  0.5*(q[0][0][i] + q[0][0][i+1])
+
+#elif DIMENSIONS == 2
+
+
+  #define AVERAGE_Y(q,k,j,i)   (0.5*(q[k][j][i] + q[k][j+1][i]))
+  #define AVERAGE_Z(q,k,j,i)    (q[0][j][i])
+
+  #define AVERAGE_XY(q,k,j,i)   ( 0.25*(  q[k][j][i]   + q[k][j][i+1] \
+                                        + q[k][j+1][i] + q[k][j+1][i+1]) )
+  #define AVERAGE_XZ(q,k,j,i)   (0.5*(q[0][j][i] + q[0][j][i+1]))
+  #define AVERAGE_YZ(q,k,j,i)   (0.5*(q[0][j][i] + q[0][j+1][i]))
+
+  #define AVERAGE_XYZ(q,k,j,i)  (0.25*(  q[0][j][i]   + q[0][j][i+1]        \
+                                       + q[0][j+1][i] + q[0][j+1][i+1]))
+
+#elif DIMENSIONS == 3
+
+  #define AVERAGE_Y(q,k,j,i)   (0.5*(q[k][j][i] + q[k][j+1][i]))
+  #define AVERAGE_Z(q,k,j,i)   (0.5*(q[k][j][i] + q[k+1][j][i]))
+
+  #define AVERAGE_XY(q,k,j,i)  (0.25*(  q[k][j][i]   + q[k][j][i+1] \
+                                       + q[k][j+1][i] + q[k][j+1][i+1]) )
+  #define AVERAGE_XZ(q,k,j,i)  (0.25*(  q[k][j][i]   + q[k][j][i+1] \
+                                       + q[k+1][j][i] + q[k+1][j][i+1]) )
+  #define AVERAGE_YZ(q,k,j,i)  (0.25*(  q[k][j][i]   + q[k][j+1][i] \
+                                       + q[k+1][j][i] + q[k+1][j+1][i]) )
+  #define AVERAGE_XYZ(q,k,j,i) (0.125*(  q[k][j][i]   + q[k][j][i+1]        \
+                                       + q[k][j+1][i] + q[k][j+1][i+1]      \
+                                       + q[k+1][j][i]   + q[k+1][j][i+1]    \
+                                       + q[k+1][j+1][i] + q[k+1][j+1][i+1]))
+#endif
+/**@} */
 

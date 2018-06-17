@@ -6,8 +6,8 @@
   Solve the Riemann problem for the relativistic MHD (RMHD) equations 
   using the HLLC solver of Mignone & Bodo (2006).
    
-  On input, it takes left and right primitive state vectors 
-  \c state->vL and \c state->vR at zone edge \c i+1/2;
+  On input, it takes left and right primitive sweep vectors 
+  \c sweep->vL and \c sweep->vR at zone edge \c i+1/2;
   On output, return flux and pressure vectors at the same interface 
   \c i+1/2 (note that the \c i refers to \c i+1/2).
   
@@ -26,12 +26,12 @@
 #define BX_MIN  1.e-6
 
 /* ********************************************************************* */
-void HLLC_Solver (const State_1D *state, int beg, int end, 
+void HLLC_Solver (const Sweep *sweep, int beg, int end, 
                   double *cmax, Grid *grid)
 /*!
  * Solve the RMHD Riemann problem using the HLLC Riemann solver.
  *
- * \param[in,out] state   pointer to State_1D structure
+ * \param[in,out] sweep   pointer to Sweep structure
  * \param[in]     beg     initial grid index
  * \param[out]    end     final grid index
  * \param[out]    cmax    1D array of maximum characteristic speeds
@@ -49,61 +49,42 @@ void HLLC_Solver (const State_1D *state, int beg, int end,
   double vxl, vxr, alpha_l, alpha_r;
 
   double *uL, *uR, *SL, *SR;
-  static double **fL, **fR;
-  static double *pR, *pL, *a2L, *a2R, *hL, *hR;
   static double **Uhll, **Fhll;
-  static double **VL, **VR, **UL, **UR;
+  const State   *stateL = &(sweep->stateL);
+  const State   *stateR = &(sweep->stateR);
+  double **fL = stateL->flux, **fR = stateR->flux;
+  double *a2L = stateL->a2,   *a2R = stateR->a2;
+  double  *hL = stateL->h,     *hR = stateR->h;
+  double  *pL = stateL->prs,   *pR = stateR->prs;
 
-  if (fL == NULL){
-    fL = ARRAY_2D(NMAX_POINT, NFLX, double);
-    fR = ARRAY_2D(NMAX_POINT, NFLX, double);
-
+  if (Uhll == NULL){
     Uhll = ARRAY_2D(NMAX_POINT, NVAR, double);
     Fhll = ARRAY_2D(NMAX_POINT, NVAR, double);
-    
-    pL = ARRAY_1D(NMAX_POINT, double);
-    pR = ARRAY_1D(NMAX_POINT, double);
-    #ifdef GLM_MHD
-     VL = ARRAY_2D(NMAX_POINT, NVAR, double);
-     VR = ARRAY_2D(NMAX_POINT, NVAR, double);
-     UL = ARRAY_2D(NMAX_POINT, NVAR, double);
-     UR = ARRAY_2D(NMAX_POINT, NVAR, double);
-    #endif
-
-    a2L = ARRAY_1D(NMAX_POINT, double);
-    a2R = ARRAY_1D(NMAX_POINT, double);
-    hL  = ARRAY_1D(NMAX_POINT, double);
-    hR  = ARRAY_1D(NMAX_POINT, double);
   }
 
-  #ifdef GLM_MHD
-   GLM_Solve (state, VL, VR, beg, end, grid);
-   PrimToCons (VL, UL, beg, end);
-   PrimToCons (VR, UR, beg, end);
-  #else
-   VL = state->vL; UL = state->uL;
-   VR = state->vR; UR = state->uR;
-  #endif
+#ifdef GLM_MHD
+  GLM_Solve (sweep, beg, end, grid);
+#endif
 
 /* ----------------------------------------------------
      compute sound speed & fluxes at zone interfaces
    ---------------------------------------------------- */
+   
+  SoundSpeed2 (stateL, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (stateR, beg, end, FACE_CENTER, grid);
 
-  SoundSpeed2 (VL, a2L, hL, beg, end, FACE_CENTER, grid);
-  SoundSpeed2 (VR, a2R, hR, beg, end, FACE_CENTER, grid);
-
-  Flux (UL, VL, hL, fL, pL, beg, end);
-  Flux (UR, VR, hR, fR, pR, beg, end);
+  Flux (stateL, beg, end);
+  Flux (stateR, beg, end);
 
 /* ----------------------------------------
      get max and min signal velocities
    ---------------------------------------- */
 
-  SL = state->SL; SR = state->SR;
-  HLL_Speed (VL, VR, a2L, a2R, hL, hR, SL, SR, beg, end);
+  SL = sweep->SL; SR = sweep->SR;
+  HLL_Speed (stateL, stateR, SL, SR, beg, end);
 
 /* ----------------------------------------------
-           compute HLL state and flux
+           compute HLL sweep and flux
    ---------------------------------------------- */
    
   for (i = beg; i <= end; i++) {
@@ -111,7 +92,8 @@ void HLLC_Solver (const State_1D *state, int beg, int end,
     scrh  = MAX(fabs(SL[i]), fabs(SR[i]));
     cmax[i] = scrh;
 
-    uL = UL[i]; uR = UR[i];
+    uL = stateL->u[i];
+    uR = stateR->u[i];
     scrh = 1.0/(SR[i] - SL[i]);
     for (nv = NFLX; nv--;  ){  
       Uhll[i][nv] =   SR[i]*uR[nv] - SL[i]*uL[nv] 
@@ -134,33 +116,33 @@ void HLLC_Solver (const State_1D *state, int beg, int end,
 
     if (SL[i] >= 0.0){
       for (nv = NFLX; nv--; ){
-        state->flux[i][nv] = fL[i][nv];
+        sweep->flux[i][nv] = fL[i][nv];
       }
-      state->press[i] = pL[i];
+      sweep->press[i] = pL[i];
     }else if (SR[i] <= 0.0){
       for (nv = NFLX; nv--; ){
-        state->flux[i][nv] = fR[i][nv];
+        sweep->flux[i][nv] = fR[i][nv];
       }
-      state->press[i] = pR[i];
+      sweep->press[i] = pR[i];
     }else{
 
-      uL = UL[i]; uR = UR[i];
-
+      uL = stateL->u[i];
+      uR = stateR->u[i];
 #if SHOCK_FLATTENING == MULTID
-      if ((state->flag[i] & FLAG_HLL) || (state->flag[i+1] & FLAG_HLL)){
+      if ((sweep->flag[i] & FLAG_HLL) || (sweep->flag[i+1] & FLAG_HLL)){
         scrh = 1.0/(SR[i] - SL[i]);
         for (nv = NFLX; nv--; ){
-          state->flux[i][nv]  = SL[i]*SR[i]*(uR[nv] - uL[nv])
+          sweep->flux[i][nv]  = SL[i]*SR[i]*(uR[nv] - uL[nv])
                              +  SR[i]*fL[i][nv] - SL[i]*fR[i][nv];
-          state->flux[i][nv] *= scrh;
+          sweep->flux[i][nv] *= scrh;
         }
-        state->press[i] = (SR[i]*pL[i] - SL[i]*pR[i])*scrh;
+        sweep->press[i] = (SR[i]*pL[i] - SL[i]*pR[i])*scrh;
         continue;
       }
 #endif
 
-      vxl = VL[i][VXn];
-      vxr = VR[i][VXn];
+      vxl = stateL->v[i][VXn];
+      vxr = stateR->v[i][VXn];
       
       EXPAND(Bx  = Uhll[i][BXn];  , 
              Bys = Uhll[i][BXt];  ,
@@ -311,14 +293,14 @@ void HLLC_Solver (const State_1D *state, int beg, int end,
 
       if (vxs > 0.0) {
         for (nv = NFLX; nv--;   ) {
-          state->flux[i][nv] = fL[i][nv] + SL[i]*(usL[nv] - uL[nv]);
+          sweep->flux[i][nv] = fL[i][nv] + SL[i]*(usL[nv] - uL[nv]);
         }
-        state->press[i] = pL[i];
+        sweep->press[i] = pL[i];
       }else {
         for (nv = NFLX; nv--; ) {
-          state->flux[i][nv] = fR[i][nv] + SR[i]*(usR[nv] - uR[nv]);
+          sweep->flux[i][nv] = fR[i][nv] + SR[i]*(usR[nv] - uR[nv]);
         }
-        state->press[i] = pR[i];
+        sweep->press[i] = pR[i];
       }
     }
 
@@ -330,7 +312,7 @@ void HLLC_Solver (const State_1D *state, int beg, int end,
  
   #if DIVB_CONTROL == EIGHT_WAVES
 /*
-   POWELL_DIVB_SOURCE (state, beg, end, grid);
+   POWELL_DIVB_SOURCE (sweep, beg, end, grid);
 */
   /* ----------------------------------------------------
        to avoid conversion problems in HLL_DIVB_SOURCE, 
@@ -338,7 +320,7 @@ void HLLC_Solver (const State_1D *state, int beg, int end,
      ---------------------------------------------------- */
 /*            
    for (i = beg; i <= end; i++) {
-     uL = state->uL[i]; uR = state->uR[i];
+     uL = sweep->uL[i]; uR = sweep->uR[i];
      for (nv = 0; nv < NFLX; nv++) {
        Uhll[i][nv] = 0.5*(uR[nv] + uL[nv] + fL[i][nv] - fR[i][nv]);
      }
@@ -346,7 +328,7 @@ void HLLC_Solver (const State_1D *state, int beg, int end,
      for (nv = NFLX; nv < NVAR; nv++) Uhll[i][nv] = 0.0;
    }
 */
-   HLL_DIVB_SOURCE (state, Uhll, beg+1, end, grid);
+   HLL_DIVB_SOURCE (sweep, Uhll, beg+1, end, grid);
   #endif
 
 }

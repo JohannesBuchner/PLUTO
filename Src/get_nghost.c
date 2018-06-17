@@ -99,10 +99,6 @@ int GetNghost (void)
    #endif
   #endif
 
-  #if (defined CH_SPACEDIM) && (TIME_STEPPING == RK_MIDPOINT) 
-   nghost++;  /* AMR + RK_MIDPOINT */
-  #endif  
-
   return (nghost);
 }
 

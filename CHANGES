@@ -1,4 +1,65 @@
-CURRENT RELEASE: 4.2 (August 2015)
+CURRENT RELEASE: 4.3 (June 2018)
+**********************************************************
+*           CHANGES from 4.2
+**********************************************************
+
+Major Changes / Addition:
+=========================
+
+- The Grid structure has been changed from an array of structures to a structure
+  of arrays. 
+  All arrays must be changed as
+  
+  grid[IDIR].x    must be chnaged to   grid->x[IDIR]
+
+  and so on.
+  Areas and volumes are now fully three-dimensional arrays containing the
+  full expression rather than just the reduced one
+  (i.e., Ar = R*dphi*dz and not just R).
+- Log files are now always dumped to screen (in serial mode) or to different
+  log files (in parallel, one per processor). It is possible to write log files
+  into a separate directory using "log_dir" in your pluto.ini;
+  In addition, print1 statement has been removed (only print is used).
+- The "Frequently Used Options" (meaning the additional switches at the end of
+  definitions.h) have been completely removed and reabsorbed into the more
+  general "User-defined Constants", see the user-guide.
+  Default values are used when not explicitly set.
+- Added Particles modules (CR + LP), see documentation.
+- Added forced turbulence module (see doc).
+- Added RK_LEGENDRE option to integrate parabolic terms.
+- The Asynchrounous I/O option has been removed.
+- Python setup is compatible with Python 2.7.x and 3.x
+- Magnetic field variable names have been changed 
+  from "bx1", "bx2", "bx3" to "Bx1", "Bx2", "Bx3"
+- In the userdef_output.c, ChangeDumpVar() --> ChangeOutputVar()
+                           SetDumpVar()    --> SetOutputVar()
+- A new function, InitDomain(), has been introduced to assign initial conditions
+  in a more global way. This does *NOT* replace the old Init() function. 
+- A more efficient InputData() module to assign initial conditions from
+  external binary files;
+- Added different pseudo random number generators (PRNG);
+- The --show-dec options has been removed (now every processor
+  log print its own domain);
+- IDL can now read user-defined variables (see documentation);
+- Time_Step structure name changed into timeStep (respect naming conventions!);
+
+
+
+Bug Fixes:
+==========
+
+- Fixed a bug when writing VTK file header using mpich
+- Fixed a memory problem for large VTK dataset.
+- Changed size of (restart): this will make restarting from 
+  PLUTO 4.2 (and previous) data files impossible (sorry about that).
+- Binary data files (.dbl, .flt and .vtk) are deleted before writing 
+  in parallel mode to avoid partial writing over pre-existing larger files.
+- Added and changed I/O routine names contained in bin_io.c
+  (e.g. OpenBinaryFile()   --> FileOpen(),
+        CloseBinaryFile()  --> FileClose(),
+        WriteBinaryArray() --> FileWriteData(), etc..)
+- Tagcells & RBox structures: 
+  changed names from ib --> ibeg, ie --> iend, and so forth
 
 **********************************************************
 *           CHANGES from 4.1

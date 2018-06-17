@@ -16,7 +16,7 @@
   average between the left and the right states.
   
   On input, this function takes left and right primitive state vectors 
-  \c state->vL and \c state->vR at zone edge i+1/2;
+  \c stateL->v and \c stateR->v at zone edge i+1/2;
   On output, return flux and pressure vectors at the same interface 
   \c i+1/2 (note that the \c i refers to \c i+1/2).
   
@@ -29,17 +29,17 @@
        Problems", Toth and Odstrcil, JCP (1996), 128,82
        
   \authors A. Mignone (mignone@ph.unito.it)
-  \date    April 7, 2014
+  \date    Feb 13, 2018
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
 /* ********************************************************************* */
-void LF_Solver (const State_1D *state, int beg, int end, 
+void LF_Solver (const Sweep *sweep, int beg, int end, 
                 double *cmax, Grid *grid)
 /*!
  * 
- * \param[in,out] state   pointer to State_1D structure
+ * \param[in,out] sweep   pointer to Sweep structure
  * \param[in]     beg     initial grid index
  * \param[out]    end     final grid index
  * \param[out]    cmax    1D array of maximum characteristic speeds
@@ -48,31 +48,35 @@ void LF_Solver (const State_1D *state, int beg, int end,
  *********************************************************************** */
 {
   int    nv, i;
-  static double **fL, **fR, **vRL;
-  static double *cRL_min, *cRL_max, *pL, *pR, *a2L, *a2R;
-  double *vR, *vL, *uR, *uL, *flux;
+
+  State stateRL;
+  const State   *stateL = &(sweep->stateL);
+  const State   *stateR = &(sweep->stateR);
+
+  double scrh;
+  double **fL = stateL->flux, **fR = stateR->flux;
+  double *a2L = stateL->a2,   *a2R = stateR->a2;
+  double  *pL = stateL->prs,   *pR = stateR->prs;
+
+  static double **vRL;
+  static double *cRL_min, *cRL_max;
+  double *vR, *vL, *uR, *uL;
   
-  if (fR == NULL){
-    fR  = ARRAY_2D(NMAX_POINT, NFLX, double);
-    fL  = ARRAY_2D(NMAX_POINT, NFLX, double);
+  if (vRL == NULL){
     vRL = ARRAY_2D(NMAX_POINT, NFLX, double);
     cRL_min = ARRAY_1D(NMAX_POINT, double);
     cRL_max = ARRAY_1D(NMAX_POINT, double);
-    pR  = ARRAY_1D(NMAX_POINT, double);
-    pL  = ARRAY_1D(NMAX_POINT, double);
-    a2R = ARRAY_1D(NMAX_POINT, double);
-    a2L = ARRAY_1D(NMAX_POINT, double);
   }
 
 /* ----------------------------------------------------
      compute sound speed & fluxes at zone interfaces
    ---------------------------------------------------- */
 
-  SoundSpeed2 (state->vL, a2L, NULL, beg, end, FACE_CENTER, grid);
-  SoundSpeed2 (state->vR, a2R, NULL, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (stateL, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (stateR, beg, end, FACE_CENTER, grid);
 
-  Flux (state->uL, state->vL, a2L, fL, pL, beg, end);
-  Flux (state->uR, state->vR, a2R, fR, pR, beg, end);
+  Flux (stateL, beg, end);
+  Flux (stateR, beg, end);
 
 /* ---------------------------------------------------------------------
     Compute average state in order to get the local max characteristic
@@ -83,21 +87,23 @@ void LF_Solver (const State_1D *state, int beg, int end,
    ------------------------------------------------------------------- */
 
   for (i = beg; i <= end; i++){
-    VAR_LOOP(nv) vRL[i][nv] = 0.5*(state->vL[i][nv] + state->vR[i][nv]);
-    vRL[i][VXn] = 0.5*(fabs(state->vL[i][VXn]) + fabs(state->vR[i][VXn]));
+    VAR_LOOP(nv) vRL[i][nv] = 0.5*(stateL->v[i][nv] + stateR->v[i][nv]);
+    vRL[i][VXn] = 0.5*(fabs(stateL->v[i][VXn]) + fabs(stateR->v[i][VXn]));
   }
 
 /* ---------------------------------------------------------------------
          Compute sound speed, max and min signal speeds
    --------------------------------------------------------------------- */
 
-  SoundSpeed2    (vRL, a2R, NULL, beg, end, FACE_CENTER, grid);
-  MaxSignalSpeed (vRL, a2R, cRL_min, cRL_max, beg, end);
+  stateRL.v  = vRL;
+  stateRL.a2 = a2R;
+
+  SoundSpeed2    (&stateRL, beg, end, FACE_CENTER, grid);
+  MaxSignalSpeed (&stateRL, cRL_min, cRL_max, beg, end);
 
   for (i = beg; i <= end; i++) {
-    uR   = state->uR[i];
-    uL   = state->uL[i];
-    flux = state->flux[i];
+    uR   = stateR->u[i];
+    uL   = stateL->u[i];
   
   /* -- compute max eigenvalue -- */
 
@@ -107,8 +113,8 @@ void LF_Solver (const State_1D *state, int beg, int end,
   /* -- compute fluxes -- */
   
     for (nv = NFLX; nv--;  ) {
-      flux[nv] = 0.5*(fL[i][nv] + fR[i][nv] - cmax[i]*(uR[nv] - uL[nv]));
+      sweep->flux[i][nv] = 0.5*(fL[i][nv] + fR[i][nv] - cmax[i]*(uR[nv] - uL[nv]));
     }
-    state->press[i] = 0.5*(pL[i] + pR[i]);
+    sweep->press[i] = 0.5*(pL[i] + pR[i]);
   }
 }

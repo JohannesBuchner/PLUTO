@@ -56,24 +56,24 @@ double SolveODE_CK45 (double *v0, double *k1, double *v5th,
   ksub = kfail = 0;
   for (;;){  
 
-    FOR_EACH(nv,0,vars) v1[nv] = v0[nv] + dt*b21*k1[nv];
+    FOR_EACH(nv,vars) v1[nv] = v0[nv] + dt*b21*k1[nv];
 
   /* -- get K2 -- */
 
     Radiat(v1, k2);
-    FOR_EACH(nv,0,vars) v1[nv] = v0[nv] + dt*(b31*k1[nv] + b32*k2[nv]);
+    FOR_EACH(nv,vars) v1[nv] = v0[nv] + dt*(b31*k1[nv] + b32*k2[nv]);
 
   /* -- get K3 -- */
 
     Radiat(v1, k3);
-    FOR_EACH(nv, 0, vars){
+    FOR_EACH(nv,vars){
       v1[nv] = v0[nv] + dt*(b41*k1[nv] + b42*k2[nv] + b43*k3[nv]);
     }
 
   /* -- get K4 -- */
 
     Radiat(v1, k4);
-    FOR_EACH(nv,0, vars) {
+    FOR_EACH(nv,vars) {
       v1[nv] = v0[nv] + dt*(b51*k1[nv] + b52*k2[nv] + b53*k3[nv]  
                           + b54*k4[nv]);
     }
@@ -81,7 +81,7 @@ double SolveODE_CK45 (double *v0, double *k1, double *v5th,
   /* -- get K5 -- */
 
     Radiat(v1, k5);
-    FOR_EACH(nv,0,vars){
+    FOR_EACH(nv,vars){
       v1[nv] = v0[nv] + dt*(b61*k1[nv] + b62*k2[nv] + b63*k3[nv] 
                           + b64*k4[nv] + b65*k5[nv]);
     }
@@ -92,14 +92,14 @@ double SolveODE_CK45 (double *v0, double *k1, double *v5th,
 
   /* -- 5th order solution -- */
 
-    FOR_EACH(nv,0,vars){
+    FOR_EACH(nv,vars){
       v5th[nv] = v0[nv] + dt*(c1*k1[nv] + c2*k2[nv] + c3*k3[nv] 
                             + c4*k4[nv] + c5*k5[nv] + c6*k6[nv]);
     }
 
   /* -- 4th order embedded solution -- */
 
-    FOR_EACH(nv,0,vars){
+    FOR_EACH(nv,vars){
       v4th[nv] = v0[nv] + dt*(cs1*k1[nv] + cs2*k2[nv] + cs3*k3[nv] 
                             + cs4*k4[nv] + cs5*k5[nv] + cs6*k6[nv]);
     }
@@ -120,7 +120,7 @@ double SolveODE_CK45 (double *v0, double *k1, double *v5th,
     #endif
 
     err = 0.0;
-    FOR_EACH(nv,0,vars){
+    FOR_EACH(nv,vars){
       scrh = fabs(v5th[nv] - v4th[nv])/fabs(vscal[nv]);
       err  = MAX(err, scrh);
     }
@@ -150,7 +150,7 @@ double SolveODE_CK45 (double *v0, double *k1, double *v5th,
 
     /* -- initialize solution vector before continuing -- */
     
-      FOR_EACH(nv,0,vars) v0[nv] = v5th[nv];
+      FOR_EACH(nv,vars) v0[nv] = v5th[nv];
       Radiat(v0, k1);
 
       if (ksub > 1000) {
@@ -168,8 +168,7 @@ double SolveODE_CK45 (double *v0, double *k1, double *v5th,
   } /* -- end while -- */
 
   if (ksub > 100) {
-    int i;
-    print ("! SolveODE_CK45: number of substeps is %d\n", ksub);
+//    print ("! SolveODE_CK45: number of substeps is %d\n", ksub);
   }
 
   return (dt);
@@ -200,22 +199,22 @@ double SolveODE_RK4 (double *v0, double *k1, double *v4th,
 
 /* -- step 1 -- */
 
-  FOR_EACH(nv,0,var_list) v1[nv] = v0[nv] + 0.5*dt*k1[nv];
+  FOR_EACH(nv,var_list) v1[nv] = v0[nv] + 0.5*dt*k1[nv];
 
 /* -- step 2 -- */
 
   Radiat(v1, k2);
-  FOR_EACH(nv,0,var_list) v1[nv] = v0[nv] + 0.5*dt*k2[nv];
+  FOR_EACH(nv,var_list) v1[nv] = v0[nv] + 0.5*dt*k2[nv];
 
 /* -- step 3 -- */
 
   Radiat(v1, k3);
-  FOR_EACH(nv,0,var_list) v1[nv] = v0[nv] + 0.5*dt*k3[nv];
+  FOR_EACH(nv,var_list) v1[nv] = v0[nv] + 0.5*dt*k3[nv];
 
 /* -- step 4 -- */
 
   Radiat(v1, k4);
-  FOR_EACH(nv,0,var_list) {
+  FOR_EACH(nv,var_list) {
     v4th[nv] = v0[nv] + dt*(k1[nv] + 2.0*(k2[nv] + k3[nv]) + k4[nv])/6.0;
   }
 
@@ -245,17 +244,17 @@ double SolveODE_RKF12 (double *v0, double *k1, double *v2nd,
 
 /* -- Get K2 -- */
 
-  FOR_EACH(nv, 0, vars)  v1[nv] = v0[nv] + 0.5*dt*k1[nv];
+  FOR_EACH(nv,vars)  v1[nv] = v0[nv] + 0.5*dt*k1[nv];
 
   Radiat(v1, k2);
 
 /* -- 2nd order solution -- */
 
-  FOR_EACH(nv, 0, vars) v2nd[nv] = v0[nv] + dt*k2[nv];
+  FOR_EACH(nv,vars) v2nd[nv] = v0[nv] + dt*k2[nv];
 
 /* -- 1st order solution -- */
 
-  FOR_EACH(nv, 0, vars) v1st[nv] = v0[nv] + dt*k1[nv];
+  FOR_EACH(nv,vars) v1st[nv] = v0[nv] + dt*k1[nv];
 
 /* -----------------------------------
           compute error
@@ -267,7 +266,7 @@ double SolveODE_RKF12 (double *v0, double *k1, double *v2nd,
  
 
   err = 0.0;
-  FOR_EACH(nv,0,vars){
+  FOR_EACH(nv,vars){
     scrh = fabs(v2nd[nv] - v1st[nv])/fabs(vscal[nv]);
     err  = MAX(err, scrh);
   }
@@ -310,23 +309,23 @@ double SolveODE_RKF23 (double *v0, double *k1, double *v3rd,
 
 /* -- Get K2 -- */
 
-  FOR_EACH(nv,0,vars) v1[nv] = v0[nv] + dt*k1[nv]; 
+  FOR_EACH(nv,vars) v1[nv] = v0[nv] + dt*k1[nv]; 
 
   Radiat(v1, k2);
 
 /* -- Get K3 -- */
 
-  FOR_EACH(nv,0,vars) v1[nv] = v0[nv] + dt_4*(k1[nv] + k2[nv]);
+  FOR_EACH(nv,vars) v1[nv] = v0[nv] + dt_4*(k1[nv] + k2[nv]);
 
   Radiat(v1, k3);
 
 /* -- 3rd order solution -- */
 
-  FOR_EACH(nv,0,vars) v3rd[nv] = v0[nv] + dt_6*(k1[nv] + k2[nv] + 4.0*k3[nv]);
+  FOR_EACH(nv,vars) v3rd[nv] = v0[nv] + dt_6*(k1[nv] + k2[nv] + 4.0*k3[nv]);
 
 /* -- 2nd order solution -- */
 
-  FOR_EACH(nv,0,vars) v2nd[nv] = v0[nv] + 0.5*dt*(k1[nv] + k2[nv]);
+  FOR_EACH(nv,vars) v2nd[nv] = v0[nv] + 0.5*dt*(k1[nv] + k2[nv]);
 
 /* -----------------------------------
           compute error
@@ -338,7 +337,7 @@ double SolveODE_RKF23 (double *v0, double *k1, double *v3rd,
   
 
   err = 0.0;
-  FOR_EACH(nv,0,vars){
+  FOR_EACH(nv,vars){
     scrh = fabs(v3rd[nv] - v2nd[nv])/fabs(vscal[nv]);
     err  = MAX(err, scrh);
   }
@@ -613,5 +612,4 @@ double vbeg[NVAR];
 #undef C4X 
 #undef A2X 
 #undef A3X 
-
 

@@ -227,7 +227,33 @@ double MeanMolecularWeight(double *v)
   
   mu = mmw1/mmw2;
 
+#elif COOLING == KROME 
+  int i;
+  double numden[NIONS], mfsum, n_sum;
+  mu = 0.0;
+  n_sum = 0.0;
+  mfsum = 0.0;
+
+  //The mu is computed using number fractions. 
+  NIONS_LOOP(nv) mfsum += v[nv];
+  NIONS_LOOP(nv) v[nv] /= mfsum;
+  NIONS_LOOP(nv) numden[nv-NFLX] = v[RHO]*UNIT_DENSITY*(v[nv]/molmass[nv-NFLX]);
+  
+  for(i = 0; i < NIONS; i++){
+    mu += numden[i]*molmass[i];
+  }
+
+  for(i=0;i<NIONS; i++){
+    n_sum += numden[i];
+  }
+
+  mu  /= (CONST_mp*n_sum); // KROME divides with proton mass. 
+
+
 #endif
-    
+ 
   return mu;
 }
+
+
+

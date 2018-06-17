@@ -5,11 +5,11 @@
 
   HLL_Speed() computes an estimate to the leftmost and rightmost
   wave signal speeds bounding the Riemann fan based on the input states
-  ::vR and ::vL.
+  ::stateL->v, ::stateR->v.
   Depending on the estimate, several variants are possible.
  
   \authors A. Mignone (mignone@ph.unito.it)
-  \date    June 6, 2013
+  \date    Feb 13, 2018
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include"pluto.h"
@@ -20,26 +20,21 @@
 #define DAVIS_ESTIMATE  YES   
 
 /* ********************************************************************* */
-void HLL_Speed (double **vL, double **vR, double *a2L, double *a2R, double **bgf, 
+void HLL_Speed (const State *stateL, const State *stateR, 
                 double *SL, double *SR, int beg, int end)
 /*!
- * Compute leftmost (SL) and rightmost (SR) speed for the Riemann fan.
+ * Compute leftmost (SL) and rightmost (SR) speeds for the Riemann fan.
  * 
- * \param [in]  vL   left  state for the Riemann solver
- * \param [in]  vR   right state for the Riemann solver
- * \param [in] a2L   1-D array containing the square of the sound speed
- *                   for the left state
- * \param [in] a2R   1-D array containing the square of the sound speed
- *                   for the right state
- * \param [out] SL   the (estimated) leftmost speed of the Riemann fan
- * \param [out] SR   the (estimated) rightmost speed of the Riemann fan
- * \param [in]  beg   starting index of computation
- * \param [in]  end   final index of computation
+ * \param [in]  stateL   pointer to a state structure for the left state
+ * \param [in]  stateR   pointer to a state structure for the right state
+ * \param [out] SL       the (estimated) leftmost speed of the Riemann fan
+ * \param [out] SR       the (estimated) rightmost speed of the Riemann fan
+ * \param [in]  beg      starting index of computation
+ * \param [in]  end      final index of computation
  *
  * Switches:
  *
- *    ROE_ESTIMATE (YES/NO), DAVIS_ESTIMATE (YES/NO). TVD_ESTIMATE (YES/NO)
- *    JAN_HLL (YES/NO) 
+ *    ROE_ESTIMATE (YES/NO), DAVIS_ESTIMATE (YES/NO)
  *
  *    These switches set how the wave speed estimates are
  *    going to be computed. Only one can be set to 'YES', and
@@ -74,24 +69,23 @@ void HLL_Speed (double **vL, double **vR, double *a2L, double *a2R, double **bgf
     sm_max = ARRAY_1D(NMAX_POINT, double);
   }
 
-/* ----------------------------------------------
-              DAVIS Estimate  
-   ---------------------------------------------- */
+/* --------------------------------------------------------
+   1. Compute speeds using DAVIS Estimate  
+   ------------------------------------------------------- */
 
-  #if DAVIS_ESTIMATE == YES
+#if DAVIS_ESTIMATE == YES
+  MaxSignalSpeed (stateL, sl_min, sl_max, beg, end);
+  MaxSignalSpeed (stateR, sr_min, sr_max, beg, end);
 
-   MaxSignalSpeed (vL, a2L, sl_min, sl_max, bgf, beg, end);
-   MaxSignalSpeed (vR, a2R, sr_min, sr_max, bgf, beg, end);
-
-   for (i = beg; i <= end; i++) {
+  for (i = beg; i <= end; i++) {
 
     SL[i] = MIN(sl_min[i], sr_min[i]);
     SR[i] = MAX(sl_max[i], sr_max[i]);
 
   /* -- define g_maxMach -- */
 
-     scrh  = fabs(vL[i][VXn]) + fabs(vR[i][VXn]);    
-     scrh /= sqrt(a2L[i]) + sqrt(a2R[i]);
+     scrh  = fabs(stateL->v[i][VXn]) + fabs(stateR->v[i][VXn]);    
+     scrh /= sqrt(stateL->a2[i])     + sqrt(stateR->a2[i]);
 /*
     #if EOS == IDEAL 
      scrh  = fabs(vL[i][VXn]) + fabs(vR[i][VXn]);    
@@ -110,20 +104,17 @@ void HLL_Speed (double **vL, double **vR, double *a2L, double *a2R, double **bgf
 */
     g_maxMach = MAX(scrh, g_maxMach);  
 
-   }
+  }
+#endif  /* DAVIS_ESTIMATE == YES */
 
-  #endif
+/* --------------------------------------------------------
+   2. Compute speeds using Roe-like estimates  
+   ------------------------------------------------------- */
 
-/* ----------------------------------------------
-              Roe-like Estimate  
-   ---------------------------------------------- */
-
-  #if ROE_ESTIMATE == YES
-
-   MaxSignalSpeed (vL, a2L, sl_min, sl_max, bgf, beg, end);
-   MaxSignalSpeed (vR, a2R, sr_min, sr_max, bgf, beg, end);
-
-   for (i = beg; i <= end; i++) {
+#if ROE_ESTIMATE == YES
+  MaxSignalSpeed (vL, a2L, sl_min, sl_max, bgf, beg, end);
+  MaxSignalSpeed (vR, a2R, sr_min, sr_max, bgf, beg, end);
+  for (i = beg; i <= end; i++) {
 
     scrh = sqrt(vR[i][RHO]/vL[i][RHO]);
     s    = 1.0/(1.0 + scrh);
@@ -139,8 +130,8 @@ void HLL_Speed (double **vL, double **vR, double *a2L, double *a2R, double **bgf
        speed.
       ----------------------------------  */
 
-    #if EOS == IDEAL
-     vm[i][PRS] = s*gpl + c*gpr;  
+  #if EOS == IDEAL
+  vm[i][PRS] = s*gpl + c*gpr;  
     #endif
  
   /* ---------------------------------------
@@ -153,28 +144,28 @@ void HLL_Speed (double **vL, double **vR, double *a2L, double *a2R, double **bgf
            vm[i][BXt] = c*vL[i][BXt] + s*vR[i][BXt];   ,
            vm[i][BXb] = c*vL[i][BXb] + s*vR[i][BXb];)
 
-   }
+  }
 
-   MAX_CH_SPEED(vm, sm_min, sm_max, bgf, beg, end);
+  MAX_CH_SPEED(vm, sm_min, sm_max, bgf, beg, end);
 
-   for (i = beg; i <= end; i++) {
-     SL[i] = MIN(sl_min[i], sm_min[i]);
-     SR[i] = MAX(sr_max[i], sm_max[i]);
+  for (i = beg; i <= end; i++) {
+    SL[i] = MIN(sl_min[i], sm_min[i]);
+    SR[i] = MAX(sr_max[i], sm_max[i]);
 
   /* -- define g_maxMach -- */
 
-     #if EOS == IDEAL
-      scrh  = fabs(vm[i][VXn])/sqrt(vm[i][PRS]/vm[i][RHO]);
-     #elif EOS == ISOTHERMAL
-      scrh  = fabs(vm[i][VXn])/g_isoSoundSpeed;
-     #elif EOS == BAROTROPIC
-      print ("! HLL_SPEED: stop\n");
-      QUIT_PLUTO(1);
-     #endif   
-     g_maxMach = MAX(scrh, g_maxMach); 
-   }
+  #if EOS == IDEAL
+    scrh  = fabs(vm[i][VXn])/sqrt(vm[i][PRS]/vm[i][RHO]);
+  #elif EOS == ISOTHERMAL
+    scrh  = fabs(vm[i][VXn])/g_isoSoundSpeed;
+  #elif EOS == BAROTROPIC
+    print ("! HLL_SPEED: stop\n");
+    QUIT_PLUTO(1);
+  #endif   
+    g_maxMach = MAX(scrh, g_maxMach); 
+  }
+#endif /* ROE_ESTIMATE == YES */
 
-  #endif
 }
 #undef DAVIS_ESTIMATE
 #undef ROE_ESTIMATE

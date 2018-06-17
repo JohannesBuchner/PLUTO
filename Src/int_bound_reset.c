@@ -14,11 +14,11 @@
 
 #if INTERNAL_BOUNDARY == YES
 /* *********************************************************************** */
-void InternalBoundaryReset (const State_1D *state, Time_Step *Dts, 
+void InternalBoundaryReset (const Sweep *sweep, timeStep *Dts, 
                             int beg, int end, Grid *grid)
 /*! 
  *
- * \param [in,out]  state  pointer to State_1D structure
+ * \param [in,out]  sweep  pointer to Sweep structure
  * \param [in]      Dts    pointer to time step structure
  * \param [in]      beg    initial index of computation
  * \param [in]      end    final   index of computation
@@ -31,8 +31,8 @@ void InternalBoundaryReset (const State_1D *state, Time_Step *Dts,
   int i,nv;
   
   for (i = beg; i <= end; i++){
-    if (state->flag[i] & FLAG_INTERNAL_BOUNDARY){
-      NVAR_LOOP(nv) state->rhs[i][nv] = 0.0;
+    if (sweep->flag[i] & FLAG_INTERNAL_BOUNDARY){
+      NVAR_LOOP(nv) sweep->rhs[i][nv] = 0.0;
 /*      Dts->cmax[i] = 0.0;   */
     }
   }

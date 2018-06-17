@@ -22,14 +22,14 @@ public:
     } 
   }
 
- struct GRID* getGrid()
+ struct Grid_* getGrid()
  {
    return PGrid;
  }
 
 protected:
 
- struct GRID PGrid[3];
+ struct Grid_ PGrid[3];
 
 private:
 

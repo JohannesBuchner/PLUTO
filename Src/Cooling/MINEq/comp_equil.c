@@ -138,7 +138,7 @@ double CompEquil (double N, double T, double *v0)
     }
      
     if (n_el != n_el) {
-      print1 ("! CompEquil: error!! n_el NaN\n\n");
+      print ("! CompEquil: error!! n_el NaN\n\n");
       QUIT_PLUTO(1);
     }             
     nrt++;  /* increment the iteration counter  */

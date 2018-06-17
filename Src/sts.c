@@ -7,7 +7,7 @@
   \f$ dU/dt = R(\partial^2U)  \f$ where R is a nonlinear right hand side
   involving second derivatives. 
   The super step is taken to be equal to the current time step
-  ::g_dt and the number of substeps Nsts is given by solving the following
+  \c dt and the number of substeps Nsts is given by solving the following
   nonlinear equation:
   \f[
     \frac{\Delta t}{\Delta t_{\rm par}}
@@ -37,7 +37,7 @@
 
   \authors A. Mignone (mignone@ph.unito.it)\n
            T. Matsakos
-  \date    Aug 27, 2015
+  \date    May 15, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -49,39 +49,42 @@
 #define STS_MAX_STEPS 1024
 
 static void   STS_ComputeSubSteps(double, double tau[], int);
-static double STS_FindRoot(double, double, double);
+static double STS_FindRoot(double, double);
 static double STS_CorrectTimeStep(int, double);
 /* ********************************************************************* */
-void STS (const Data *d, Time_Step *Dts, Grid *grid)
+void STS (const Data *d, double dt, timeStep *Dts, Grid *grid)
 /*!
  * Solve diffusion equation(s) using Super-Time-Stepping.
  *
  * \param [in,out]  d    pointer to Data structure
- * \param [in,out]  Dts  pointer to Time_Step structure  
+ * \param [in]      dt   the time step increment
+ * \param [in,out]  Dts  pointer to timeStep structure  
  * \param [in]     grid  pointer to an array of Grid structures
  *
  *********************************************************************** */
 {
   int    i, j, k, nv, n, m;
   double N, ts[STS_MAX_STEPS];
-  double dt_par, tau, tsave, inv_dtp;
+  double dt_par, tau, tsave, invDt_par;
   static Data_Arr rhs;
-  RBox *box = GetRBox(DOM, CENTER);
+  RBox  box;
 
   if (rhs == NULL) rhs  = ARRAY_4D(NX3_TOT, NX2_TOT, NX1_TOT, NVAR, double); 
+  RBoxDefine (IBEG, IEND, JBEG, JEND, KBEG, KEND, CENTER, &box);
 
-/* -------------------------------------------------------------
-    Compute the conservative vector in order to start the cycle. 
-    This step will be useless if the data structure 
-    contains Vc as well as Uc (for future improvements).
-   ------------------------------------------------------------- */
+/* --------------------------------------------------------
+   0. Compute the conservative vector in order to start
+      the cycle. 
+      This step will be useless if the data structure 
+      contains Vc as well as Uc (for future improvements).
+   -------------------------------------------------------- */
 
-  PrimToCons3D(d->Vc, d->Uc, box);
+  PrimToCons3D(d->Vc, d->Uc, &box);
   tsave = g_time;
 
-/* ------------------------------------------------------------
-               Main STS Loop starts here
-   ------------------------------------------------------------ */
+/* --------------------------------------------------------
+   1. Main STS Loop starts here
+   -------------------------------------------------------- */
 
   m = 0;
   n = STS_MAX_STEPS;
@@ -89,11 +92,11 @@ void STS (const Data *d, Time_Step *Dts, Grid *grid)
 
     g_intStage = m + 1;
     Boundary(d, ALL_DIR, grid);
-    inv_dtp = ParabolicRHS(d, rhs, 1.0, grid); 
-    
-  /* --------------------------------------------------------------
-      At the first step (m=0) compute (explicit) parabolic time 
-      step. Restriction on explicit time step should be
+    invDt_par = ParabolicRHS(d, rhs, &box, NULL, SUPER_TIME_STEPPING, 1.0, grid);
+
+  /* -----------------------------------------------------------
+     1a. At the first step (m=0) compute (explicit) parabolic
+         time step. Restriction on explicit time step should be
       
        [2*eta_x/dx^2 + 2*eta_y/dy^2 + 2*eta_z/dz^2]*dt < 1
 
@@ -102,29 +105,29 @@ void STS (const Data *d, Time_Step *Dts, Grid *grid)
        [2/dtp_x + 2/dtp_y + 2/dtp_z]*dt/Ndim = 1/Ndim = cfl_par
 
       where Ndim is the number of spatial dimensions.
-     -------------------------------------------------------------- */
+     ----------------------------------------------------------- */
 
     if (m == 0){
-      Dts->inv_dtp = inv_dtp/(double)DIMENSIONS;  
+      Dts->invDt_par = invDt_par/(double)DIMENSIONS;  
       #ifdef PARALLEL
-       MPI_Allreduce (&Dts->inv_dtp, &tau, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-       Dts->inv_dtp = tau;
+      MPI_Allreduce (&Dts->invDt_par, &tau, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+      Dts->invDt_par = tau;
       #endif
-      Dts->inv_dtp = MAX(Dts->inv_dtp, 1.e-18);
-      dt_par = Dts->cfl_par/(2.0*Dts->inv_dtp); /* explicit parabolic 
+      Dts->invDt_par = MAX(Dts->invDt_par, 1.e-18);
+      dt_par = Dts->cfl_par/(2.0*Dts->invDt_par); /* explicit parabolic 
                                                    time step          */
     /* -------------------------------------------
         Compute the number of steps needed to fit 
         the supertimestep with the advection one.
        ------------------------------------------- */
 
-      N = STS_FindRoot(1.0, dt_par, g_dt);
+      N = STS_FindRoot(dt_par, dt);
       N = floor(N+1.0);
       n = (int)N;
 
       Dts->Nsts = n;
       if (n > STS_MAX_STEPS){
-        print1 ("! STS: the number of substeps (%d) is > %d\n",n, STS_MAX_STEPS); 
+        print ("! STS: the number of substeps (%d) is > %d\n",n, STS_MAX_STEPS); 
         QUIT_PLUTO(1);
       }
 
@@ -134,104 +137,64 @@ void STS (const Data *d, Time_Step *Dts, Grid *grid)
        ------------------------------------------ */
 
       if (Dts->Nsts > 1){
-        dt_par = STS_CorrectTimeStep(Dts->Nsts, g_dt);
+        dt_par = STS_CorrectTimeStep(Dts->Nsts, dt);
         STS_ComputeSubSteps(dt_par, ts, Dts->Nsts);
       }
     
-      if (Dts->Nsts == 1) ts[0] = g_dt;
-
+      if (Dts->Nsts == 1) ts[0] = dt;
     }   /* end if m == 0 */
 
     tau = ts[n-m-1];
 
-  /* -----------------------------------------------
-      Update cell-centered conservative variables
-     ----------------------------------------------- */
+  /* ------------------------------------------------------
+     1b. Update cell-centered conservative variables
+     ------------------------------------------------------ */
      
     DOM_LOOP (k,j,i){
       #if VISCOSITY == SUPER_TIME_STEPPING
-       EXPAND(d->Uc[k][j][i][MX1] += tau*rhs[k][j][i][MX1];  ,
-              d->Uc[k][j][i][MX2] += tau*rhs[k][j][i][MX2];  ,
-              d->Uc[k][j][i][MX3] += tau*rhs[k][j][i][MX3];)
+      EXPAND(d->Uc[k][j][i][MX1] += tau*rhs[k][j][i][MX1];  ,
+             d->Uc[k][j][i][MX2] += tau*rhs[k][j][i][MX2];  ,
+             d->Uc[k][j][i][MX3] += tau*rhs[k][j][i][MX3];)
       #endif
       #if (RESISTIVITY == SUPER_TIME_STEPPING)
-       EXPAND(d->Uc[k][j][i][BX1] += tau*rhs[k][j][i][BX1];  ,
-              d->Uc[k][j][i][BX2] += tau*rhs[k][j][i][BX2];  ,
-              d->Uc[k][j][i][BX3] += tau*rhs[k][j][i][BX3];)
+      EXPAND(d->Uc[k][j][i][BX1] += tau*rhs[k][j][i][BX1];  ,
+             d->Uc[k][j][i][BX2] += tau*rhs[k][j][i][BX2];  ,
+             d->Uc[k][j][i][BX3] += tau*rhs[k][j][i][BX3];)
       #endif
       #if HAVE_ENERGY
        #if (THERMAL_CONDUCTION == SUPER_TIME_STEPPING) || \
-           (RESISTIVITY      == SUPER_TIME_STEPPING) || \
+           (RESISTIVITY        == SUPER_TIME_STEPPING) || \
            (VISCOSITY          == SUPER_TIME_STEPPING) 
-        d->Uc[k][j][i][ENG] += tau*rhs[k][j][i][ENG]; 
+       d->Uc[k][j][i][ENG] += tau*rhs[k][j][i][ENG]; 
        #endif
       #endif
     }
+
+  /* ------------------------------------------------------
+     1c. Update staggered magnetic field variables
+     ------------------------------------------------------ */
+
     #if (defined STAGGERED_MHD) && (RESISTIVITY == SUPER_TIME_STEPPING)
-
-  /* -----------------------------------------------
-      Update staggered magnetic field variables
-     ----------------------------------------------- */
-
-/* This piece of code should be used for simple Cartesian 2D
-   configurations with constant resistivity.
-   It shows that the stability limit of the resistive part of the
-   induction equation is larger if the right hand side is written 
-   as Laplacian(B) rather than curl(J) 
-   
-double ***Bx, ***By, ***Bz, Jz, dx, dy, dt;
-static double ***Ez, ***Rx, ***Ry;
-if (Ez == NULL) {
-  Ez = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-  Rx = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-  Ry = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
-}
-Bx = d->Vs[BX1s];
-By = d->Vs[BX2s];
-dx = grid[IDIR].dx[IBEG];
-dy = grid[JDIR].dx[JBEG];
-
-dt = tau;
-k=0;
-for (j = 1; j < NX2_TOT-1; j++) for (i = 1; i < NX1_TOT-1; i++){
- Jz = (By[k][j][i+1] - By[k][j][i])/dx - (Bx[k][j+1][i] - Bx[k][j][i])/dy;
- Ez[k][j][i] = Jz*g_inputParam[ETAZ];
- Rx[k][j][i] =  (Bx[k][j][i+1] - 2.0*Bx[k][j][i] + Bx[k][j][i-1])/(dx*dx)
-              + (Bx[k][j+1][i] - 2.0*Bx[k][j][i] + Bx[k][j-1][i])/(dy*dy);
-
- Ry[k][j][i] =   (By[k][j][i+1] - 2.0*By[k][j][i] + By[k][j][i-1])/(dx*dx)
-               + (By[k][j+1][i] - 2.0*By[k][j][i] + By[k][j-1][i])/(dy*dy);
-}
-
-JDOM_LOOP(j) for (i = IBEG-1; i <= IEND; i++){
-// Bx[k][j][i] += - dt/dy*(Ez[k][j][i] - Ez[k][j-1][i]);
- Bx[k][j][i] +=   dt*g_inputParam[ETAZ]*Rx[k][j][i];
-}
-
-for (j = JBEG-1; j <= JEND; j++) IDOM_LOOP(i){
-// By[k][j][i] += dt/dx*(Ez[k][j][i] - Ez[k][j][i-1]);
- By[k][j][i] +=   dt*g_inputParam[ETAZ]*Ry[k][j][i];
-}
-*/
-     CT_Update  (d, d->Vs, tau, grid);
-     CT_AverageMagneticField (d->Vs, d->Uc, grid);
+    CT_ResistiveEMF(d, 0, grid);
+    CT_Update  (d, d->Vs, tau, grid);
+    CT_AverageMagneticField (d->Vs, d->Uc, grid);
     #endif
 
-  /* --------------------------------------------------
-      Unflag zone tagged with the ENTROPY_SWITCH since
-      only total energy can be evolved using STS
-     -------------------------------------------------- */
+  /* ------------------------------------------------------
+     1d. Unflag zone tagged with the ENTROPY_SWITCH since
+         only total energy can be evolved using STS
+     ------------------------------------------------------ */
 
     #if ENTROPY_SWITCH
-     TOT_LOOP(k,j,i) d->flag[k][j][i] &= ~FLAG_ENTROPY;
+    TOT_LOOP(k,j,i) d->flag[k][j][i] &= ~FLAG_ENTROPY;
     #endif
 
   /* ----------------------------------------------
-      convert conservative variables to primitive 
-      for next iteration. Increment loop index.
+     1e. Convert conservative variables to primitive 
+         for next iteration. Increment loop index.
      ---------------------------------------------- */
 
-    ConsToPrim3D(d->Uc, d->Vc, d->flag, box);
+    ConsToPrim3D(d->Uc, d->Vc, d->flag, &box);
     g_time += ts[n-m-1];
     m++;
   }
@@ -239,50 +202,62 @@ for (j = JBEG-1; j <= JEND; j++) IDOM_LOOP(i){
 }
 
 /* ********************************************************************* */
-void STS_ComputeSubSteps(double dtex, double tau[], int ssorder)
-/*
+void STS_ComputeSubSteps(double dtex, double tau[], int N)
+/*!
+ * Compute the single sub-step sequence (Eq. [2.9]).
+ * N must be an integer by now.
  *
  *********************************************************************** */
 {
   int i;
   double S=0.0;
 
-  for (i = 0; i < ssorder; i++) {
-    tau[i] = dtex / ((-1.0 + STS_NU)*cos(((2.0*i+1.0)*CONST_PI)/(2.0*ssorder)) 
+  for (i = 0; i < N; i++) {
+    tau[i] = dtex / ((-1.0 + STS_NU)*cos(((2.0*i+1.0)*CONST_PI)/(2.0*N)) 
                      + 1.0 + STS_NU);
     S += tau[i];
   }
 }
 
 /* ********************************************************************* */
-double STS_FindRoot(double x0, double dtr, double dta)
-/*
+double STS_FindRoot(double dt_exp, double dT)
+/*!
+ * Find the number of sub-steps N by solving Eq. (2.10) of AAG using a
+ * Newton-Raphson scheme. 
+ * Input to the function are:
+ * 
+ * \param [in]  dt_exp   the explicit time step
+ * \param [in]  dt       the super-step.
  *
  *********************************************************************** */
 {
-  double a,b,c;
-  double Ns, Ns1;
-  int n;
+  int k;  /* Iteration number */
+  double a,b,c, scrh;
+  double fN, N, dN, dfN;
+  double db_dN, sqrt_nu = sqrt(STS_NU);
 
-  n = 0;
+  k = 0;
+  N = 1.0;
+  a = (1.0 - sqrt_nu)/(1.0 + sqrt_nu);
+  while(k < 128){
+    b     = pow(a,2.0*N);
+    c     = (1.0-b)/(1.0+b);    /* round bracket in Eq. [10] in AAG */
+    db_dN = 2.0*log(a)*b;
+    scrh  = c - N*2.0/((1.0+b)*(1.0+b))*db_dN;
 
-  Ns  = x0+1.0;
-  Ns1 = x0;
-   
-  while(fabs(Ns-Ns1) >= 1.0e-5){
-    Ns = Ns1;
-    a = (1.0-sqrt(STS_NU))/(1.0+sqrt(STS_NU));
-    b = pow(a,2.0*Ns);
-    c = (1.0-b)/(1.0+b);
-    Ns1 = Ns + (dta - dtr*Ns/(2.0*sqrt(STS_NU))*c)
-              /(dtr/(2.0*sqrt(STS_NU))*(c-2.0*Ns*b*log(a)*(1.0+c)/(1.0+b)));
-    n += 1;
-    if (n == 128){
-      print1 ("! STS_FindRoot: max number of iterations exceeded");
-      QUIT_PLUTO(1);
-    }
+    fN  = dT - 0.5*dt_exp/sqrt_nu*N*c;
+    dfN =    - 0.5*dt_exp/sqrt_nu*scrh;
+    dN  = fN/dfN; 
+    
+    N -= dN;
+    k++;
+
+    if (fabs(dN) < 1.e-5) return N;
   }
-  return(Ns);
+
+  print ("! STS_FindRoot: too many iterations\n");
+  QUIT_PLUTO(1);
+  return -1.0;
 }
 
 /* ********************************************************************* */

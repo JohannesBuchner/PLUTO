@@ -3,7 +3,7 @@
 # **********************************************************************
 
 VPATH   += $(SRC)/MHD/Resistivity
-OBJ     += res_flux.o res_eta.o res_functions.o 
+OBJ     += res_flux.o res_eta.o res_functions.o res_rhs.o
 HEADERS += res.h
  
 

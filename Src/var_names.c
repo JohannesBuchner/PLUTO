@@ -1,12 +1,24 @@
+/* ///////////////////////////////////////////////////////////////////// */
+/*! 
+  \file  
+  \brief Set default variable names. 
+
+  Create a correspondence between the index of a variable (e.g., RHO, VX1,
+  etc...) and its actual name (e.g., "rho", "vx1", etc...).
+  These names are used when writing the output file descriptor (.flt, .dbl,
+  etc...) only if the variable has been enabled for writing
+  (output->dump_var[nv]Ê= YES/NO).
+
+  \authors A. Mignone (mignone@ph.unito.it)\n
+
+  \date    Nov 14, 2017
+*/
+/* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
 /* ****************************************************************** */
 void SetDefaultVarNames(Output *output)
 /*
- *
- *  PURPOSE
- *
- *    Set file names for I/O
  *
  *
  ******************************************************************** */
@@ -22,27 +34,37 @@ void SetDefaultVarNames(Output *output)
   EXPAND(output->var_name[VX1] = "vx1";  ,
          output->var_name[VX2] = "vx2";  ,
          output->var_name[VX3] = "vx3";)
-#if HAVE_ENERGY
+  #if HAVE_ENERGY
   output->var_name[PRS] = "prs";
-#endif
+  #endif
   
-#if PHYSICS == MHD || PHYSICS == RMHD
-  EXPAND(output->var_name[BX1] = "bx1";  ,
-         output->var_name[BX2] = "bx2";  ,
-         output->var_name[BX3] = "bx3";)
-#endif
+  #if PHYSICS == MHD || PHYSICS == RMHD
+  EXPAND(output->var_name[BX1] = "Bx1";  ,
+         output->var_name[BX2] = "Bx2";  ,
+         output->var_name[BX3] = "Bx3";)
+  #endif
   
+  #if PHYSICS == RMHD && RESISTIVITY != NO
+  EXPAND(output->var_name[EX1] = "Ex1";  ,
+         output->var_name[EX2] = "Ex2";  ,
+         output->var_name[EX3] = "Ex3";)
+  output->var_name[CRG] = "qg";
+  #endif
+
   /* (staggered field names are set in SetOutput) */
 
 #ifdef GLM_MHD
   output->var_name[PSI_GLM] = "psi_glm";
+  #ifdef PHI_GLM
+  output->var_name[PHI_GLM] = "phi_glm";
+  #endif
 #endif
  
 /* ------------------------------------------------
     Dust
    ------------------------------------------------ */
 
-#if DUST == YES
+#if DUST_FLUID == YES
   output->var_name[RHO_D] = "rho_d";
   EXPAND(output->var_name[VX1_D] = "vx1_d";  ,
          output->var_name[VX2_D] = "vx2_d";  ,
@@ -70,7 +92,7 @@ void SetDefaultVarNames(Output *output)
                         N_EXPAND("X_NI","X_NII", "X_NIII", "X_NIV", "X_NV")
                         O_EXPAND("X_OI","X_OII", "X_OIII", "X_OIV", "X_OV")
                        Ne_EXPAND("X_NeI","X_NeII", "X_NeIII", "X_NeIV", "X_NeV")
-                        S_EXPAND("X_SI","X_SI I", "X_SIII", "X_SIV", "X_SV")
+                        S_EXPAND("X_SI","X_SII", "X_SIII", "X_SIV", "X_SV")
                        Fe_EXPAND("X_FeI", "X_FeII", "X_FeIII")};
 
     NIONS_LOOP(nv) output->var_name[nv] = ion_name[nv-NFLX];  
@@ -83,8 +105,11 @@ void SetDefaultVarNames(Output *output)
   {
     static char *molnames[] = {"X_HI", "X_H2", "X_HII"};
     NIONS_LOOP(nv) output->var_name[nv] = molnames[nv-NFLX];
-  }  
+  } 
 
+#elif COOLING == KROME
+  /* kromenames are reaction network dependent and are defined in cooling.h */
+    NIONS_LOOP(nv) output->var_name[nv] = kromenames[nv-NFLX];
 #endif
 
 }

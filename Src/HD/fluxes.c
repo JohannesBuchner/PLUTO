@@ -14,41 +14,41 @@
     (tangent \c "t" and bi-tangent \c "b").
 
  \author A. Mignone (mignone@ph.unito.it)
- \date   Aug 16, 2012
+ \date   Oct 12, 2016
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
 /* ********************************************************************* */
-void Flux (double **u, double **w, double *a2, double **fx, double *p, 
-           int beg, int end)
+void Flux (const State *state, int beg, int end)
 /*!
- * \param [in]    u    1D array of conserved quantities
- * \param [in]    w    1D array of primitive quantities
- * \param [in]   a2    1D array of sound speeds
- * \param [out]  fx    1D array of fluxes (total pressure excluded)
- * \param [out]   p    1D array of pressure values
- * \param [in]   beg   initial index of computation 
- * \param [in]   end   final   index of computation
+ * \param [in,out]  state   Pointer to a state structure
+ * \param [in]      beg     initial index of computation 
+ * \param [in]      end     final   index of computation
  *
  * \return  This function has no return value.
  *********************************************************************** */
 {
-  int   nv, ii;
+  int   nv, i;
+  double *u, *v, *flux;
 
-  for (ii = beg; ii <= end; ii++) {
-    fx[ii][RHO] = u[ii][MXn];
-    EXPAND(fx[ii][MX1] = u[ii][MX1]*w[ii][VXn]; ,
-           fx[ii][MX2] = u[ii][MX2]*w[ii][VXn]; ,
-           fx[ii][MX3] = u[ii][MX3]*w[ii][VXn];)
+  for (i = beg; i <= end; i++) {
+    u    = state->u[i];
+    v    = state->v[i];
+    flux = state->flux[i];
+
+    flux[RHO] = u[MXn];
+    EXPAND(flux[MX1] = u[MX1]*v[VXn]; ,
+           flux[MX2] = u[MX2]*v[VXn]; ,
+           flux[MX3] = u[MX3]*v[VXn];)
 #if HAVE_ENERGY
-    p[ii] = w[ii][PRS];
-    fx[ii][ENG] = (u[ii][ENG] + w[ii][PRS])*w[ii][VXn];
+    state->prs[i] =  v[PRS];
+    flux[ENG]     = (u[ENG] + v[PRS])*v[VXn];
 #elif EOS == ISOTHERMAL
-    p[ii] = a2[ii]*w[ii][RHO];
+    state->prs[i] = state->a2[i]*v[RHO];
 #endif
 /*
-#if DUST == YES
+#if DUST_FLUID == YES
     fx[ii][RHO_D] = u[ii][MXn_D];
     EXPAND(fx[ii][MX1_D] = u[ii][MX1_D]*w[ii][VXn_D]; ,
            fx[ii][MX2_D] = u[ii][MX2_D]*w[ii][VXn_D]; ,

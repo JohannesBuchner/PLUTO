@@ -68,7 +68,7 @@
 ;
 ;     cbposition = lower left position of the colorbar
 ;
-;  LAST MODIFIED:  Nov 5 2013 by A. Mignone (mignone@ph.unito.it)
+;  LAST MODIFIED:  Oct 31, 2017 by A. Mignone (mignone@ph.unito.it)
 ;
 ;-
 
@@ -102,9 +102,17 @@ IF (NOT KEYWORD_SET(dmin)) THEN dmin = min(a)
 
 IF (NOT KEYWORD_SET(charsize)) THEN charsize = !P.CHARSIZE
 
-IF (KEYWORD_SET (noxticks)) THEN xtickname=replicate(' ',10)
+xtickformat = !X.TICKFORMAT
+ytickformat = !Y.TICKFORMAT
+IF (KEYWORD_SET (noxticks)) THEN BEGIN 
+  xtickname   = REPLICATE(' ',10)
+  xtickformat = "(A1)"
+ENDIF
 
-IF (KEYWORD_SET (noyticks)) THEN ytickname=replicate(' ',10)
+IF (KEYWORD_SET (noyticks)) THEN BEGIN
+  ytickname   = REPLICATE(' ',10)
+  ytickformat = "(A1)"
+ENDIF
 
 IF (KEYWORD_SET(xrange)) THEN BEGIN
 
@@ -162,12 +170,12 @@ xx = x
 yy = y
 
 IF (KEYWORD_SET (sample)) THEN BEGIN
-  q = congrid(q, sample*nx, sample*ny, cubic=-.5)
-  xx = congrid(x, sample*nx,/interp)
-  yy = congrid(x, sample*ny,/interp)
+  q  = CONGRID(q, sample*nx, sample*ny, cubic=-.5)
+  xx = CONGRID(x, sample*nx,/interp)
+  yy = CONGRID(x, sample*ny,/interp)
 ENDIF
 
-q = bytscl(q,max=dmax, min=dmin)
+q = BYTSCL(q,max=dmax, min=dmin)
 TV, q, pos(0), pos(1), xsize = imsize_x, ysize = imsize_y, /normal
 TVLCT,r,g,b,/GET; -- get current colortable
 loadct,0  ; -- load black & white
@@ -176,6 +184,7 @@ CONTOUR, q, xx, yy, color = color, $
          xtitle = xtitle, ytitle = ytitle, title=title,$
          /noerase,/nodata, pos=pos, charsize=charsize,$
          xtickname = xtickname, ytickname = ytickname,$
+         xtickformat = xtickformat, ytickformat = ytickformat,$
          xrange=xrange,yrange=yrange,_EXTRA=extra
 TVLCT,r,g,b
 
@@ -185,7 +194,7 @@ TVLCT,r,g,b
 
 IF (NOT KEYWORD_SET(cbcharsize)) THEN cbcharsize = 1.2
 IF (NOT KEYWORD_SET(cbwidth))    THEN cbwidth = 0.04
-IF (NOT KEYWORD_SET(cbdiv))      THEN cbdiv   = 5
+IF (NOT KEYWORD_SET(cbdiv))      THEN cbdiv   = 4
 IF (NOT KEYWORD_SET(cbformat))   THEN cbformat = '(F8.2)'
 
 cbdiv = cbdiv - 1
@@ -194,8 +203,9 @@ IF (KEYWORD_SET (vbar)) THEN BEGIN
 
   IF (NOT KEYWORD_SET(cbposition)) THEN cbposition = [pos[2] + 0.01, pos[1]]
 
+
   poscb = [cbposition[0], cbposition[1],$
-           cbposition[0] + cbwidth*imsize_x,pos(3)]
+           cbposition[0] + cbwidth*imsize_x,pos[3]]
 
   COLORBAR2,/vertical, /right,range=[dmin,dmax],division=cbdiv,$
             position = poscb, chars=cbcharsize,color=color,$

@@ -8,7 +8,7 @@ static void PFUN (real p, real *vL, real *vR, real *f, real *df);
 static void FUN_LR (real p, real *v, real *fLR, real *dfLR);
 
 /* ***************************************************************************** */
-void TWO_SHOCK (const State_1D *state, real *cmax, Grid *grid)
+void TWO_SHOCK (const Sweep *sweep, real *cmax, Grid *grid)
 /*
  *
  * NAME
@@ -52,8 +52,8 @@ void TWO_SHOCK (const State_1D *state, real *cmax, Grid *grid)
 
   for (i = beg; i <= end; i++){
 
-    vL = state->vL[i];
-    vR = state->vR[i];
+    vL = sweep->vL[i];
+    vR = sweep->vR[i];
     s[i] = 0.0;
 
   /* -- guess here -- */
@@ -69,8 +69,8 @@ void TWO_SHOCK (const State_1D *state, real *cmax, Grid *grid)
       if (fabs(dp) < 1.e-7*pstar) break;
       if (k == (MAX_ITER-5)){
         print ("! Too many iterations in Rieman\n");
-        Show(state->vL,i);
-        Show(state->vR,i);
+        Show(sweep->vL,i);
+        Show(sweep->vR,i);
 
         QUIT_PLUTO(1);
       }
@@ -175,7 +175,7 @@ void TWO_SHOCK (const State_1D *state, real *cmax, Grid *grid)
   for (i = beg; i <= end; i++) {
     *cmax = MAX(cmax_loc[i], *cmax);
   }
-  FLUX(us, vs, state->flux, state->press, beg, end);
+  FLUX(us, vs, sweep->flux, sweep->press, beg, end);
 
 }
 

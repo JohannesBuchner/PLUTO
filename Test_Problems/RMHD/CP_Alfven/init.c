@@ -64,8 +64,8 @@ void Init (double *us, double x1, double x2, double x3)
   us[AX3] = B0*((-x1*s + x2*c) - eta*sin(kx)/(2.0*CONST_PI*sqrt(2.0)));
 
   if (first_call == 1){
-    print1 ("vA = %18.12e\n",vA);
-    print1 ("T  = %18.12e\n",c/vA);
+    print ("vA = %18.12e\n",vA);
+    print ("T  = %18.12e\n",c/vA);
     first_call = 0;
   }
 /*
@@ -81,6 +81,20 @@ simplify(-diff(A[z],x) - B[y]);
 
 
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 

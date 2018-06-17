@@ -60,8 +60,8 @@ void GetFuncDum(double T, double *funcdum_val)
     indx = floor((y - lnT[0])/dy);
 
     if (indx >= nsteps || indx < 0){
-      print1 ("! GetFuncDum: indx out of range, indx = %d\n",indx);
-      print1 ("! T = %12.6e\n",T);
+      print ("! GetFuncDum: indx out of range, indx = %d\n",indx);
+      print ("! T = %12.6e\n",T);
       QUIT_PLUTO(1);
     }
     *funcdum_val = (funcdum[indx]*(lnT[indx+1] - y)
@@ -158,7 +158,7 @@ void MakeZetaTables(double *lnT, double *funcdum, int nsteps)
   double alpha, beta, gamma;
   double dzO_zO_m, db, sum1, sum2;
 
-  print1 ("> MakeZetaTables(): generating Zeta tables...\n");
+  print ("> MakeZetaTables(): generating Zeta tables...\n");
 
   if (ORTHO_PARA_MODE == 0){ 
     alpha = 1.0; beta = 0.0; gamma = 0.0;

@@ -1,7 +1,7 @@
 var searchData=
 [
-  ['advancestep',['AdvanceStep',['../ctu__step_8c.html#a0ae2eb5c623934ef7af9541e241c550e',1,'AdvanceStep(const Data *d, Riemann_Solver *Riemann, Time_Step *Dts, Grid *grid):&#160;ctu_step.c'],['../rk__step_8c.html#a0ae2eb5c623934ef7af9541e241c550e',1,'AdvanceStep(const Data *d, Riemann_Solver *Riemann, Time_Step *Dts, Grid *grid):&#160;rk_step.c']]],
-  ['advectflux',['AdvectFlux',['../adv__flux_8c.html#ae8b43468093cb4d82915c020b3824045',1,'adv_flux.c']]],
+  ['advancestep',['AdvanceStep',['../ctu__step_8c.html#aaae1e3096f455d4005b59f894b2d14c7',1,'AdvanceStep(Data *data, Riemann_Solver *Riemann, timeStep *Dts, Grid *grid):&#160;ctu_step.c'],['../rk__step_8c.html#a4810ea5e477c6269136d7ffb115bc98b',1,'AdvanceStep(Data *d, Riemann_Solver *Riemann, timeStep *Dts, Grid *grid):&#160;rk_step.c']]],
+  ['advectflux',['AdvectFlux',['../adv__flux_8c.html#a62caf64ee8804cb7ebf091768a797b53',1,'adv_flux.c']]],
   ['al_5fallocate_5farray',['AL_Allocate_array',['../al__alloc_8c.html#a9d90efb3bdfcb34b8cfbaaeb091fd1da',1,'AL_Allocate_array(int sz_ptr):&#160;al_alloc.c'],['../al__proto_8h.html#ad68fc0bd4a6da2abc739d88e9d024368',1,'AL_Allocate_array(int):&#160;al_alloc.c']]],
   ['al_5fallocate_5fsz_5f',['AL_Allocate_sz_',['../al__proto_8h.html#a82f5eef2aada121baf62a6c5eb927960',1,'AL_Allocate_sz_():&#160;al_szptr_.c'],['../al__szptr___8c.html#a82f5eef2aada121baf62a6c5eb927960',1,'AL_Allocate_sz_():&#160;al_szptr_.c']]],
   ['al_5fauto_5fdecomp_5f',['AL_Auto_Decomp_',['../al__decomp___8c.html#acab30125d7319ed433a0174887104f5e',1,'AL_Auto_Decomp_(int nproc, int npdim, int *ldims, int *gdims):&#160;al_decomp_.c'],['../al__proto_8h.html#a7e482f893fda7335fa988e42e5bc8301',1,'AL_Auto_Decomp_(int, int, int *, int *):&#160;al_decomp_.c']]],
@@ -62,6 +62,8 @@ var searchData=
   ['al_5fwrite_5farray_5fbegin',['AL_Write_array_begin',['../al__proto_8h.html#a4649241a36bc97276a2e0314b852f2a3',1,'AL_Write_array_begin(void *, int, int *, int *, int):&#160;al_write_array_async.c'],['../al__write__array__async_8c.html#a5274b976d7cce1cf9c76f8fa0d7eb822',1,'AL_Write_array_begin(void *va, int sz_ptr, int *output_stag, int *output_dump, int output_nvar):&#160;al_write_array_async.c']]],
   ['al_5fwrite_5farray_5fend',['AL_Write_array_end',['../al__proto_8h.html#a1824b850319548ef7bc3d198c037db34',1,'AL_Write_array_end(void *, int):&#160;al_write_array_async.c'],['../al__write__array__async_8c.html#ad502025e3a7e3d9436803786bb71641f',1,'AL_Write_array_end(void *va, int sz_ptr):&#160;al_write_array_async.c']]],
   ['analysis',['Analysis',['../init_8c.html#a840827a6d99dee4807a5efbf3c4542e3',1,'init.c']]],
+  ['applylorentzboost',['ApplyLorentzBoost',['../particles__lp__spectra_8c.html#a4006c89a7b8a2ff3fe262b1d94296af5',1,'particles_lp_spectra.c']]],
+  ['approximatefastwaves',['ApproximateFastWaves',['../_r_m_h_d_2eigenv_8c.html#ab66840625e2532c901cafdd1e62f944d',1,'ApproximateFastWaves(double *v, double cs2, double h, double *lambda):&#160;eigenv.c'],['../_r_m_h_d_2mod__defs_8h.html#a7c00f3fc7420082614eda30e2c81c687',1,'ApproximateFastWaves(double *, double, double, double *):&#160;eigenv.c']]],
   ['array1d',['Array1D',['../arrays_8c.html#a25879cd26aad50f51a1f489aa45742c9',1,'arrays.c']]],
   ['array2d',['Array2D',['../arrays_8c.html#a524e21ff78da676a32a02e94ed86a3be',1,'arrays.c']]],
   ['array3d',['Array3D',['../arrays_8c.html#adbf93f61c36e585276ce027ac3009717',1,'arrays.c']]],

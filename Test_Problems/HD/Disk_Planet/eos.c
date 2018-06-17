@@ -1,7 +1,7 @@
 #include "pluto.h"
 
 /* **************************************************************** */
-void SoundSpeed2 (double **u, double *cs2, double *h, int beg, int end,
+void SoundSpeed2 (const State *p, int beg, int end,
                   int pos, Grid *grid)
 /*
  *
@@ -12,15 +12,15 @@ void SoundSpeed2 (double **u, double *cs2, double *h, int beg, int end,
   int  i;
 
   #if EOS == IDEAL
-   for (i = beg; i <= end; i++) cs2[i] = g_gamma*u[i][PRS]/u[i][RHO];
+   for (i = beg; i <= end; i++) p->a2[i] = g_gamma*p->v[i][PRS]/p->v[i][RHO];
   #elif EOS == ISOTHERMAL
   {
     int    j,k;  /* -- used as multidimensional indices -- */
     double *x1, *x2, *x3;
 
-    x1 = grid[IDIR].x;
-    x2 = grid[JDIR].x;
-    x3 = grid[KDIR].x;
+    x1 = grid->x[IDIR];
+    x2 = grid->x[JDIR];
+    x3 = grid->x[KDIR];
 
     i = g_i;
     j = g_j;
@@ -29,39 +29,39 @@ void SoundSpeed2 (double **u, double *cs2, double *h, int beg, int end,
     if (g_dir == IDIR) {
       double R;
 
-      x1 = (pos == FACE_CENTER ? grid[IDIR].xr : grid[IDIR].x);
+      x1 = (pos == FACE_CENTER ? grid->xr[IDIR] : grid->x[IDIR]);
       for (i = beg; i <= end; i++){
         #if GEOMETRY == POLAR
          R = x1[i];
         #elif GEOMETRY == SPHERICAL
          R = x1[i]*sin(x2[j]);
         #endif
-        cs2[i] = g_isoSoundSpeed*g_isoSoundSpeed/R;
+        p->a2[i] = g_isoSoundSpeed*g_isoSoundSpeed/R;
       }
 
     }else if (g_dir == JDIR){
       double R;
 
-      x2 = (pos == FACE_CENTER ? grid[JDIR].xr : grid[JDIR].x);
+      x2 = (pos == FACE_CENTER ? grid->xr[JDIR] : grid->x[JDIR]);
       for (j = beg; j <= end; j++) {
         #if GEOMETRY == POLAR
          R = x1[i];
         #elif GEOMETRY == SPHERICAL
          R = x1[i]*sin(x2[j]);
         #endif
-        cs2[j] = g_isoSoundSpeed*g_isoSoundSpeed/R;
+        p->a2[j] = g_isoSoundSpeed*g_isoSoundSpeed/R;
       }
     }else if (g_dir == KDIR){
       double R;
 
-      x3 = (pos == FACE_CENTER ? grid[KDIR].xr : grid[KDIR].x);
+      x3 = (pos == FACE_CENTER ? grid->xr[KDIR] : grid->x[KDIR]);
       for (k = beg; k <= end; k++){
         #if GEOMETRY == POLAR
          R = x1[i];
         #elif GEOMETRY == SPHERICAL
          R = x1[i]*sin(x2[j]);
         #endif
-        cs2[k] = g_isoSoundSpeed*g_isoSoundSpeed/R;
+        p->a2[k] = g_isoSoundSpeed*g_isoSoundSpeed/R;
       }
     }
   }

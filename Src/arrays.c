@@ -98,7 +98,7 @@ char *Array1D (int nx, size_t dsize)
      int i;
      double *q;
      q = (double *) v;
-     for (i = nx; i--; ) q[i] = i*1.e18 - 1.e16;
+     for (i = nx; i--; ) q[i] =sqrt(-1.0); // i*1.e18 - 1.e16;
    }
   #endif
   return v;
@@ -137,7 +137,7 @@ char **Array2D (int nx, int ny, size_t dsize)
      q = (double **)m;
      for (i = nx; i--; ){
      for (j = ny; j--; ){
-       q[i][j] = i*j*1.e18 + 1.e16*j;
+       q[i][j] = sqrt(-1.0); // i*j*1.e18 + 1.e16*j;
      }} 
    }
   #endif
@@ -211,7 +211,7 @@ char ***Array3D (int nx, int ny, int nz, size_t dsize)
      for (i = nx; i--; ){
      for (j = ny; j--; ){
      for (k = nz; k--; ){
-       q[i][j][k] = 1.e18*i + 1.e17*j + 1.e16*k + 1.e15;
+       q[i][j][k] = sqrt(-1.0); // 1.e18*i + 1.e17*j + 1.e16*k + 1.e15;
      }}}
    }
   #endif
@@ -328,7 +328,7 @@ char ****Array4D (int nx, int ny, int nz, int nv, size_t dsize)
      for (j = ny; j--; ){
      for (k = nz; k--; ){
      for (l = nv; l--; ){
-       q[i][j][k][l] = l*1.e18*i + 1.e17*i*j - 1.e16*k*j + 1.e17;
+       q[i][j][k][l] = sqrt(-1.0); // l*1.e18*i + 1.e17*i*j - 1.e16*k*j + 1.e17;
      }}}}
    }
   #endif
@@ -535,8 +535,8 @@ void FreeArrayCharMap(unsigned char ***t)
 
 /* ********************************************************************* */
 double ***ArrayBoxMap(int nrl, int nrh,
-                          int ncl, int nch,
-                          int ndl, int ndh, double *uptr)
+                      int ncl, int nch,
+                      int ndl, int ndh, double *uptr)
 /*!
  * Convert a one-dimensional array into a 3D array with given
  * subscript range [low...high] for each direction.
@@ -584,8 +584,8 @@ double ***ArrayBoxMap(int nrl, int nrh,
 
 /* ********************************************************************* */
 void FreeArrayBoxMap(double ***t, int nrl, int nrh, 
-                                      int ncl, int nch,
-                                      int ndl,int ndh)
+                                  int ncl, int nch,
+                                  int ndl,int ndh)
 /*! 
  * Free memory allocated with the ::ArrayBoxMap () function
  *

@@ -7,7 +7,7 @@
   using the HLLC solver of Mignone & Bodo (2005).
    
   On input, it takes left and right primitive state vectors 
-  \c state->vL and \c state->vR at zone edge \c i+1/2;
+  \c stateL->v and \c stateR->v at zone edge \c i+1/2;
   On output, return flux and pressure vectors at the same interface 
   \c i+1/2 (note that the \c i refers to \c i+1/2).
   
@@ -19,18 +19,18 @@
        Mignone and Bodo, MNRAS (2005) 364,1126.
 
   \authors A. Mignone (mignone@ph.unito.it)
-  \date    Dec 10, 2013
+  \date    Oct 12, 2016
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include"pluto.h"
 
 /* ********************************************************************* */
-void HLLC_Solver (const State_1D *state, int beg, int end, 
+void HLLC_Solver (const Sweep *sweep, int beg, int end, 
                   double *cmax, Grid *grid)
 /*!
  * Solve the RHD Riemann problem using the HLLC Riemann solver.
  *
- * \param[in,out] state   pointer to State_1D structure
+ * \param[in,out] sweep   pointer to Sweep structure
  * \param[in]     beg     initial grid index
  * \param[out]    end     final grid index
  * \param[out]    cmax    1D array of maximum characteristic speeds
@@ -39,49 +39,39 @@ void HLLC_Solver (const State_1D *state, int beg, int end,
  *********************************************************************** */
 {
   int  nv, i;
+
+  const State   *stateL = &(sweep->stateL);
+  const State   *stateR = &(sweep->stateR);
+
   double scrh;
 
   double usl[NFLX], usr[NFLX], vm[NFLX], us, ps;
   double AL, BL, AR, BR, a,b,c;
   double vxl, vxr;
   
-  double *vL, *vR, *uL, *uR;
-  static double *SL, *SR;
+  double *vL, *vR, *uL, *uR, *SL, *SR;
+  double **fL = stateL->flux, **fR = stateR->flux;
+  double  *pL = stateL->prs,   *pR = stateR->prs;
+
   static double **Uhll, **Fhll;
-  static double **fL, **fR;
-  static double *pR, *pL;
-  static double *a2L, *a2R, *hL, *hR;
 
-  if (fL == NULL){
-    fL = ARRAY_2D(NMAX_POINT, NFLX, double);
-    fR = ARRAY_2D(NMAX_POINT, NFLX, double);
-
+  if (Uhll == NULL){
     Uhll = ARRAY_2D(NMAX_POINT, NFLX, double);
     Fhll = ARRAY_2D(NMAX_POINT, NFLX, double);
-
-    pR   = ARRAY_1D(NMAX_POINT, double);
-    pL   = ARRAY_1D(NMAX_POINT, double);
-    SR   = ARRAY_1D(NMAX_POINT, double);
-    SL   = ARRAY_1D(NMAX_POINT, double);
-
-    a2L  = ARRAY_1D(NMAX_POINT, double);
-    a2R  = ARRAY_1D(NMAX_POINT, double);
-
-    hL  = ARRAY_1D(NMAX_POINT, double);
-    hR  = ARRAY_1D(NMAX_POINT, double);
   }
 
 /* ----------------------------------------------------
      compute sound speed & fluxes at zone interfaces
    ---------------------------------------------------- */
 
-  SoundSpeed2 (state->vL, a2L, hL, beg, end, FACE_CENTER, grid);
-  SoundSpeed2 (state->vR, a2R, hR, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (stateL, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (stateR, beg, end, FACE_CENTER, grid);
 
-  Flux (state->uL, state->vL, a2L, fL, pL, beg, end);
-  Flux (state->uR, state->vR, a2R, fR, pR, beg, end);
+  Flux (stateL, beg, end);
+  Flux (stateR, beg, end);
 
-  HLL_Speed (state->vL, state->vR, a2L, a2R, SL, SR, beg, end);
+  SL = sweep->SL; SR = sweep->SR;
+  HLL_Speed (stateL, stateR, SL, SR, beg, end);
   for (i = beg; i <= end; i++) {
 
     scrh  = MAX(fabs(SL[i]), fabs(SR[i]));
@@ -110,28 +100,28 @@ void HLLC_Solver (const State_1D *state, int beg, int end,
 
     if (SL[i] >= 0.0){
     
-      for (nv = NFLX; nv--; ) state->flux[i][nv] = fL[i][nv];
-      state->press[i] = pL[i];
+      for (nv = NFLX; nv--; ) sweep->flux[i][nv] = fL[i][nv];
+      sweep->press[i] = pL[i];
 
     }else if (SR[i] <= 0.0){
 
-      for (nv = NFLX; nv--; ) state->flux[i][nv] = fR[i][nv];
-      state->press[i] = pR[i];
+      for (nv = NFLX; nv--; ) sweep->flux[i][nv] = fR[i][nv];
+      sweep->press[i] = pR[i];
 
     }else{
 
-      vL = state->vL[i]; uL = state->uL[i];
-      vR = state->vR[i]; uR = state->uR[i];
+      vL = stateL->v[i]; uL = stateL->u[i];
+      vR = stateR->v[i]; uR = stateR->u[i];
 
 #if SHOCK_FLATTENING == MULTID   
-      if ((state->flag[i] & FLAG_HLL) || (state->flag[i+1] & FLAG_HLL)){        
+      if ((sweep->flag[i] & FLAG_HLL) || (sweep->flag[i+1] & FLAG_HLL)){        
         scrh  = 1.0/(SR[i] - SL[i]);
         for (nv = NFLX; nv--; ){
-          state->flux[i][nv]  = SL[i]*SR[i]*(uR[nv] - uL[nv])
+          sweep->flux[i][nv]  = SL[i]*SR[i]*(uR[nv] - uL[nv])
                              +  SR[i]*fL[i][nv] - SL[i]*fR[i][nv];
-          state->flux[i][nv] *= scrh;
+          sweep->flux[i][nv] *= scrh;
         }
-        state->press[i] = (SR[i]*pL[i] - SL[i]*pR[i])*scrh;
+        sweep->press[i] = (SR[i]*pL[i] - SL[i]*pR[i])*scrh;
         continue;
       }
 #endif
@@ -181,15 +171,15 @@ void HLLC_Solver (const State_1D *state, int beg, int end,
 
       if (us >= 0.0) {
         for (nv = NFLX; nv--;  ) {
-          state->flux[i][nv] = fL[i][nv] + SL[i]*(usl[nv] - uL[nv]);
+          sweep->flux[i][nv] = fL[i][nv] + SL[i]*(usl[nv] - uL[nv]);
         }
-        state->press[i] = pL[i];
+        sweep->press[i] = pL[i];
       }else {
         for (nv = NFLX; nv--; ) {
-          state->flux[i][nv] = fR[i][nv] + SR[i]*(usr[nv] - uR[nv]);
+          sweep->flux[i][nv] = fR[i][nv] + SR[i]*(usr[nv] - uR[nv]);
         }
-        state->press[i] = pR[i];
+        sweep->press[i] = pR[i];
       }
-    }   /* -- end loop on speed signs  -- */
+    }   /* -- end block on speed signs  -- */
   }   /* -- end loop on points -- */
 }

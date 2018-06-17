@@ -1,6 +1,6 @@
 # *********************************************************
 #
-#             PLUTO-Chombo 4.1  Makefile
+#             PLUTO-Chombo 4.3  Makefile
 #
 # *********************************************************
 
@@ -18,7 +18,7 @@ INCLUDE_DIRS += -I$(CHOMBO_HOME)/src/AMRTools
 INCLUDE_DIRS += -I$(CHOMBO_HOME)/src/BoxTools
 INCLUDE_DIRS += -I$(CHOMBO_HOME)/src/BaseTools
 
-#VPATH  = ./:$(SRC):$(SRC)/Time_Stepping:$(SRC)/States
+#VPATH  = ./:$(SRC):$(SRC)/timeStepping:$(SRC)/States
 VPATH  = ./:$(SRC)/New:$(SRC):$(SRC)/Time_Stepping:$(SRC)/States
 VPATH += $(SRC)/Chombo
 
@@ -27,7 +27,7 @@ ifeq ($(strip $(MPI)), TRUE)
  CFLAGS += -DCH_MPI
 endif
 
-PARALLEL = FALSE # disbale static grid parallel implementation
+PARALLEL = FALSE # disable static grid parallel implementation
 
 ####################################################
 #

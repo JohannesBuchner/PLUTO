@@ -1,4 +1,4 @@
-/* ///////////////////////////////////////////////////////////////////// */
+ /* ///////////////////////////////////////////////////////////////////// */
 /*!
   \file
   \brief Diffusion of a linear force-free magnetic field in 
@@ -16,8 +16,14 @@
   If \f$ \mu \f$ is constant then the solution is given by the Bessel 
   functions:
   \f[
-     B_z(r)    = B_0 J_1(r) \,,\qquad
-     B_\phi(r) = B_0 J_0(r)
+     B_z(r)    = B_0 J_1(\mu r) \,,\qquad
+     B_\phi(r) = B_0 J_0(\mu r)
+  \f]
+  with vector potential given by
+  \f[
+     A_z(r)    = - \int J_1(\mu r)\,dr = \frac{1}{\mu}J_0(\mu r) \,,\qquad
+     A_\phi(r) = - \frac{1}{r}\int rJ_0(\mu r)\,dr
+               =  \frac{1}{\mu}J_0(\mu r)
   \f]
   For constant resistivity and zero velocity the induction equation 
   simplifies as follows:
@@ -28,7 +34,9 @@
   which admits the exact analytical solution 
   \f$\vec{B}(r,t) = \vec{B}(r,0) \exp(-\eta\mu^2 t)\f$ meaning that 
   the field remains force free also at subsequent times.
-   
+  
+  In the test we set \f$\mu = \eta = 1\f$.
+
   Note that if pressure and density are initially constant and the
   velocity is also initially zero everywhere, the previous solution
   is also an exact solution of the isothermal MHD equations but not 
@@ -40,109 +48,79 @@
     away from the origin.
   - Configurations #04-06 extends the integration up to the origin
     and tests the quality of the discretization at r = 0
+  - Configurations #08-09 are done in spherical coordinates.
 
-  \author T. Matsakos\n
-          A. Mignone (mignone@ph.unito.it)
-  \date   April 13, 2014
+  \author A. Mignone (mignone@ph.unito.it)
+  \date   March 20, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
 /* ********************************************************************* */
-void Init (double *us, double x1, double x2, double x3)
+void Init (double *v, double x1, double x2, double x3)
 /*
  *
  *********************************************************************** */
 {
-  us[RHO] = g_inputParam[DENSITY];
-  us[VX1] = 0.0;
-  us[VX2] = 0.0;
-  us[VX3] = 0.0;
-  #if HAVE_ENERGY
-   us[PRS] = 1.0;
-  #endif
-  us[TRC] = 0.0;
+  double Br, Bz, Bphi;
+  double Ar, Az, Aphi;
+#if GEOMETRY == CYLINDRICAL
+  double r = x1;
+#elif GEOMETRY == SPHERICAL
+  double r = x1*sin(x2);
+#endif
 
-  us[BX1] = 0.0;
-  us[BX2] = BesselJ0(x1);
-  us[BX3] = BesselJ1(x1);
-  #ifdef GLM_MHD
-   us[PSI_GLM] = 0.0;
-  #endif
+  v[RHO] = g_inputParam[DENSITY];
+  v[VX1] = 0.0;
+  v[VX2] = 0.0;
+  v[VX3] = 0.0;
+#if HAVE_ENERGY
+  v[PRS] = 1.0;
+ #endif
+  v[TRC] = 0.0;
+
+  Br   = 0.0;
+  Bz   = BesselJ0(r);
+  Bphi = BesselJ1(r);
+
+  Ar   = 0.0;
+  Az   = BesselJ0(r);
+  Aphi = BesselJ1(r);
+
+#if GEOMETRY == CYLINDRICAL
+  v[BX1] = Br;
+  v[BX2] = Bz;
+  v[BX3] = Bphi;
+
+  v[AX1] = 0.0;
+  v[AX2] = Az;
+  v[AX3] = Aphi;
+#elif GEOMETRY == SPHERICAL
+  v[BX1] = Br*sin(x2) + Bz*cos(x2);
+  v[BX2] = Br*cos(x2) - Bz*sin(x2);
+  v[BX3] = Bphi;
+
+  v[AX1] = Ar*sin(x2) + Az*cos(x2);
+  v[AX2] = Ar*cos(x2) - Az*sin(x2);
+  v[AX3] = Aphi;
+#endif
+
+#ifdef GLM_MHD
+  v[PSI_GLM] = 0.0;
+#endif
 }
+
 /* ********************************************************************* */
-void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid) 
-/* 
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
  *
  *********************************************************************** */
 {
-  int  i, j, k, nv;
-  double *r, e_t;
-  double t, dt, vin[256];
-  static float *j0, *j1; /* store bessel function to avoid overhead */
-
-  t   = g_time;
-  r   = grid[IDIR].x;
-  e_t = exp(-t*1.0);
-
-/* -------------------------------------------------
-   Pre-compute Bessel functions to avoid overhead
-   ------------------------------------------------- */
-
-  if (j0 == NULL){
-    j0 = ARRAY_1D(NX1_TOT, float);
-    j1 = ARRAY_1D(NX1_TOT, float);
-    ITOT_LOOP(i) {
-      j0[i] = BesselJ0(r[i]);
-      j1[i] = BesselJ1(r[i]);
-    }
-  }
-
-/* ----------------------------------------------------
-    Set default boundary values
-   ---------------------------------------------------- */
-
-  vin[RHO] = g_inputParam[DENSITY];
-  vin[VX1] = vin[VX2] = vin[VX3] = 0.0;
-  vin[BX1] = vin[BX2] = vin[BX3] = 0.0;
-  #if HAVE_ENERGY
-   vin[PRS] = 1.0;
-  #endif
-  #ifdef GLM_MHD
-   vin[PSI_GLM] = 0.0;
-  #endif
-
-/* ---------------------------------------------------
-    Set boundary conditions
-   --------------------------------------------------- */
-
-  if (side == X1_BEG){  /* -- X1_BEG boundary -- */
-    if (box->vpos == CENTER){
-      BOX_LOOP(box,k,j,i){
-        VAR_LOOP(nv) d->Vc[nv][k][j][i] = vin[nv];
-        d->Vc[BX2][k][j][i] = j0[i]*e_t;
-        d->Vc[BX3][k][j][i] = j1[i]*e_t;
-      }
-    }else if (box->vpos == X2FACE){
-      #ifdef STAGGERED_MHD
-       BOX_LOOP(box,k,j,i) d->Vs[BX2s][k][j][i] = j0[i]*e_t; 
-      #endif
-    }
-  }
-
-  if (side == X1_END){  /* -- X1_END boundary -- */
-    if (box->vpos == CENTER){
-      BOX_LOOP(box,k,j,i){
-        VAR_LOOP(nv)  d->Vc[nv][k][j][i] = vin[nv];
-        d->Vc[BX2][k][j][i] = j0[i]*e_t;
-        d->Vc[BX3][k][j][i] = j1[i]*e_t;
-      }
-    }else if (box->vpos == X2FACE){
-      #ifdef STAGGERED_MHD
-       BOX_LOOP(box,k,j,i) d->Vs[BX2s][k][j][i] = j0[i]*e_t; 
-      #endif
-    }
-  }
 }
 
 /* ********************************************************************* */
@@ -152,4 +130,50 @@ void Analysis (const Data *d, Grid *grid)
  *
  *********************************************************************** */
 {
+}
+
+/* ********************************************************************* */
+void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid) 
+/* 
+ *
+ *********************************************************************** */
+{
+  int  i, j, k, nv;
+  double *r, e_t;
+  double t, vin[256];
+  double *x1 = grid->x[IDIR], *x1r = grid->xr[IDIR];
+  double *x2 = grid->x[JDIR], *x2r = grid->xr[JDIR];
+  double *x3 = grid->x[KDIR], *x3r = grid->xr[KDIR];
+
+  t   = g_time;
+#if RESISTIVITY != NO  
+  e_t = exp(-t*1.0);
+#else
+  e_t = 1.0;  /* Means no decay */
+#endif
+
+/* ---------------------------------------------------
+    Set boundary conditions
+   --------------------------------------------------- */
+
+  if (side == X1_BEG || side == X1_END){  /* -- X1_BEG boundary -- */
+    if (box->vpos == CENTER){
+      BOX_LOOP(box,k,j,i){
+        Init (vin, x1[i], x2[j], x3[k]);
+        NVAR_LOOP(nv) d->Vc[nv][k][j][i] = vin[nv];
+
+        d->Vc[BX1][k][j][i] *= e_t;
+        d->Vc[BX2][k][j][i] *= e_t;
+        d->Vc[BX3][k][j][i] *= e_t;
+      }
+    }else if (box->vpos == X2FACE){
+      #ifdef STAGGERED_MHD
+      BOX_LOOP(box,k,j,i) {
+        Init (vin, x1[i], x2r[j], x3[k]);
+        d->Vs[BX2s][k][j][i] = vin[BX2]*e_t;
+      }
+      #endif
+    }
+  }
+
 }

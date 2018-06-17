@@ -11,7 +11,7 @@
 #endif
 
 /* *********************************************************** */
-void RightHandSide (const State_1D *state, Time_Step *Dts, 
+void RightHandSide (const Sweep *sweep, timeStep *Dts, 
                     int beg, int end, double dt, Grid *grid)
 /* 
  *   Compute right hand side of the MHD equations in different geometries,
@@ -37,48 +37,51 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
  *
  * LAST MODIFIED
  * 
- *   July, 31  2012 by A. Mignone (mignone@ph.unito.it)
+ *   March 09, 2017 by A. Mignone (mignone@ph.unito.it)
  *
  ************************************************************* */
 {
   int    i, j, k, nv;
-  double dtdx, dtdV, scrh;
-  double *x1, *x1p, *dx1, *dV1;
-  double *x2, *x2p, *dx2, *dV2;
-  double *x3, *x3p, *dx3, *dV3;
+
+  const State *stateC = &(sweep->stateC);
+
+  double dtdx, dtdV, scrh, dV1, dmu;
+  double *x1  = grid->x[IDIR],  *x2  = grid->x[JDIR],  *x3  = grid->x[KDIR];
+  double *x1p = grid->xr[IDIR], *x2p = grid->xr[JDIR], *x3p = grid->xr[KDIR];
+  double *x1m = grid->xl[IDIR], *x2m = grid->xl[JDIR], *x3m = grid->xl[KDIR];
+  double *dx1 = grid->dx[IDIR], *dx2 = grid->dx[JDIR], *dx3 = grid->dx[KDIR];
+
   double **flux, **rhs, *p, *v;
   double cl;
   double g[3];
   static double **fA, *h;
   
-  #if GEOMETRY != CARTESIAN
-   if (fA == NULL) {
-     fA = ARRAY_2D(NMAX_POINT, NVAR, double);
-     h  = ARRAY_1D(NMAX_POINT, double);
-   }
-  #endif
+#if GEOMETRY != CARTESIAN
+  if (fA == NULL) {
+    fA = ARRAY_2D(NMAX_POINT, NVAR, double);
+    h  = ARRAY_1D(NMAX_POINT, double);
+  }
+#if RESISTIVITY != NO
+  #error rhs works in Cartesian coords only  
+#endif
+#endif
 
 /* --------------------------------------------------
              Compute passive scalar fluxes
    -------------------------------------------------- */
 
-  #if NSCL > 0
-   AdvectFlux (state, beg - 1, end, grid);
-  #endif
+#if NSCL > 0
+  AdvectFlux (sweep, beg - 1, end, grid);
+#endif
 
 /* --------------------------
       pointer shortcuts
    -------------------------- */
 
-  rhs  = state->rhs;
-  flux = state->flux;
-  p    = state->press;
+  rhs  = sweep->rhs;
+  flux = sweep->flux;
+  p    = sweep->press;
   
-  x1  = grid[IDIR].x;  x2  = grid[JDIR].x;  x3  = grid[KDIR].x;
-  x1p = grid[IDIR].xr; x2p = grid[JDIR].xr; x3p = grid[KDIR].xr;
-  dx1 = grid[IDIR].dx; dx2 = grid[JDIR].dx; dx3 = grid[KDIR].dx;
-  dV1 = grid[IDIR].dV; dV2 = grid[JDIR].dV; dV3 = grid[KDIR].dV;
-
   i = g_i;  /* will be redefined during x1-sweep */
   j = g_j;  /* will be redefined during x2-sweep */
   k = g_k;  /* will be redefined during x3-sweep */
@@ -125,14 +128,14 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
 
       NVAR_LOOP(nv) rhs[i][nv] = -dtdx*(flux[i][nv] - flux[i-1][nv]);
       #if USE_PR_GRADIENT == YES
-       rhs[i][MX1] -= dtdx*(p[i] - p[i-1]);
+      rhs[i][MX1] -= dtdx*(p[i] - p[i-1]);
       #endif
 
     /* ----------------------------------------------------
        I4. Include gravity
        ---------------------------------------------------- */
 
-      v = state->vh[i];
+      v = stateC->v[i];
       #if (BODY_FORCE & VECTOR)
        BodyForceVector(v, g, x1[i], x2[j], x3[k]);
        rhs[i][MX1] += dt*v[RHO]*g[IDIR];
@@ -181,7 +184,7 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
        J4. Include gravity
        ---------------------------------------------------- */
 
-      v = state->vh[j];
+      v = stateC->v[j];
       #if (BODY_FORCE & VECTOR)
        BodyForceVector(v, g, x1[i], x2[j], x3[k]);
        rhs[j][MX2] += dt*v[RHO]*g[JDIR];
@@ -227,7 +230,7 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
        K4. Include gravity
        ---------------------------------------------------- */
 
-      v = state->vh[k];
+      v = stateC->v[k];
       #if (BODY_FORCE & VECTOR)
        BodyForceVector(v, g, x1[i], x2[j], x3[k]);
        rhs[k][MX3] += dt*v[RHO]*g[KDIR];
@@ -261,7 +264,7 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
     z   = x2[g_j];
     phi = 0.0;
     for (i = beg - 1; i <= end; i++){ 
-      R = grid[IDIR].A[i];
+      R = fabs(x1p[i]);
 
       fA[i][RHO] = flux[i][RHO]*R;
       EXPAND(fA[i][iMR]   = flux[i][iMR]*R;     ,
@@ -290,11 +293,11 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
      **************************************************** */
 
     #if COMPONENTS == 3
-     Enthalpy (state->v, h, beg, end);
+     Enthalpy (stateC->v, h, beg, end);
     #endif
     for (i = beg; i <= end; i++){ 
       R    = x1[i];
-      dtdV = dt/dV1[i];
+      dtdV = dt/(fabs(x1[i])*dx1[i]);
       dtdx = dt/dx1[i];
       R_1  = 1.0/R;
 
@@ -332,7 +335,7 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
             simulations]
        ------------------------------------------------------- */
 
-      v     = state->vh[i];
+      v     = stateC->v[i];
       #if COMPONENTS == 3
        vel2  = EXPAND(v[VX1]*v[VX1], + v[VX2]*v[VX2], + v[VX3]*v[VX3]);
        lor2  = 1.0/(1.0 - vel2);
@@ -394,7 +397,7 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
        J4. Include gravity
        ---------------------------------------------------- */
 
-      v = state->vh[j];
+      v = stateC->v[j];
       #if (BODY_FORCE & VECTOR)
        BodyForceVector(v, g, x1[i], x2[j], x3[k]);
        rhs[j][iMZ] += dt*v[RHO]*g[JDIR];
@@ -429,7 +432,7 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
     phi = x2[j];
     z   = x3[k];
     for (i = beg - 1; i <= end; i++) { 
-      R = grid[IDIR].A[i];
+      R = fabs(x1p[i]);
 
       fA[i][RHO] = flux[i][RHO]*R;
       EXPAND(fA[i][iMR]   = flux[i][iMR]*R;      ,
@@ -460,13 +463,13 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
      **************************************************** */
 
     #if COMPONENTS >= 2  /* -- need enthalpy for source term computation -- */
-     Enthalpy (state->v, h, beg, end);
+     Enthalpy (stateC->v, h, beg, end);
     #endif
     for (i = beg; i <= end; i++) {
       R    = x1[i];
       dtdV = dt/dV1[i];
       dtdx = dt/dx1[i];
-      R_1  = grid[IDIR].r_1[i];
+      R_1  = 1.0/x1[i];
 
     /* -----------------------------------------------
        I1. initialize rhs with flux difference
@@ -498,7 +501,7 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
            S = w*gamma^2*v(phi)^2 - B(phi)^2 - E(phi)^2
        ---------------------------------------------------- */
 
-      v     = state->vh[i];
+      v     = stateC->v[i];
       #if COMPONENTS >= 2
        vel2  = EXPAND(v[VX1]*v[VX1], + v[VX2]*v[VX2], + v[VX3]*v[VX3]);
        g_2   = 1.0 - vel2;
@@ -558,7 +561,7 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
        J4. Include gravity
        ------------------------------------------------------- */
 
-      v = state->vh[j];
+      v = stateC->v[j];
       #if (BODY_FORCE & VECTOR)
        BodyForceVector(v, g, x1[i], x2[j], x3[k]);
        rhs[j][iMPHI] += dt*v[RHO]*g[JDIR];
@@ -596,7 +599,7 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
        K4. Include gravity
        ---------------------------------------------------- */
 
-      v = state->vh[k];
+      v = stateC->v[k];
       #if (BODY_FORCE & VECTOR)
        BodyForceVector(v, g, x1[i], x2[j], x3[k]); 
        rhs[k][iMZ] += dt*v[RHO]*g[KDIR];
@@ -666,13 +669,14 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
      **************************************************** */
 
     #if COMPONENTS >= 2  /* -- need enthalpy for source term computation -- */
-     Enthalpy (state->v, h, beg, end);
+     Enthalpy (stateC->v, h, beg, end);
     #endif
     for (i = beg; i <= end; i++) { 
       r    = x1[i];
-      dtdV = dt/dV1[i];
+      dV1  = (x1p[i]*x1p[i]*x1p[i] - x1m[i]*x1m[i]*x1m[i])/3.0;
+      dtdV = dt/dV1;
       dtdx = dt/dx1[i];
-      r_1  = grid[IDIR].r_1[i];
+      r_1  = 1.0/r;
 
     /* -----------------------------------------------
        I1. initialize rhs with flux difference
@@ -699,16 +703,14 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
       #if HAVE_ENERGY
        rhs[i][ENG] = -dtdV*(fA[i][ENG] - fA[i-1][ENG]);
       #endif
-
       
        NSCL_LOOP(nv)  rhs[i][nv] = -dtdV*(fA[i][nv] - fA[i-1][nv]);
-      
 
     /* ----------------------------------------------------
        I2. Add source terms 
        ---------------------------------------------------- */
   
-      v = state->vh[i];
+      v = stateC->v[i];
 
       vel2 = EXPAND(v[VX1]*v[VX1], + v[VX2]*v[VX2], + v[VX3]*v[VX3]);
       lor2 = 1.0/(1.0 - vel2);
@@ -756,8 +758,8 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
 
     r   = x1[i];
     phi = x3[k];
-    for (j = beg - 1; j <= end; j++){ 
-      s  = grid[JDIR].A[j];
+    for (j = beg - 1; j <= end; j++){
+      s  = fabs(sin(x2p[j]));
       s2 = s*s;
 
       fA[j][RHO] = flux[j][RHO]*s;
@@ -788,18 +790,20 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
        - add gravity                          (J4)
      **************************************************** */
     
-    r_1 = 0.5*(x1p[i]*x1p[i] - x1p[i-1]*x1p[i-1])/dV1[i];
+    dV1  = (x1p[i]*x1p[i]*x1p[i] - x1m[i]*x1m[i]*x1m[i])/3.0;
+    r_1 = 0.5*(x1p[i]*x1p[i] - x1p[i-1]*x1p[i-1])/dV1;
 
     #if COMPONENTS >= 2  /* -- need enthalpy for source term computation -- */
-     Enthalpy (state->v, h, beg, end);
+     Enthalpy (stateC->v, h, beg, end);
     #endif
     for (j = beg; j <= end; j++){
       th   = x2[j];
-      dtdV = dt/dV2[j]*r_1;
+      dmu  = fabs(cos(x2m[j]) - cos(x2p[j]));
+      dtdV = dt/dmu*r_1;
       dtdx = dt/dx2[j]*r_1;      
       s    = sin(th);
       s_1  = 1.0/s;   
-      ct   = grid[JDIR].ct[j];         /* = cot(theta)  */
+      ct   = cos(th)*s_1;         /* = cot(theta)  */
 
     /* -----------------------------------------------
        J1. initialize rhs with flux difference
@@ -834,7 +838,7 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
        J2. Add source terms
        ---------------------------------------------------- */
        
-      v    = state->vh[j];
+      v    = stateC->v[j];
       vel2 = EXPAND(v[VX1]*v[VX1], + v[VX2]*v[VX2], + v[VX3]*v[VX3]);
       lor2 = 1.0/(1.0 - vel2);
       #if PHYSICS == RMHD
@@ -882,8 +886,10 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
 
     r  = x1[i];
     th = x2[j];
-    r_1  = 0.5*(x1p[i]*x1p[i] - x1p[i-1]*x1p[i-1])/dV1[i];
-    scrh = dt*r_1*dx2[j]/dV2[j];
+    dV1  = (x1p[i]*x1p[i]*x1p[i] - x1m[i]*x1m[i]*x1m[i])/3.0;
+    dmu  = fabs(cos(x2m[j]) - cos(x2p[j]));
+    r_1  = 0.5*(x1p[i]*x1p[i] - x1p[i-1]*x1p[i-1])/dmu;
+    scrh = dt*r_1*dx2[j]/dmu;
 
     for (k = beg; k <= end; k++) {
       phi  = x3[k];
@@ -900,7 +906,7 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
        K4. Include gravity
        ------------------------------------------------------- */
 
-      v = state->vh[k];
+      v = stateC->v[k];
       #if (BODY_FORCE & VECTOR)
        BodyForceVector(v, g, x1[i], x2[j], x3[k]);
        rhs[k][iMPHI] += dt*v[RHO]*g[KDIR];
@@ -920,15 +926,15 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
   #if PHYSICS == RMHD
    #if DIVB_CONTROL == EIGHT_WAVES
     for (i = beg; i <= end; i++) {
-      EXPAND(rhs[i][MX1] += dt*state->src[i][MX1];  ,
-             rhs[i][MX2] += dt*state->src[i][MX2];  ,
-             rhs[i][MX3] += dt*state->src[i][MX3];)
+      EXPAND(rhs[i][MX1] += dt*sweep->src[i][MX1];  ,
+             rhs[i][MX2] += dt*sweep->src[i][MX2];  ,
+             rhs[i][MX3] += dt*sweep->src[i][MX3];)
 
-      EXPAND(rhs[i][BX1] += dt*state->src[i][BX1];  ,
-             rhs[i][BX2] += dt*state->src[i][BX2];  ,
-             rhs[i][BX3] += dt*state->src[i][BX3];)
+      EXPAND(rhs[i][BX1] += dt*sweep->src[i][BX1];  ,
+             rhs[i][BX2] += dt*sweep->src[i][BX2];  ,
+             rhs[i][BX3] += dt*sweep->src[i][BX3];)
       #if HAVE_ENERGY
-       rhs[i][ENG] += dt*state->src[i][ENG];
+       rhs[i][ENG] += dt*sweep->src[i][ENG];
       #endif
     }
    #endif
@@ -939,40 +945,24 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
    ------------------------------------------------- */
 
   #if (defined GLM_MHD) && (GLM_EXTENDED == YES)
-   print1 ("! RightHandSide(): Extended GLM source terms not defined for RMHD\n");
+   print ("! RightHandSide(): Extended GLM source terms not defined for RMHD\n");
    QUIT_PLUTO(1);
   #endif
+
+/* --------------------------------------------------------------
+   Add source terms
+   -------------------------------------------------------------- */
+
+#if PHYSICS == RMHD && RESISTIVITY != NO    
+  RightHandSideSource (sweep, Dts, beg, end, dt, NULL, grid);
+#endif
 
 /* --------------------------------------------------
     Reset right hand side in internal boundary zones
    -------------------------------------------------- */
    
   #if INTERNAL_BOUNDARY == YES
-   InternalBoundaryReset(state, Dts, beg, end, grid);
+   InternalBoundaryReset(sweep, Dts, beg, end, grid);
   #endif
 
-/* --------------------------------------------------
-           Time step determination
-   -------------------------------------------------- */
-
-#if !GET_MAX_DT
-return;
-#endif
-
-  cl = 0.0;
-  for (i = beg-1; i <= end; i++) {
-    scrh = Dts->cmax[i]*grid[g_dir].inv_dxi[i];
-    cl = MAX(cl, scrh);   
-  }
-  #if GEOMETRY == POLAR || GEOMETRY == SPHERICAL
-   if (g_dir == JDIR) {
-     cl /= fabs(grid[IDIR].xgc[g_i]);
-   }
-   #if GEOMETRY == SPHERICAL
-    if (g_dir == KDIR){
-      cl /= fabs(grid[IDIR].xgc[g_i])*sin(grid[JDIR].xgc[g_j]);
-    }
-   #endif
-  #endif
-  Dts->inv_dta = MAX(cl, Dts->inv_dta);  
 }

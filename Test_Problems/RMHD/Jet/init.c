@@ -63,7 +63,7 @@
         Mignone \& Bodo, MNRAS (2006) 368, 1040   
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   Sept 17, 2014
+  \date   March 09, 2017
 
 */
 /* ///////////////////////////////////////////////////////////////////// */
@@ -85,7 +85,9 @@ void Init (double *v, double x1, double x2, double x3)
  *********************************************************************** */
 {
   int    nv;
-  double r, z, p0, vjet[256], vamb[256];
+  double r = x1;
+  double z = x2;
+  double p0, vjet[256], vamb[256];
 
   g_gamma = 5./3.;
   GetJetValues (x1, x2, x3, vjet);
@@ -114,6 +116,20 @@ void Init (double *v, double x1, double x2, double x3)
 
   g_smallPressure = 1.e-5;
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 
@@ -142,9 +158,9 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
             bzs = d->Vs[BX3s];)
   #endif
 
-  x1  = grid[IDIR].xgc;  
-  x2  = grid[JDIR].xgc;  
-  x3  = grid[KDIR].xgc;
+  x1  = grid->xgc[IDIR];  
+  x2  = grid->xgc[JDIR];  
+  x3  = grid->xgc[KDIR];
 
   if (side == X2_BEG){  /* -- X2_BEG boundary -- */
     if (box->vpos == CENTER){    /* -- cell-centered boundary conditions -- */
@@ -167,7 +183,7 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
 
     }else if (box->vpos == X1FACE){  /* -- staggered fields -- */
       #ifdef STAGGERED_MHD
-       x1 = grid[IDIR].xr;
+       x1 = grid->xr[IDIR];
        vjet[BX1] = 0.0; 
        BOX_LOOP(box,k,j,i){
           vout[BX1] = -bxs[k][2*JBEG - j - 1][i];

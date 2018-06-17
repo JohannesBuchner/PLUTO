@@ -64,7 +64,7 @@ long int NMAX_POINT;  /**< Maximum number of points among the three
 
 /*! \name Direction-dependent Vector Labels
     Vector indices permuted during sweeps are used to distinguish between 
-    normal ("n"), tangent ("t") and bi-tangent ("b") directions.
+    normal ("n"), tangent ("t") and binormal ("b") directions.
     In vector notations, \f$ \hvec{b} = \hvec{n} \times \hvec{t} \f$, they
     form a right-handed triad.
     Values are set in the SetIndex() function before commencing 
@@ -73,7 +73,8 @@ long int NMAX_POINT;  /**< Maximum number of points among the three
 int VXn, VXt, VXb; 
 int MXn, MXt, MXb;
 int BXn, BXt, BXb;
-#if DUST == YES
+int EXn, EXt, EXb;
+#if DUST_FLUID == YES
   int VXn_D, VXt_D, VXb_D;
   int MXn_D, MXt_D, MXb_D;
 #endif
@@ -90,21 +91,24 @@ int g_dir; /**< Specifies the current sweep or direction of integration.
                 - JDIR, for integration in the X2 dir; 
                 - KDIR, for integration in the X3 dir; */
 
-int      g_maxRiemannIter;  /**< Maximum number of iterations for 
-                                 iterative Riemann Solver.       */
-int      g_maxRootIter;  /**< Maximum number of iterations for root finder */
-long int g_usedMemory;   /**< Amount of used memory in bytes. */
-long int g_stepNumber;  /**< Gives the current integration step number. */
-int      g_intStage;    /**< Gives the current integration stage of the time
+double g_dt;       /**< The current integration time step. */
+
+int    g_hydroStep = 0;   /**< Tells whether we're in a hydro step (=1)
+                           or SplitSource step (=0)                  */
+
+int    g_intStage;    /**< Gives the current integration stage of the time
                              stepping method (predictor = 0, 1st
                              corrector = 1, and so on). */
-int      g_operatorStep; /**< Gives the current operator step. 
-                              (HYPERBOLIC_STEP/PARABOLIC_STEP/SOURCE_STEP). */
-
 double g_maxCoolingRate = 0.1;  /**< The maximum fractional variation due to 
                                      cooling from one step to the next. */
 double g_minCoolingTemp = 50.0; /**< The minimum temperature (in K) below which
                                      cooling is suppressed. */
+
+int    g_maxIMEXIter;     /**< Maximum number if iterations in IMEX scheme */    
+int    g_maxRiemannIter;  /**< Maximum number of iterations for 
+                                 iterative Riemann Solver.       */
+int    g_maxRootIter;     /**< Maximum number of iterations for root finder */
+int    g_nprocs;          /**< The total number of processors */
                                     
 double g_smallDensity  = 1.e-12; /**< Small value for density fix. */
 double g_smallPressure = 1.e-12; /**< Small value for pressure fix. */
@@ -114,9 +118,10 @@ double g_smallPressure = 1.e-12; /**< Small value for pressure fix. */
  double g_isoSoundSpeed = 1.0; /* g_isoSoundSpeed */
 #endif
 
-double g_time;     /**< The current integration time. */
-double g_dt;       /**< The current integration time step. */
-double g_maxMach;  /**< The maximum Mach number computed during integration. */
+long int g_stepNumber;  /**< Gives the current integration step number. */
+double   g_time;        /**< The current integration time. */
+long int g_usedMemory;  /**< Amount of used memory in bytes. */
+double   g_maxMach;     /**< The maximum Mach number computed during integration. */
 #if ROTATING_FRAME
  double g_OmegaZ;  /**< The angular rotation frequency when rotation is
                         included. */
@@ -150,3 +155,21 @@ double g_inputParam[32]; /**< Array containing the user-defined parameters.
  #endif
 #endif
 
+#if DEBUG == TRUE
+  int d_indent;        /**< Number of indentation space using during debug printing */
+  int d_condition=1;   /**< Enable/disable printing when a certain cond. is verified */
+#endif
+
+#ifdef  PARTICLES
+  long int p_nparticles = 0;  /**< Total number of particles on local
+                                    processor domain */
+  long int p_idCounter = 0;     /**< Total number of particle ids created since
+                                      beginning [global] */
+
+  int p_nrestart   = 0;
+  int p_intStage;
+ #ifdef PARALLEL   
+  MPI_Datatype MPI_PARTICLE;
+  MPI_Datatype PartOutputType;
+ #endif
+#endif	

@@ -101,6 +101,20 @@ void Init (double *us, double x1, double x2, double x3)
   if (r < 0.15) us[RHO] = 10.0;
 
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ************************************************************** */
 void Analysis (const Data *d, Grid *grid)
 /* 

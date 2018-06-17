@@ -23,7 +23,7 @@
   - #02: Third order accuracy;
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   July 09, 2014 
+  \date   March 2, 2017
 
   \b References: 
      - [Mig07]: "PLUTO: a numerical code for computational astrophysics",
@@ -49,6 +49,20 @@ void Init (double *us, double x1, double x2, double x3)
   us[TRC] = 0.0;
 
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 
@@ -70,7 +84,7 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
 
   scrh = 1.0/(g_gamma - 1.0);
 
-  R     = grid[IDIR].xgc;
+  R     = grid->xgc[IDIR];
   pjet  = g_inputParam[PR_RATIO]*pow(2.0/(g_gamma + 1.0),g_gamma*scrh)/g_gamma;
   dnjet = g_inputParam[DN_RATIO]*pow(2.0/(g_gamma + 1.0),scrh);
   vjet  = sqrt(g_gamma*pjet/dnjet);

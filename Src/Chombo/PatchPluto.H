@@ -51,8 +51,8 @@ using std::string;
    by U, W, F, respectively.  It is often convenient to have the number of
    primitive variables and fluxes exceed the number of conserved variables.
    In the case of primitive variables, redundant quantities are carried that
-   parameterize the equation of state in order to avoid multiple calls to that
-   the equation of state function.  In the case of fluxes, it is often
+   parameterize the equation of sweep in order to avoid multiple calls to that
+   the equation of sweep function.  In the case of fluxes, it is often
    convenient to split the flux for some variables into multiple components,
    e.g., dividing the momentum flux into advective and pressure terms.  The
    API given here provides the flexibility to support these various
@@ -105,14 +105,15 @@ public:
   virtual void setRiemann(Riemann_Solver riem);
 
   virtual void setGrid(const Box&    a_box,
-                       struct GRID  *grid,
+                       struct Grid_  *grid,
                        FArrayBox& a_dV);
 
   virtual void initialize(LevelData<FArrayBox>& a_U);
 
   virtual void convertFArrayBox(FArrayBox& U);
 
-  virtual void saveFluxes (const State_1D *, int, int, Grid *);
+  virtual void saveFluxes (double **aflux, Grid *grid);
+
   virtual void showPatch (Grid *);
   virtual void startup(FArrayBox& a_U);
 
@@ -130,7 +131,7 @@ public:
                            FArrayBox&       a_split_tags,
                            BaseFab<unsigned char>&   a_Flags,
                            FluxBox&         a_F,
-                           Time_Step        *Dts,
+                           timeStep        *Dts,
                            const Box&       a_box,
                            Grid *grid);
 

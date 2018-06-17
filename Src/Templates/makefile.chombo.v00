@@ -18,8 +18,8 @@ INCLUDE_DIRS += -I$(CHOMBO_HOME)/src/AMRTools
 INCLUDE_DIRS += -I$(CHOMBO_HOME)/src/BoxTools
 INCLUDE_DIRS += -I$(CHOMBO_HOME)/src/BaseTools
 
-#VPATH  = ./:$(SRC):$(SRC)/Time_Stepping:$(SRC)/States
-VPATH  = ./:$(SRC)/New:$(SRC):$(SRC)/Time_Stepping:$(SRC)/States
+#VPATH  = ./:$(SRC):$(SRC)/timeStepping:$(SRC)/States
+VPATH  = ./:$(SRC)/New:$(SRC):$(SRC)/timeStepping:$(SRC)/States
 VPATH += $(SRC)/Chombo
 
 CFLAGS += -DCH_SPACEDIM=$(DIM)

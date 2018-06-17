@@ -23,7 +23,7 @@
 
 /* ********************************************************************* */
 /*! Simple structure used to retrieve 1D reconstruction weights 
-    (c, w, d) used by piecewise linear interpolation (see states_plm.c)
+    (c, w, d) used by piecewise linear interpolation (see sweeps_plm.c)
    ********************************************************************* */
 
 typedef struct PPM_COEFFS{

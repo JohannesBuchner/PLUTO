@@ -31,8 +31,6 @@
     fluxes are combined to enforce conservation of total angular momentum
     and/or energy, see TotalFlux();
   - initialize rhs with flux differences;
-  - add dissipative effects (viscosity and thermal conduction) to
-    entropy equation. Ohmic dissipation is included in a separate step.
 
   Source terms are added later in RightHandSideSource().
 
@@ -64,32 +62,30 @@
        Mignone et al, ApJS (2012) 198, 7M
    
   \author A. Mignone (mignone@ph.unito.it)
-  \date   Aug 20, 2015
+  \date   May 13, 2018
 
-  \todo
-    - merge GetAreaFlux and TotalFlux ?
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
-static void TotalFlux (const State_1D *, double *, int, int, Grid *);
+static void TotalFlux (const Sweep *, double *, double **, int, int, Grid *);
 
 #ifdef CH_SPACEDIM   /*  implies Chombo is being used  */
- #define USE_PR_GRADIENT  YES   
+ #define USE_PRS_GRADIENT  YES   
 #else
  #ifdef FINITE_DIFFERENCE 
-  #define USE_PR_GRADIENT  NO   /* -- default for Finite Difference schemes -- */
+  #define USE_PRS_GRADIENT  NO   /* -- default for Finite Difference schemes -- */
  #else
-  #define USE_PR_GRADIENT  YES   /* -- default, do not change!! -- */
+  #define USE_PRS_GRADIENT  YES   /* -- default, do not change!! -- */
  #endif
 #endif
 
 /* *********************************************************************** */
-void RightHandSide (const State_1D *state, Time_Step *Dts, 
+void RightHandSide (const Sweep *sweep, timeStep *Dts, 
                     int beg, int end, double dt, Grid *grid)
 /*! 
  *
- * \param [in,out]  state  pointer to State_1D structure
+ * \param [in,out]  sweep  pointer to Sweep structure
  * \param [in]      Dts    pointer to time step structure
  * \param [in]      beg    initial index of computation
  * \param [in]      end    final   index of computation
@@ -102,33 +98,39 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
  ************************************************************************* */
 {
   int    i, j, k, nv;
-  double dtdx, dtdV, scrh, rhog;
-  double *x1  = grid[IDIR].x,  *x2  = grid[JDIR].x,  *x3  = grid[KDIR].x;
-  double *x1p = grid[IDIR].xr, *x2p = grid[JDIR].xr, *x3p = grid[KDIR].xr;
-  double *dx1 = grid[IDIR].dx, *dx2 = grid[JDIR].dx, *dx3 = grid[KDIR].dx;
-  double *dV1 = grid[IDIR].dV, *dV2 = grid[JDIR].dV, *dV3 = grid[KDIR].dV;
-  double **rhs  = state->rhs;
-  double **flux = state->flux, *p = state->press;
-  double **vh   = state->vh, **vp = state->vp, **vm = state->vm;
-  double *A     = grid[g_dir].A, *dV    = grid[g_dir].dV;
-  
-  double cl;
-  double w, wp, vphi, phi_c;
-  double g[3];
-  static double **fA, *phi_p;
-  static double **fvA;
-#if ENTROPY_SWITCH
-  double rhs_entr;
-  double **visc_flux = state->visc_flux; 
-  double **visc_src  = state->visc_src; 
-  double **tc_flux   = state->tc_flux; 
-  double **res_flux  = state->res_flux;   
-  if (fvA == NULL) fvA = ARRAY_2D(NMAX_POINT, NVAR, double);
-#endif
+int *n;
+  const State *stateC = &(sweep->stateC);
+  const State *stateL = &(sweep->stateL);
+  const State *stateR = &(sweep->stateR);
 
+  double **rhs  = sweep->rhs;
+  double **flux = sweep->flux;
+  double *p     = sweep->press;
+
+  double A, scrh;
+
+  double *x1  = grid->x[IDIR],  *x2  = grid->x[JDIR],  *x3  = grid->x[KDIR];
+  double *x1p = grid->xr[IDIR], *x2p = grid->xr[JDIR], *x3p = grid->xr[KDIR];
+  double *x1m = grid->xl[IDIR], *x2m = grid->xl[JDIR], *x3m = grid->xl[KDIR];
+  double *dx1 = grid->dx[IDIR], *dx2 = grid->dx[JDIR], *dx3 = grid->dx[KDIR];
+  double *dx   = grid->dx[g_dir];
   #if GEOMETRY != CARTESIAN
-   if (fA == NULL) fA = ARRAY_2D(NMAX_POINT, NVAR, double);
+  double ***dV = grid->dV;
+  double *rt   = grid->rt;
+  double *dmu   = grid->dmu;
   #endif
+  double dtdV, dtdl;  
+  static double **fA, *phi_p;
+
+/* --------------------------------------------------
+   0. Allocate memory
+   -------------------------------------------------- */
+
+#if GEOMETRY != CARTESIAN
+  if (fA == NULL) {
+    fA   = ARRAY_2D(NMAX_POINT, NVAR, double);
+  }
+#endif
   if (phi_p == NULL) phi_p = ARRAY_1D(NMAX_POINT, double);
 
 /* --------------------------------------------------
@@ -136,11 +138,7 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
    -------------------------------------------------- */
 
 #if NSCL > 0
-  AdvectFlux (state, beg - 1, end, grid);
-#endif
-
-#if DUST == YES
-  Dust_Solver(state, beg - 1, end, Dts->cmax, grid);
+  AdvectFlux (sweep, beg - 1, end, grid);
 #endif
 
   i = g_i;  /* will be redefined during x1-sweep */
@@ -148,17 +146,18 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
   k = g_k;  /* will be redefined during x3-sweep */
   
 /* ------------------------------------------------
-     Add pressure to normal component of 
-     momentum flux if necessary.
+   2. Add pressure to normal component of 
+      momentum flux if necessary.
    ------------------------------------------------ */
 
-#if USE_PR_GRADIENT == NO
+#if USE_PRS_GRADIENT == NO
   for (i = beg - 1; i <= end; i++) flux[i][MXn] += p[i];
 #endif
 
-/* -----------------------------------------------------
-     Compute gravitational potential at cell interfaces
-   -----------------------------------------------------  */
+/* --------------------------------------------------------
+   3. Compute gravitational potential at cell interfaces
+      This step must be done before calling TotalFlux.
+   --------------------------------------------------------  */
 
 #if (BODY_FORCE & POTENTIAL)
   if (g_dir == IDIR) {
@@ -177,574 +176,121 @@ void RightHandSide (const State_1D *state, Time_Step *Dts,
 #endif
   
 /* -----------------------------------------------------
-    Compute total flux
-   -----------------------------------------------------  */
+   4. Compute total flux
+   ----------------------------------------------------- */
 
-  #if (defined FARGO && !defined SHEARINGBOX) ||\
-      (ROTATING_FRAME == YES) || (BODY_FORCE & POTENTIAL)
-   TotalFlux(state, phi_p, beg-1, end, grid);
-  #endif
+#if (defined FARGO && !defined SHEARINGBOX) ||\
+    (ROTATING_FRAME == YES) || (BODY_FORCE & POTENTIAL)
+//  TotalFlux(sweep, phi_p, fA, beg-1, end, grid);
+#endif
+
+  TotalFlux(sweep, phi_p, fA, beg-1, end, grid);
+
+/* -----------------------------------------------------
+   5. Compute right hand side
+   ----------------------------------------------------- */
 
 #if GEOMETRY == CARTESIAN
+  for (i = beg; i <= end; i++) {
+    scrh = dt/dx[i];
 
+    NVAR_LOOP(nv) rhs[i][nv] = -scrh*(flux[i][nv] - flux[i-1][nv]);
+    #if USE_PRS_GRADIENT == YES
+    rhs[i][MXn] -= scrh*(p[i] - p[i-1]);
+    #endif
+  }
+#else
   if (g_dir == IDIR){
+    double q;
+    for (i = beg; i <= end; i++){ 
+      dtdV = dt/dV[k][j][i];
+      dtdl = dt/dx1[i];
+      NVAR_LOOP(nv) rhs[i][nv] = -dtdV*(fA[i][nv] - fA[i-1][nv]);
 
-    for (i = beg; i <= end; i++) {
-      dtdx = dt/dx1[i];
-
-    /* -- I1. initialize rhs with flux difference -- */
-
-      NVAR_LOOP(nv) rhs[i][nv] = -dtdx*(flux[i][nv] - flux[i-1][nv]);
-      #if USE_PR_GRADIENT == YES
-       rhs[i][MX1] -= dtdx*(p[i] - p[i-1]);
+      #if USE_PRS_GRADIENT == YES
+      rhs[i][MXn] -= dtdl*(p[i] - p[i-1]);
+      #endif
+      #ifdef GLM_MHD
+      rhs[i][BXn] = -dtdl*(flux[i][BXn] - flux[i-1][BXn]);
       #endif
 
-    /* -- I5. Add dissipative terms to entropy equation -- */
-
-      #if (ENTROPY_SWITCH) && (PARABOLIC_FLUX & EXPLICIT)
-       rhog = vh[i][RHO];
-       rhog = (g_gamma - 1.0)*pow(rhog,1.0-g_gamma);
+      #ifdef iMPHI      
+      rhs[i][iMPHI] /= fabs(x1[i]);
+      #endif
  
-       rhs_entr = 0.0;
-       #if VISCOSITY == EXPLICIT
-        rhs_entr += (visc_flux[i][ENG] - visc_flux[i-1][ENG]);
-        rhs_entr -= EXPAND(  vh[i][VX1]*(visc_flux[i][MX1] - visc_flux[i-1][MX1])  ,
-                           + vh[i][VX2]*(visc_flux[i][MX2] - visc_flux[i-1][MX2])  ,
-                           + vh[i][VX3]*(visc_flux[i][MX3] - visc_flux[i-1][MX3]));
-       #endif
-
-       #if THERMAL_CONDUCTION == EXPLICIT
-        rhs_entr += (tc_flux[i][ENG] - tc_flux[i-1][ENG]);       
-       #endif
-       rhs[i][ENTR] += rhs_entr*dtdx*rhog;              
+      #if (GEOMETRY == POLAR || GEOMETRY == CYLINDRICAL) &&  (defined iBPHI) 
+      rhs[i][iBPHI] = -dtdl*(fA[i][iBPHI] - fA[i-1][iBPHI]);
+      #elif (GEOMETRY == SPHERICAL) && (PHYSICS == MHD)
+      q = dtdl/x1[i];
+      EXPAND(                                                    ,
+             rhs[i][iBTH]  = -q*(fA[i][iBTH]  - fA[i-1][iBTH]);  ,
+             rhs[i][iBPHI] = -q*(fA[i][iBPHI] - fA[i-1][iBPHI]);)
       #endif
+    }  
 
-    }
-  } else if (g_dir == JDIR){
-
-    for (j = beg; j <= end; j++) {
-      dtdx = dt/dx2[j];
-
-    /* -- J1. initialize rhs with flux difference -- */
-
-      NVAR_LOOP(nv) rhs[j][nv] = -dtdx*(flux[j][nv] - flux[j-1][nv]);
-      #if USE_PR_GRADIENT == YES
-       rhs[j][MX2] -= dtdx*(p[j] - p[j-1]);
-      #endif
-
-    /* -- J5. Add dissipative terms to entropy equation -- */
-
-      #if (ENTROPY_SWITCH) && (PARABOLIC_FLUX & EXPLICIT)
-       rhog = vh[j][RHO];
-       rhog = (g_gamma - 1.0)*pow(rhog,1.0-g_gamma);
- 
-       rhs_entr = 0.0;
-       #if VISCOSITY == EXPLICIT
-        rhs_entr += (visc_flux[j][ENG] - visc_flux[j-1][ENG]);
-        rhs_entr -= EXPAND(  vh[j][VX1]*(visc_flux[j][MX1] - visc_flux[j-1][MX1])  ,
-                           + vh[j][VX2]*(visc_flux[j][MX2] - visc_flux[j-1][MX2])  ,
-                           + vh[j][VX3]*(visc_flux[j][MX3] - visc_flux[j-1][MX3]));
-       #endif
-
-       #if THERMAL_CONDUCTION == EXPLICIT
-        rhs_entr += (tc_flux[j][ENG] - tc_flux[j-1][ENG]);       
-       #endif
-       rhs[j][ENTR] += rhs_entr*dtdx*rhog;              
-      #endif
+  }else if (g_dir == JDIR){
+    
+    double **dx_dl = grid->dx_dl[JDIR];
+    double s;
+    for (j = beg; j <= end; j++){ 
+      dtdV = dt/dV[k][j][i];
+      dtdl = dt/dx2[j]*dx_dl[j][i];
       
+      NVAR_LOOP(nv) rhs[j][nv] = -dtdV*(fA[j][nv] - fA[j-1][nv]);
+
+      #if USE_PRS_GRADIENT == YES
+      rhs[j][MXn] -= dtdl*(p[j] - p[j-1]);
+      #endif
+      #ifdef GLM_MHD
+      rhs[j][BXn] = -dtdl*(flux[j][BXn] - flux[j-1][BXn]);
+      #endif
+
+      #if (GEOMETRY == SPHERICAL) && (COMPONENTS == 3)
+      s = grid->s[j];
+      rhs[j][iMPHI] /= fabs(s);
+      #if PHYSICS == MHD
+      rhs[j][iBPHI] = -dtdl*(fA[j][iBPHI] - fA[j-1][iBPHI]);
+      #endif  /* PHYSICS == MHD */
+      #endif /* GEOMETRY == SPHERICAL  */
     }
 
   }else if (g_dir == KDIR){
 
-    for (k = beg; k <= end; k++) {
-      dtdx = dt/dx3[k];
-
-    /* -- K1. initialize rhs with flux difference -- */
-
-      NVAR_LOOP(nv) rhs[k][nv] = -dtdx*(flux[k][nv] - flux[k-1][nv]);
-      #if USE_PR_GRADIENT == YES
-       rhs[k][MX3] -= dtdx*(p[k] - p[k-1]);
-      #endif
-
-    /* -- K5. Add dissipative terms to entropy equation -- */
-
-      #if (ENTROPY_SWITCH) && (PARABOLIC_FLUX & EXPLICIT)
-       rhog = vh[k][RHO];
-       rhog = (g_gamma - 1.0)*pow(rhog,1.0-g_gamma); 
-       rhs_entr = 0.0;
-       #if VISCOSITY == EXPLICIT
-        rhs_entr += (visc_flux[k][ENG] - visc_flux[k-1][ENG]);
-        rhs_entr -= EXPAND(  vh[k][VX1]*(visc_flux[k][MX1] - visc_flux[k-1][MX1])  ,
-                           + vh[k][VX2]*(visc_flux[k][MX2] - visc_flux[k-1][MX2])  ,
-                           + vh[k][VX3]*(visc_flux[k][MX3] - visc_flux[k-1][MX3]));
-       #endif
-
-       #if THERMAL_CONDUCTION == EXPLICIT
-        rhs_entr += (tc_flux[k][ENG] - tc_flux[k-1][ENG]);
-       #endif
-       rhs[k][ENTR] += rhs_entr*dtdx*rhog;              
-      #endif
-    }
-  }
-
-#elif GEOMETRY == CYLINDRICAL
-
-{
-  double R, z, phi, R_1; 
-
-#if DUST == YES
-  #error "DUST not implemented in CYLINDRICAL coordinates"
-#endif
-
-  if (g_dir == IDIR) {  
-    double vc[NVAR];
-
-    GetAreaFlux (state, fA, fvA, beg, end, grid);
-    for (i = beg; i <= end; i++){ 
-      R    = x1[i];
-      dtdV = dt/dV1[i];
-      dtdx = dt/dx1[i];
-      R_1  = 1.0/R;
-
-    /* -- I1. initialize rhs with flux difference -- */
-
-      rhs[i][RHO] = -dtdV*(fA[i][RHO] - fA[i-1][RHO]);
-      EXPAND(rhs[i][iMR]   = - dtdV*(fA[i][iMR]   - fA[i-1][iMR]);  ,
-             rhs[i][iMZ]   = - dtdV*(fA[i][iMZ]   - fA[i-1][iMZ]);  ,
-             rhs[i][iMPHI] = - dtdV*(fA[i][iMPHI] - fA[i-1][iMPHI])*fabs(R_1);)
-      #if USE_PR_GRADIENT == YES
-       rhs[i][iMR] -= dtdx*(p[i] - p[i-1]);  
-      #endif
-      #if PHYSICS == MHD
-       EXPAND(rhs[i][iBR]   = - dtdV*(fA[i][iBR]   - fA[i-1][iBR]);  ,
-              rhs[i][iBZ]   = - dtdV*(fA[i][iBZ]   - fA[i-1][iBZ]);  ,
-              rhs[i][iBPHI] = - dtdx*(flux[i][iBPHI] - flux[i-1][iBPHI]);)
-       #ifdef GLM_MHD
-        rhs[i][iBR]     = - dtdx*(flux[i][iBR]   - flux[i-1][iBR]);
-        rhs[i][PSI_GLM] = - dtdV*(fA[i][PSI_GLM] - fA[i-1][PSI_GLM]);
-       #endif
-      #endif
-      IF_ENERGY(rhs[i][ENG] = -dtdV*(fA[i][ENG] - fA[i-1][ENG]);)
-      NSCL_LOOP(nv)  rhs[i][nv] = -dtdV*(fA[i][nv] - fA[i-1][nv]);
-      
-    /* -- I5. Add dissipative terms to entropy equation -- */
-
-      #if (ENTROPY_SWITCH) && (PARABOLIC_FLUX & EXPLICIT)
-       NVAR_LOOP(nv) vc[nv] = 0.5*(vp[i][nv] + vm[i][nv]); 
-       rhog = vc[RHO];
-       rhog = (g_gamma - 1.0)*pow(rhog,1.0-g_gamma);
- 
-       rhs_entr = 0.0;
-       #if VISCOSITY == EXPLICIT
-        rhs_entr += (fvA[i][ENG] - fvA[i-1][ENG]);
-        rhs_entr -= EXPAND(  vc[VX1]*(fvA[i][MX1] - fvA[i-1][MX1])      ,
-                           + vc[VX2]*(fvA[i][MX2] - fvA[i-1][MX2])      ,
-                           + vc[VX3]*(fvA[i][MX3] - fvA[i-1][MX3])*fabs(R_1));
-                    
-        rhs_entr -= EXPAND(  vc[VX1]*visc_src[i][MX1], 
-                           + vc[VX2]*visc_src[i][MX2],
-                           + vc[VX3]*visc_src[i][MX3]);
-       #endif
-
-       #if THERMAL_CONDUCTION == EXPLICIT
-        rhs_entr += (A[i]*tc_flux[i][ENG] - A[i-1]*tc_flux[i-1][ENG]);       
-       #endif
-       rhs[i][ENTR] += rhs_entr*dtdV*rhog;              
-      #endif
-    }
-     
-  } else if (g_dir == JDIR) { 
-
-    for (j = beg; j <= end; j++){ 
-      dtdx = dt/dx2[j];
-
-    /* -- J1. initialize rhs with flux difference -- */
-
-      NVAR_LOOP(nv) rhs[j][nv] = -dtdx*(flux[j][nv] - flux[j-1][nv]);
-      #if USE_PR_GRADIENT == YES
-       rhs[j][iMZ] += - dtdx*(p[j] - p[j-1]);
-      #endif
-
-    /* -- J5. Add dissipative terms to entropy equation -- */
-
-      #if (ENTROPY_SWITCH) && (PARABOLIC_FLUX & EXPLICIT)
-       rhog = vh[j][RHO];
-       rhog = (g_gamma - 1.0)*pow(rhog,1.0-g_gamma);
- 
-       rhs_entr = 0.0;
-       #if VISCOSITY == EXPLICIT
-        rhs_entr += (visc_flux[j][ENG] - visc_flux[j-1][ENG]);
-        rhs_entr -= EXPAND(  vc[VX1]*(visc_flux[j][MX1] - visc_flux[j-1][MX1])  ,
-                           + vc[VX2]*(visc_flux[j][MX2] - visc_flux[j-1][MX2])  ,
-                           + vc[VX3]*(visc_flux[j][MX3] - visc_flux[j-1][MX3]));
-       #endif
-       #if THERMAL_CONDUCTION == EXPLICIT
-        rhs_entr += (tc_flux[j][ENG] - tc_flux[j-1][ENG]);
-       #endif
-       rhs[j][ENTR] += rhs_entr*dtdx*rhog;              
-      #endif
-    }
-  }
-}
-
-#elif GEOMETRY == POLAR
-{
-  double R, phi, z; 
-  double R_1;
-   
-  if (g_dir == IDIR) { 
-    double vc[NVAR];
-
-    GetAreaFlux (state, fA, fvA, beg, end, grid);
-    for (i = beg; i <= end; i++) {
-      R    = x1[i];
-      dtdV = dt/dV1[i];
-      dtdx = dt/dx1[i];
-      R_1  = grid[IDIR].r_1[i];
-
-    /* -- I1. initialize rhs with flux difference -- */
-
-      rhs[i][RHO] = -dtdV*(fA[i][RHO] - fA[i-1][RHO]);
-      EXPAND(rhs[i][iMR]   = - dtdV*(fA[i][iMR]   - fA[i-1][iMR])
-                             - dtdx*(p[i] - p[i-1]);                      ,      
-             rhs[i][iMPHI] = - dtdV*(fA[i][iMPHI] - fA[i-1][iMPHI])*R_1;  ,
-             rhs[i][iMZ]   = - dtdV*(fA[i][iMZ]   - fA[i-1][iMZ]);)
-  #if PHYSICS == MHD 
-      EXPAND(rhs[i][iBR]   = -dtdV*(fA[i][iBR]     - fA[i-1][iBR]);      ,
-             rhs[i][iBPHI] = -dtdx*(flux[i][iBPHI] - flux[i-1][iBPHI]);  ,
-             rhs[i][iBZ]   = -dtdV*(fA[i][iBZ]     - fA[i-1][iBZ]);)
-    #ifdef GLM_MHD
-      rhs[i][iBR]     = -dtdx*(flux[i][iBR]   - flux[i-1][iBR]);
-      rhs[i][PSI_GLM] = -dtdV*(fA[i][PSI_GLM] - fA[i-1][PSI_GLM]);
-    #endif
-  #endif
-      IF_ENERGY(rhs[i][ENG] = -dtdV*(fA[i][ENG] - fA[i-1][ENG]);)
-
-      NSCL_LOOP(nv)  rhs[i][nv] = -dtdV*(fA[i][nv] - fA[i-1][nv]);
-
-      IF_DUST(NDUST_LOOP(nv) rhs[i][nv] = -dtdV*(fA[i][nv] - fA[i-1][nv]);  
-              rhs[i][MX2_D] *= R_1;)
-
-    /* -- I5. Add dissipative terms to entropy equation -- */
-
-      #if (ENTROPY_SWITCH) && (PARABOLIC_FLUX & EXPLICIT)
-       for (nv = NVAR; nv--;  ) vc[nv] = 0.5*(vp[i][nv] + vm[i][nv]); 
-       rhog = vc[RHO];
-       rhog = (g_gamma - 1.0)*pow(rhog,1.0-g_gamma);
- 
-       rhs_entr = 0.0;
-       #if VISCOSITY == EXPLICIT
-        rhs_entr += (fvA[i][ENG] - fvA[i-1][ENG]);
-        rhs_entr -= EXPAND(  vc[VX1]*(fvA[i][iMR]   - fvA[i-1][iMR])        ,
-                           + vc[VX2]*(fvA[i][iMPHI] - fvA[i-1][iMPHI])*R_1  ,
-                           + vc[VX3]*(fvA[i][iMZ]   - fvA[i-1][iMZ]));
-                    
-        rhs_entr -= EXPAND(  vc[VX1]*visc_src[i][MX1], 
-                           + vc[VX2]*visc_src[i][MX2],
-                           + vc[VX3]*visc_src[i][MX3]);
-       #endif
-
-       #if THERMAL_CONDUCTION == EXPLICIT
-        rhs_entr += (A[i]*tc_flux[i][ENG] - A[i-1]*tc_flux[i-1][ENG]);       
-       #endif
-       rhs[i][ENTR] += rhs_entr*dtdV*rhog;              
-      #endif
-
-    }
-     
-  } else if (g_dir == JDIR) {
-
-    scrh = dt/x1[i];
-    for (j = beg; j <= end; j++){ 
-      dtdx = scrh/dx2[j];
-
-    /* -- J1. Compute equations rhs for phi-contributions -- */
-
-      NVAR_LOOP(nv) rhs[j][nv] = -dtdx*(flux[j][nv] - flux[j-1][nv]);
-      rhs[j][iMPHI] -= dtdx*(p[j] - p[j-1]);
-
-    /* -- J5. Add dissipative terms to entropy equation -- */
-
-      #if (ENTROPY_SWITCH) && (PARABOLIC_FLUX & EXPLICIT)
-       rhog = vh[j][RHO];
-       rhog = (g_gamma - 1.0)*pow(rhog,1.0-g_gamma);
- 
-       rhs_entr = 0.0;
-       #if VISCOSITY == EXPLICIT
-        rhs_entr += (visc_flux[j][ENG] - visc_flux[j-1][ENG]);
-        rhs_entr -= EXPAND(  vh[j][VX1]*(visc_flux[j][MX1] - visc_flux[j-1][MX1]) ,
-                           + vh[j][VX2]*(visc_flux[j][MX2] - visc_flux[j-1][MX2]) ,
-                           + vh[j][VX3]*(visc_flux[j][MX3] - visc_flux[j-1][MX3]));
-                    
-        rhs_entr -= EXPAND(  vh[j][VX1]*visc_src[j][MX1], 
-                           + vh[j][VX2]*visc_src[j][MX2],
-                           + vh[j][VX3]*visc_src[j][MX3]);
-       #endif
-       #if THERMAL_CONDUCTION == EXPLICIT
-        rhs_entr += (tc_flux[j][ENG] - tc_flux[j-1][ENG]);
-       #endif
-       rhs[j][ENTR] += rhs_entr*dtdx*rhog;              
-      #endif
-      
-    }
-
-  } else if (g_dir == KDIR) { 
-
+    double **dx_dl = grid->dx_dl[KDIR];
     for (k = beg; k <= end; k++){ 
-      dtdx = dt/dx3[k];
+      dtdV = dt/dV[k][j][i];
+      dtdl = dt/dx3[k]*dx_dl[j][i];
 
-    /* -- K1. initialize rhs with flux difference -- */
+      NVAR_LOOP(nv) rhs[k][nv] = -dtdV*(fA[k][nv] - fA[k-1][nv]);
 
-      VAR_LOOP(nv) rhs[k][nv] = -dtdx*(flux[k][nv] - flux[k-1][nv]);
-      rhs[k][MX3] -= dtdx*(p[k] - p[k-1]);
-
-    /* -- K5. Add dissipative terms to entropy equation -- */
-
-      #if (ENTROPY_SWITCH) && (PARABOLIC_FLUX & EXPLICIT)
-       rhog = vh[k][RHO];
-       rhog = (g_gamma - 1.0)*pow(rhog,1.0-g_gamma);
- 
-       rhs_entr = 0.0;
-       #if VISCOSITY == EXPLICIT
-        rhs_entr += (visc_flux[k][ENG] - visc_flux[k-1][ENG]);
-        rhs_entr -= EXPAND(  vh[j][VX1]*(visc_flux[k][MX1] - visc_flux[k-1][MX1])  ,
-                           + vh[j][VX2]*(visc_flux[k][MX2] - visc_flux[k-1][MX2])  ,
-                           + vh[j][VX3]*(visc_flux[k][MX3] - visc_flux[k-1][MX3]));
-       #endif
-
-       #if THERMAL_CONDUCTION == EXPLICIT
-        rhs_entr += (tc_flux[k][ENG] - tc_flux[k-1][ENG]);
-       #endif
-       rhs[k][ENTR] += rhs_entr*dtdx*rhog;              
+      #if USE_PRS_GRADIENT == YES
+      rhs[k][MXn] -= dtdl*(p[k] - p[k-1]);
       #endif
- 
+      #ifdef GLM_MHD
+      rhs[k][BXn] = -dtdl*(flux[k][BXn] - flux[k-1][BXn]);
+      #endif
     }
   }
-}
-#elif GEOMETRY == SPHERICAL
-{
-  double r_1, th, s, s_1;
-
-  if (g_dir == IDIR) { 
-    double vc[NVAR], dVdx;
-
-    GetAreaFlux (state, fA, fvA, beg, end, grid);
-    for (i = beg; i <= end; i++) { 
-      dtdV = dt/dV1[i];
-      dtdx = dt/dx1[i];
-      r_1  = grid[IDIR].r_1[i];
-
-    /* -- I1. initialize rhs with flux difference -- */
-
-/* Alternative sequence 
-dVdx = dV1[i]/dx1[i];
-NVAR_LOOP(nv) rhs[i][nv] = -dtdV*(fA[i][nv] - fA[i-1][nv]);
-rhs[i][MX1] -= dtdx*(p[i] - p[i-1]);
-rhs[i][MX3] *= r_1;
-#if PHYSICS == MHD
- EXPAND(             
-                               ,
-      rhs[i][iBTH]  *= dVrdx;  ,
-      rhs[i][iBPHI] *= dVrdx;
-  )
- #ifdef GLM_MHD
-   rhs[i][iBR]     *= dVdx;
- #endif
-#endif
-IF_DUST(rhs[i][MX3_D] *= r_1;)
-*/
-
-      rhs[i][RHO] = -dtdV*(fA[i][RHO] - fA[i-1][RHO]);
-      EXPAND(
-        rhs[i][iMR]   = - dtdV*(fA[i][iMR] - fA[i-1][iMR])
-                        - dtdx*(p[i] - p[i-1]);                    ,
-        rhs[i][iMTH]  = -dtdV*(fA[i][iMTH]  - fA[i-1][iMTH]);      ,
-        rhs[i][iMPHI] = -dtdV*(fA[i][iMPHI] - fA[i-1][iMPHI])*r_1; 
-      )
-      #if PHYSICS == MHD
-       EXPAND(                                                     
-         rhs[i][iBR]   = -dtdV*(fA[i][iBR]   - fA[i-1][iBR]);       ,
-         rhs[i][iBTH]  = -dtdx*(fA[i][iBTH]  - fA[i-1][iBTH])*r_1;  ,
-         rhs[i][iBPHI] = -dtdx*(fA[i][iBPHI] - fA[i-1][iBPHI])*r_1;
-       )
-       #ifdef GLM_MHD
-        rhs[i][iBR]     = -dtdx*(flux[i][iBR]   - flux[i-1][iBR]);
-        rhs[i][PSI_GLM] = -dtdV*(fA[i][PSI_GLM] - fA[i-1][PSI_GLM]);
-       #endif
-      #endif
-      IF_ENERGY(rhs[i][ENG] = -dtdV*(fA[i][ENG] - fA[i-1][ENG]);)
-
-      NSCL_LOOP(nv) rhs[i][nv] = -dtdV*(fA[i][nv] - fA[i-1][nv]);
-      IF_DUST(NDUST_LOOP(nv) rhs[i][nv] = -dtdV*(fA[i][nv] - fA[i-1][nv]);  
-              rhs[i][MX3_D] *= r_1;)
-
-    /* -- I5. Add dissipative terms to entropy equation -- */
-
-      #if (ENTROPY_SWITCH) && (PARABOLIC_FLUX & EXPLICIT)
-       NVAR_LOOP(nv) vc[nv] = 0.5*(vp[i][nv] + vm[i][nv]);
-     
-       rhog = vc[RHO];
-       rhog = (g_gamma - 1.0)*pow(rhog,1.0-g_gamma);
- 
-       rhs_entr = 0.0;
-       #if VISCOSITY == EXPLICIT
-        rhs_entr += (fvA[i][ENG] - fvA[i-1][ENG]);
-        rhs_entr -= EXPAND(  vc[VX1]*(fvA[i][iMR]   - fvA[i-1][iMR])        ,
-                           + vc[VX2]*(fvA[i][iMTH]  - fvA[i-1][iMTH])       ,
-                           + vc[VX3]*(fvA[i][iMPHI] - fvA[i-1][iMPHI])*r_1);
-                    
-        rhs_entr -= EXPAND(  vc[VX1]*visc_src[i][MX1], 
-                           + vc[VX2]*visc_src[i][MX2],
-                           + vc[VX3]*visc_src[i][MX3]);
-       #endif
-       #if THERMAL_CONDUCTION == EXPLICIT
-        rhs_entr += (A[i]*tc_flux[i][ENG] - A[i-1]*tc_flux[i-1][ENG]);       
-       #endif
-       rhs[i][ENTR] += rhs_entr*dtdV*rhog;              
-      #endif
-    }
-
-  } else if (g_dir == JDIR) {
-
-    GetAreaFlux (state, fA, fvA, beg, end, grid);
-    r_1 = 0.5*(x1p[i]*x1p[i] - x1p[i-1]*x1p[i-1])/dV1[i];
-    scrh = dt*r_1;
-    for (j = beg; j <= end; j++){
-      th   = x2[j];
-      dtdV = scrh/dV2[j];
-      dtdx = scrh/dx2[j];
-      s    = sin(th);
-      s_1  = 1.0/s;   
-
-    /* -- J1. initialize rhs with flux difference -- */
-
-      rhs[j][RHO] = -dtdV*(fA[j][RHO] - fA[j-1][RHO]);
-      EXPAND(
-        rhs[j][iMR]   = - dtdV*(fA[j][iMR] - fA[j-1][iMR]);  , 
-        rhs[j][iMTH]  = - dtdV*(fA[j][iMTH] - fA[j-1][iMTH])
-                        - dtdx*(p[j] - p[j-1]);              , 
-        rhs[j][iMPHI] = - dtdV*(fA[j][iMPHI] - fA[j-1][iMPHI])*fabs(s_1);
-      )       
-      #if PHYSICS == MHD
-       EXPAND(                                                     
-         rhs[j][iBR]   = -dtdV*(fA[j][iBR]   - fA[j-1][iBR]);   ,
-         rhs[j][iBTH]  = -dtdV*(fA[j][iBTH]  - fA[j-1][iBTH]);  ,
-         rhs[j][iBPHI] = -dtdx*(flux[j][iBPHI] - flux[j-1][iBPHI]);
-       )
-       #ifdef GLM_MHD
-        rhs[j][iBTH]    = -dtdx*(flux[j][iBTH] - flux[j-1][iBTH]);
-        rhs[j][PSI_GLM] = -dtdV*(fA[j][PSI_GLM] - fA[j-1][PSI_GLM]);
-       #endif
-      #endif
-      IF_ENERGY(rhs[j][ENG] = -dtdV*(fA[j][ENG] - fA[j-1][ENG]);)
-      
-      NSCL_LOOP(nv) rhs[j][nv] = -dtdV*(fA[j][nv] - fA[j-1][nv]);
-
-      IF_DUST(NDUST_LOOP(nv) rhs[j][nv] = -dtdV*(fA[j][nv] - fA[j-1][nv]);
-              rhs[j][MX3_D] *= fabs(s_1);)
-      
-    /* -- J5. Add TC dissipative term to entropy equation -- */
-
-      #if (ENTROPY_SWITCH) && (PARABOLIC_FLUX & EXPLICIT)
-       rhog = vh[j][RHO];
-       rhog = (g_gamma - 1.0)*pow(rhog,1.0-g_gamma);
- 
-       rhs_entr = 0.0;
-       #if VISCOSITY == EXPLICIT
-        rhs_entr += (fvA[j][ENG] - fvA[j-1][ENG]);
-        rhs_entr -= EXPAND(  vc[VX1]*(fvA[j][iMR]   - fvA[j-1][iMR])        ,
-                           + vc[VX2]*(fvA[j][iMTH]  - fvA[j-1][iMTH])       ,
-                           + vc[VX3]*(fvA[j][iMPHI] - fvA[j-1][iMPHI])*fabs(s_1));
-                    
-        rhs_entr -= EXPAND(  vc[VX1]*visc_src[j][MX1], 
-                           + vc[VX2]*visc_src[j][MX2],
-                           + vc[VX3]*visc_src[j][MX3]);
-       #endif
-       #if THERMAL_CONDUCTION == EXPLICIT
-        rhs_entr += (A[j]*tc_flux[j][ENG] - A[j-1]*tc_flux[j-1][ENG]);
-       #endif
-       rhs[j][ENTR] += rhs_entr*dtdV*rhog;              
-      #endif
-
-    }
-
-  } else if (g_dir == KDIR) {
-
-    r_1  = 0.5*(x1p[i]*x1p[i] - x1p[i-1]*x1p[i-1])/dV1[i];
-    scrh = dt*r_1*dx2[j]/dV2[j];
-    for (k = beg; k <= end; k++) {
-      dtdx = scrh/dx3[k];
-
-    /* -- K1.  initialize rhs with flux difference -- */
-
-      VAR_LOOP(nv) rhs[k][nv] = -dtdx*(flux[k][nv] - flux[k-1][nv]);
-      rhs[k][iMPHI] -= dtdx*(p[k] - p[k-1]); 
-
-    /* -- K5. Add dissipative terms to entropy equation -- */
-
-      #if (ENTROPY_SWITCH) && (PARABOLIC_FLUX & EXPLICIT)
-       rhog = vh[k][RHO];
-       rhog = (g_gamma - 1.0)*pow(rhog,1.0-g_gamma);
- 
-       rhs_entr = 0.0;
-       #if VISCOSITY == EXPLICIT
-        rhs_entr += (visc_flux[k][ENG] - visc_flux[k-1][ENG]);
-        rhs_entr -= EXPAND(  vc[VX1]*(visc_flux[k][MX1] - visc_flux[k-1][MX1])  ,
-                           + vc[VX2]*(visc_flux[k][MX2] - visc_flux[k-1][MX2])  ,
-                           + vc[VX3]*(visc_flux[k][MX3] - visc_flux[k-1][MX3]));
-       #endif
-       #if THERMAL_CONDUCTION == EXPLICIT
-        rhs_entr += (tc_flux[k][ENG] - tc_flux[k-1][ENG]);
-       #endif
-       rhs[k][ENTR] += rhs_entr*dtdx*rhog;              
-      #endif      
-    }
-  }
-}
-#endif  /* GEOMETRY == SPHERICAL */
+#endif  /* GEOMETRY == CARTESIAN */
 
 /* --------------------------------------------------------------
-    Add source terms
+   6. Add source terms
    -------------------------------------------------------------- */
 
-  RightHandSideSource (state, Dts, beg, end, dt, phi_p, grid);
+  RightHandSideSource (sweep, Dts, beg, end, dt, phi_p, grid);
 
 /* --------------------------------------------------
-    Reset right hand side in internal boundary zones
+   7. Reset right hand side in internal boundary zones
    -------------------------------------------------- */
    
-  #if INTERNAL_BOUNDARY == YES
-   InternalBoundaryReset(state, Dts, beg, end, grid);
-  #endif
-  
-/* --------------------------------------------------
-           Time step determination
-   -------------------------------------------------- */
-
-#if !GET_MAX_DT
-return;
+#if INTERNAL_BOUNDARY == YES
+  InternalBoundaryReset(sweep, Dts, beg, end, grid);
 #endif
 
-  cl = 0.0;
-  for (i = beg-1; i <= end; i++) {
-    scrh = Dts->cmax[i]*grid[g_dir].inv_dxi[i];
-    cl = MAX(cl, scrh);   
-  }
-  #if GEOMETRY == POLAR || GEOMETRY == SPHERICAL
-   if (g_dir == JDIR) {
-     cl /= fabs(grid[IDIR].xgc[g_i]);
-   }
-   #if GEOMETRY == SPHERICAL
-    if (g_dir == KDIR){
-      cl /= fabs(grid[IDIR].xgc[g_i])*sin(grid[JDIR].xgc[g_j]);
-    }
-   #endif
-  #endif
-  Dts->inv_dta = MAX(cl, Dts->inv_dta);  
 }
 
 /* ********************************************************************* */
-void TotalFlux (const State_1D *state, double *phi_p,
+void TotalFlux (const Sweep *sweep, double *phi_p, double **fA,
                 int beg, int end, Grid *grid)
 /*!
  * Compute the total flux in order to enforce conservation of 
@@ -770,9 +316,10 @@ void TotalFlux (const State_1D *state, double *phi_p,
  *       Instead, we incorporate the source terms elsewhere.
  * 
  *  
- * \param [in]     state  pointer to State_1D structure;
+ * \param [in]     sweep  pointer to Sweep structure;
  * \param [in,out] phi_p  1D array defining the gravitational potential
  *                        at grid interfaces;
+ * \param [out]    fA     Total flux;
  * \param [in]     beg    initial index of computation; 
  * \param [in]     end    final   index of computation;
  * \param [in]     grid   pointer to Grid structure;
@@ -787,8 +334,8 @@ void TotalFlux (const State_1D *state, double *phi_p,
  #define iMPHI MX2  /* -- for Cartesian coordinates -- */
 #endif
 {
-  int i,j,k;
-  double wp, R;
+  int    i,j,k,nv;
+  double wp, R, A;
   double **flux, *vp;
   double *x1,  *x2,  *x3;
   double *x1p, *x2p, *x3p;
@@ -797,25 +344,34 @@ void TotalFlux (const State_1D *state, double *phi_p,
   wA = FARGO_GetVelocity();
 #endif
 
-  flux = state->flux;
-  x1  = grid[IDIR].x;  x1p = grid[IDIR].xr;
-  x2  = grid[JDIR].x;  x2p = grid[JDIR].xr;
-  x3  = grid[KDIR].x;  x3p = grid[KDIR].xr;
+/* --------------------------------------------------------
+   0. Set pointer shortcuts
+   -------------------------------------------------------- */
+
+  flux = sweep->flux;
+  x1  = grid->x[IDIR]; x1p = grid->xr[IDIR];
+  x2  = grid->x[JDIR]; x2p = grid->xr[JDIR];
+  x3  = grid->x[KDIR]; x3p = grid->xr[KDIR];
 
   i = g_i;  /* will be redefined during x1-sweep */
   j = g_j;  /* will be redefined during x2-sweep */
   k = g_k;  /* will be redefined during x3-sweep */
 
+/* --------------------------------------------------------
+   1. Compute total flux for the X1-Sweep
+   -------------------------------------------------------- */
+
   if (g_dir == IDIR){ 
+
     for (i = beg; i <= end; i++){
 
-    /* ----------------------------------------------------
-        include flux contributions from FARGO or Rotation 
-        Note: ShearingBox terms are not included here but
-              only within the BodyForce function.
-       ---------------------------------------------------- */
+    /* ------------------------------------------------------
+       1a. include flux contributions from FARGO or Rotation 
+           Note: ShearingBox terms are not included here but
+                 only within the BodyForce() function.
+       ------------------------------------------------------ */
 
-    #if (defined FARGO && !defined SHEARINGBOX) || (ROTATING_FRAME == YES)
+      #if (defined FARGO && !defined SHEARINGBOX) || (ROTATING_FRAME == YES)
       wp = 0.0;
       #if GEOMETRY == SPHERICAL
       IF_FARGO(wp = 0.5*(wA[j][i] + wA[j][i+1]);)
@@ -827,22 +383,55 @@ void TotalFlux (const State_1D *state, double *phi_p,
       IF_ROTATING_FRAME(wp += g_OmegaZ*R;)
       IF_ENERGY  (flux[i][ENG] += wp*(0.5*wp*flux[i][RHO] + flux[i][iMPHI]);)
       flux[i][iMPHI] += wp*flux[i][RHO];
-    #endif
+      #endif
 
-    /* -- gravitational potential -- */
+    /* -- 1b. Add gravitational potential -- */
 
-    #if (BODY_FORCE & POTENTIAL) && HAVE_ENERGY
+      #if (BODY_FORCE & POTENTIAL) && HAVE_ENERGY
       flux[i][ENG] += flux[i][RHO]*phi_p[i];                          
-    #endif
+      #endif
+
+    /* -- 1c. Multiply flux x area (non-Cartesian geometries only) -- */
+    
+      #if GEOMETRY != CARTESIAN      
+      A  = grid->A[IDIR][k][j][i];
+      NVAR_LOOP(nv) fA[i][nv] = flux[i][nv]*A;
+
+//// #ifdef iMPHI(as before)
+      #if    (GEOMETRY == POLAR       && COMPONENTS >= 2) \
+          || (GEOMETRY == CYLINDRICAL && COMPONENTS == 3)     
+      fA[i][iMPHI] *= fabs(x1p[i]);
+      #if PHYSICS == MHD
+      fA[i][iBPHI] = flux[i][iBPHI];
+      #endif
+      #endif  /* GEOMETRY != CARTESIAN */
+      
+      #if GEOMETRY == SPHERICAL
+      EXPAND(                             ,
+                                          ,
+             fA[i][iMPHI] *= fabs(x1p[i]);)
+      #if PHYSICS == MHD
+      EXPAND(                                      ,
+             fA[i][iBTH]  = flux[i][iBTH]*x1p[i];  ,
+             fA[i][iBPHI] = flux[i][iBPHI]*x1p[i];)
+      #endif
+      #endif
+      #endif /* GEOMETRY != CARTESIAN */
     }
+    
+/* --------------------------------------------------------
+   2. Compute total flux for the X2-Sweep
+   -------------------------------------------------------- */
+
   }else if (g_dir == JDIR){
     for (j = beg; j <= end; j++){ 
 
     /* ----------------------------------------------------
-        include flux contributions from FARGO and Rotation 
+       2a. include flux contributions from FARGO and
+           Rotation 
        ---------------------------------------------------- */
 
-    #if GEOMETRY == SPHERICAL
+      #if GEOMETRY == SPHERICAL
       #if (defined FARGO) || (ROTATING_FRAME == YES)
       wp = 0.0;
       R  = x1[i]*sin(x2p[j]);
@@ -851,30 +440,56 @@ void TotalFlux (const State_1D *state, double *phi_p,
       IF_ENERGY  (flux[j][ENG] += wp*(0.5*wp*flux[j][RHO] + flux[j][iMPHI]);)
       flux[j][iMPHI] += wp*flux[j][RHO];
       #endif
-    #endif
+      #endif
 
-    #if (BODY_FORCE & POTENTIAL) && HAVE_ENERGY
+    /* -- 2b. Add gravitational potential -- */
+
+      #if (BODY_FORCE & POTENTIAL) && HAVE_ENERGY
       flux[j][ENG] += flux[j][RHO]*phi_p[j];
-    #endif      
+      #endif      
 
+    /* -- 2c. Multiply flux x area (non-Cartesian geometries only) -- */
+      
+      #if GEOMETRY != CARTESIAN      
+      A  = grid->A[JDIR][k][j][i];
+      NVAR_LOOP(nv) fA[j][nv] = flux[j][nv]*A;
+      #if (GEOMETRY == SPHERICAL && COMPONENTS == 3)     
+      double sp = grid->sp[j];
+      fA[j][iMPHI] *= fabs(sp);
+      #if PHYSICS == MHD
+      fA[j][iBPHI] = flux[j][iBPHI];      
+      #endif
+      #endif
+      #endif
     }
+
+/* --------------------------------------------------------
+   3. Compute total flux for the X3-Sweep
+   -------------------------------------------------------- */
+
   }else if (g_dir == KDIR){
     for (k = beg; k <= end; k++) {
 
     /* ----------------------------------------------------
-        include flux contributions from FARGO
-        (polar/cartesian geometries only)
+       3a. include flux contributions from FARGO
+           (polar/cartesian geometries only)
        ---------------------------------------------------- */
 
-    #if (GEOMETRY != SPHERICAL) && (defined FARGO && !defined SHEARINGBOX)
+      #if (GEOMETRY != SPHERICAL) && (defined FARGO && !defined SHEARINGBOX)
       wp = 0.5*(wA[k][i] + wA[k+1][i]);
       IF_ENERGY(flux[k][ENG] += wp*(0.5*wp*flux[k][RHO] + flux[k][iMPHI]);)
       flux[k][iMPHI] += wp*flux[k][RHO];
-    #endif
+      #endif
 
-    #if (BODY_FORCE & POTENTIAL) && HAVE_ENERGY
+      #if (BODY_FORCE & POTENTIAL) && HAVE_ENERGY
       flux[k][ENG] += flux[k][RHO]*phi_p[k];
-    #endif
+      #endif
+      
+      #if GEOMETRY != CARTESIAN      
+      A  = grid->A[KDIR][k][j][i];
+      NVAR_LOOP(nv) fA[k][nv] = flux[k][nv]*A;
+      #endif
+
     }
   }
 }

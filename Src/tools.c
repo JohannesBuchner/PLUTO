@@ -10,16 +10,17 @@
   - function for swapping/detecting endianity
   
   \author A. Mignone (mignone@ph.unito.it)
-  \date   Sept 1, 2014
+  \date   July 15, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
+   
 /* ********************************************************************* */
 int CheckNaN (double **u, int is, int ie, int id)
 /*!
- * Cheeck whether the array \c u contains Not-a-Number
- *  (NaN)
+ * Check whether the array \c u contains Not-a-Number
+ *  (NaN). QUIT if true.
  *
  *********************************************************************** */
 {
@@ -37,6 +38,115 @@ int CheckNaN (double **u, int is, int ie, int id)
 }
 
 /* ********************************************************************* */
+void GetNeighbourRanks (Grid *grid, int **nranks)
+/*! 
+ *  Find the ranks of neighbour processors direction by direction.
+ *  Store them in the array \c nrank[dir][s] where \c dir is the
+ *  direction and <tt> s = 0,1 </tt> stands for the left (0) or right
+ *  (1) processor.
+ *  If a processor touches the physical boundary that is not periodic,
+ *  the corresponding neighbour rank will be set to -1.
+ *
+ * \param [in]   grid    pointer to an array of grid structures.
+ * \param [out]  nranks  an array of integers containing the ranks of
+ *                       the neighbouring processors
+ *********************************************************************** */
+{
+#ifdef PARALLEL
+  int dir, coords[3], rnk;
+  int lbound, rbound;
+  MPI_Comm cartcomm;
+  
+
+  AL_Get_cart_comm(SZ, &cartcomm);
+    
+/* ------------------------------------------------------------
+    Neighbour exists when there's no physical boundary, or
+    when PERIODIC or SHEARING boundary conditions are imposed
+    along that direction.
+   ------------------------------------------------------------ */
+
+  for (dir = 0; dir < 3;dir++){
+
+  /* -- Obtain local processor coordinates -- */
+
+    D_EXPAND(coords[IDIR] = grid->rank_coord[IDIR];  ,
+             coords[JDIR] = grid->rank_coord[JDIR];  ,
+             coords[KDIR] = grid->rank_coord[KDIR];)
+
+    nranks[dir][0] = nranks[dir][1] = -1;
+
+    lbound = grid->lbound[dir];
+    if (lbound == 0 || lbound == PERIODIC || lbound == SHEARING){
+      coords[dir] = grid->rank_coord[dir] - 1;
+      MPI_Cart_rank(cartcomm, coords, &rnk);
+      nranks[dir][0] = rnk;
+    }
+
+    rbound = grid->rbound[dir];
+
+    if (rbound == 0 || rbound == PERIODIC || rbound == SHEARING){
+      coords[dir] = grid->rank_coord[dir] + 1;
+      MPI_Cart_rank(cartcomm, coords, &rnk);
+      nranks[dir][1] = rnk;
+    }
+  }
+  
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  return;
+#endif  /* PARALLEL */
+}
+
+#if !(defined CHOMBO) && (defined GNUPLOT)
+/* ********************************************************************* */
+void GnuplotSetting(Grid *grid)
+/*
+ * Set-up a gnuplot script containing grid info, variable names, etc...
+ *********************************************************************** */
+{
+  int  nv, count;
+  char *var_name[256];
+  FILE *fp;
+
+/* --------------------------------------------------------
+   0. Allocate memory for an array of strings containing
+      the names of the variables.
+      Get the variable names being written to disk.
+   -------------------------------------------------------- */
+
+  for (nv = 0; nv < 255; nv++) var_name[nv] = ARRAY_1D(32,char);
+  count = GetOutputVarNames(FLT_OUTPUT, var_name);
+
+/* --------------------------------------------------------
+   1. Open file and write relevant info.
+   -------------------------------------------------------- */
+
+  fp = fopen("pluto.gp","w");
+
+  fprintf (fp, "# ***********************************************************\n");
+  fprintf (fp, "# Initialize grid quantities for reading binary data with \n");
+  fprintf (fp, "# Gnuplot.\n");
+  fprintf (fp, "# ***********************************************************\n");
+
+  fprintf (fp, "nx = %d\n", grid->np_int_glob[IDIR]);
+  fprintf (fp, "ny = %d\n", grid->np_int_glob[JDIR]);
+  fprintf (fp, "nz = %d\n", grid->np_int_glob[KDIR]);
+  
+  fprintf (fp, "xbeg = %f; xend = %f\n", grid->xbeg_glob[IDIR],
+                                         grid->xend_glob[IDIR]);
+
+  fprintf (fp, "ybeg = %f; yend = %f\n", grid->xbeg_glob[JDIR],
+                                         grid->xend_glob[JDIR]);
+    
+  fprintf (fp, "\n# -- Set variables indices --\n\n");
+  for (nv = 0; nv < count; nv++) fprintf (fp, "%s = %d\n",var_name[nv], nv);
+  
+  fclose(fp);
+}
+#endif
+
+/* ********************************************************************* */
 int IsLittleEndian (void) 
 /*!
  * Return 1 if the current architecture has little endian order
@@ -48,67 +158,75 @@ int IsLittleEndian (void)
 }
 
 /* ********************************************************************* */
-void MakeState (State_1D *state)
+void MakeState (Sweep *sweep)
 /*!
- *
- * Allocate memory areas for arrays inside the state
+ * Allocate memory areas for arrays inside the sweep
  * structure.
- *
- *
  *********************************************************************** */
 {
-  state->v       = ARRAY_2D(NMAX_POINT, NVAR, double);
-  state->vp      = ARRAY_2D(NMAX_POINT, NVAR, double);
-  state->vm      = ARRAY_2D(NMAX_POINT, NVAR, double);
-  state->up      = ARRAY_2D(NMAX_POINT, NVAR, double);
-  state->um      = ARRAY_2D(NMAX_POINT, NVAR, double);
-  state->flux    = ARRAY_2D(NMAX_POINT, NVAR, double);
+  State *stateC = &(sweep->stateC);
+  State *stateL = &(sweep->stateL);
+  State *stateR = &(sweep->stateR);
 
-  state->src     = ARRAY_2D(NMAX_POINT, NVAR, double);
+/* --------------------------------------------------------
+   0. Allocate memory for sweep structure members
+   -------------------------------------------------------- */
 
-  state->visc_flux = ARRAY_2D(NMAX_POINT, NVAR, double);
-  state->visc_src  = ARRAY_2D(NMAX_POINT, NVAR, double);
-  state->tc_flux   = ARRAY_2D(NMAX_POINT, NVAR, double);    
-  state->res_flux  = ARRAY_2D(NMAX_POINT, NVAR, double); 
+  sweep->vn      = ARRAY_2D(NMAX_POINT, NVAR, double);
+  sweep->flux    = ARRAY_2D(NMAX_POINT, NVAR, double);
+  sweep->src     = ARRAY_2D(NMAX_POINT, NVAR, double);
 
-  state->rhs     = ARRAY_2D(NMAX_POINT, NVAR, double);
-  state->press   = ARRAY_1D(NMAX_POINT, double);
-  state->bn      = ARRAY_1D(NMAX_POINT, double);
-  state->SL      = ARRAY_1D(NMAX_POINT, double);
-  state->SR      = ARRAY_1D(NMAX_POINT, double);
+  sweep->tc_flux = ARRAY_2D(NMAX_POINT, NVAR, double);    
+
+  sweep->rhs     = ARRAY_2D(NMAX_POINT, NVAR, double);
+  sweep->press   = ARRAY_1D(NMAX_POINT, double);
+  sweep->bn      = ARRAY_1D(NMAX_POINT, double);
+  sweep->SL      = ARRAY_1D(NMAX_POINT, double);
+  sweep->SR      = ARRAY_1D(NMAX_POINT, double);
 
 /* -- eigenvectors -- */
 
-  state->Lp      = ARRAY_3D(NMAX_POINT, NFLX, NFLX, double);
-  state->Rp      = ARRAY_3D(NMAX_POINT, NFLX, NFLX, double);
-  state->lambda  = ARRAY_2D(NMAX_POINT, NFLX, double);
-  state->lmax    = ARRAY_1D(NVAR, double);
+  sweep->lmax    = ARRAY_1D(NVAR, double);
+  sweep->flag    = ARRAY_1D(NMAX_POINT, unsigned char);
 
-  state->a2   = ARRAY_1D(NMAX_POINT, double);
-  state->h    = ARRAY_1D(NMAX_POINT, double);
+/* --------------------------------------------------------
+   1. Allocate memory for state structure members.
+      C/L stand, respectively, for cell center and
+      left interfaces (i+1/2, L).
+   -------------------------------------------------------- */
+  
+  StateStructAllocate (stateC);
+  StateStructAllocate (stateL);
 
-/*  state->dwlim   = ARRAY_2D(NMAX_POINT, NVAR, double);*/
+/* --------------------------------------------------------
+   2. Allocate memory for the right state structure.
+      Note that we add an offset +1 in order to access
+      stateR->v[i-1].
+   -------------------------------------------------------- */
+  
+  stateR->v      = ARRAY_2D(NMAX_POINT, NVAR, double)+1;
+  stateR->u      = ARRAY_2D(NMAX_POINT, NVAR, double)+1;
+  stateR->flux   = ARRAY_2D(NMAX_POINT, NVAR, double)+1;
+  stateR->lambda = ARRAY_2D(NMAX_POINT, NVAR, double)+1;
+  stateR->prs    = ARRAY_1D(NMAX_POINT, double)+1;
+  stateR->a2     = ARRAY_1D(NMAX_POINT, double)+1;
+  stateR->cw     = ARRAY_1D(NMAX_POINT, double)+1;
+  stateR->h      = ARRAY_1D(NMAX_POINT, double)+1;
+  stateR->Lp     = ARRAY_3D(NMAX_POINT, NFLX, NFLX, double)+1;
+  stateR->Rp     = ARRAY_3D(NMAX_POINT , NFLX, NFLX, double)+1;
+  stateR->J      = stateL->J;
+  stateR->cCR    = stateL->cCR;
+  stateR->Fcr    = ARRAY_2D(NMAX_POINT, 4, double) + 1; 
+  stateR->fluxCR = ARRAY_2D(NMAX_POINT, NVAR, double)+1;
+  stateR->Bbck   = stateL->Bbck;
 
-  state->flag    = ARRAY_1D(NMAX_POINT, unsigned char);
+//  StateStructAllocate (stateR);
 
-/* --------------------------------------
-     define shortcut pointers for
-     left and right values with respect
-     to the cell center
-   -------------------------------------- */
-   
-  state->vL = state->vp;
-  state->vR = state->vm + 1;
+/* -- Allocate shared memory areas -- */
 
-  state->uL = state->up;
-  state->uR = state->um + 1;
-
-  #if (TIME_STEPPING == HANCOCK) || (TIME_STEPPING == CHARACTERISTIC_TRACING)
-   state->vh = ARRAY_2D(NMAX_POINT, NVAR, double);
-  #else
-   state->vh = state->v;
-  #endif
-
+//  stateL->Bbck = ARRAY_2D(NMAX_POINT, 3, double);
+//  stateR->Bbck = stateL->Bbck;
+//  stateC->Bbck = ARRAY_2D(NMAX_POINT, 3, double);
 }
 
 /* ********************************************************************* */
@@ -126,6 +244,29 @@ void PlutoError (int condition, char *str)
     print ("\n");
     QUIT_PLUTO(1);
   }
+}
+
+/* ********************************************************************* */
+void StateStructAllocate (State *p)
+/*!
+ * Allocate memory areas for arrays inside the State structure.
+ *********************************************************************** */
+{
+  p->v      = ARRAY_2D(NMAX_POINT, NVAR, double);
+  p->u      = ARRAY_2D(NMAX_POINT, NVAR, double);
+  p->flux   = ARRAY_2D(NMAX_POINT, NVAR, double);
+  p->lambda = ARRAY_2D(NMAX_POINT, NVAR, double);
+  p->prs    = ARRAY_1D(NMAX_POINT, double);
+  p->a2     = ARRAY_1D(NMAX_POINT, double);
+  p->cw     = ARRAY_1D(NMAX_POINT, double);
+  p->h      = ARRAY_1D(NMAX_POINT, double);
+  p->Lp     = ARRAY_3D(NMAX_POINT, NFLX, NFLX, double);
+  p->Rp     = ARRAY_3D(NMAX_POINT, NFLX, NFLX, double);
+  p->J      = ARRAY_2D(NMAX_POINT, 3, double);
+  p->cCR    = ARRAY_2D(NMAX_POINT, 3, double);
+  p->Fcr    = ARRAY_2D(NMAX_POINT, 4, double); 
+  p->fluxCR = ARRAY_2D(NMAX_POINT, NVAR, double);
+  p->Bbck   = ARRAY_2D(NMAX_POINT, 3, double);
 }
 
 /* ********************************************************************* */
@@ -158,23 +299,9 @@ void Show (double **a, int ip)
             print (" (%d,%d)> ", ix, iy);  ,
             print (" (%d,%d,%d)> ", ix, iy, iz);  )
 
-
   for (nv = 0; nv < NVAR; nv++) {
-    print ("%12.6e  ", a[ip][nv]);
+    print ("%8.3e  ", a[ip][nv]);
   }
-  print ("\n");
-}
-
-/* ********************************************************************* */
-void ShowVector (double *v, int n)
-/*! 
- * Print the component of the array \c a at grid index \c ip  
- *
- *********************************************************************** */
-{
-  int k;
-
-  for (k = 0; k < n; k++)  print ("%12.6e  ", v[k]);
   print ("\n");
 }
 
@@ -194,9 +321,142 @@ void ShowMatrix(double **A, int n, double eps)
     for (k2 = 0; k2 < n; k2++){
       print ("%12.3e   ", fabs(A[k1][k2]) > eps ? A[k1][k2]:0.0);
     }
-    printf ("\n");
+    print ("\n");
   }
   print ("----------------------------------------------------------------\n");
+}
+
+/* ********************************************************************* */
+void ShowVector (double *v, int n)
+/*! 
+ * Print the first n components of the vector v[]  
+ *
+ *********************************************************************** */
+{
+  int k;
+
+  for (k = 0; k < n; k++)  print ("%12.6e  ", v[k]);
+  print ("\n");
+}
+
+/* ********************************************************************* */
+int StringArrayIndex (char *str_arr[], int size, char *str)
+/*!
+ *  Find the index of an array of strings whose value matches the
+ *  input string \c *str.
+ *
+ * \param [in]  str_arr  the array of strings
+ * \param [in]  size     the size of the array
+ * \param [in]  str      the string to search for
+ *********************************************************************** */
+{
+  int i;
+
+  for (i = 0; i < size; i++){
+    if (!strcmp(str_arr[i],str)) return i;
+  }
+  return -1;
+
+}
+
+/* ********************************************************************* */
+void SymmetryCheck (Data_Arr V, int where, RBox *box)
+/*!
+ * Check if vectors preserve symmetry / antisymmetry properties
+ * at a symmetry axis (r = 0 for cylindrical or theta = 0 for spherical)
+ * Vectors can only be cell-centered (meaning that *all* components must
+ * be cell-centered) or face-centered (meaning that *all* components must
+ * be face-centered).
+ * Staggered fields are not allowed.
+ *********************************************************************** */
+{
+  int i,j,k;
+  int ip, jp;
+  double ***Vx1 = V[0];
+  double ***Vx2 = V[1];
+  double ***Vx3 = V[2];
+  double scrh1, scrh2, scrh3;
+
+  BOX_LOOP(box,k,j,i){
+
+    #if GEOMETRY == CYLINDRICAL
+    if (i >= IBEG) continue;
+
+    if (where == X1FACE){   /* Vector is defined at radial i+1/2 interfaces */
+      ip = 2*IBEG-i-2;
+      jp = j;
+
+    /* At IBEG-1/2 interface, check that there're no Inf or Nan values */
+      if (i == IBEG-1){
+        if (   fabs(Vx1[k][j][i]) > 1.e8 || Vx1[k][j][i] != Vx1[k][j][i]
+            || fabs(Vx2[k][j][i]) > 1.e8 || Vx2[k][j][i] != Vx2[k][j][i]
+            || fabs(Vx3[k][j][i]) > 1.e8 || Vx3[k][j][i] != Vx3[k][j][i]){
+          print ("! SymmetryCheck(): invalid value\n");
+          QUIT_PLUTO(1);
+        }
+        continue; /* Skip this point since i = ip would be the same */
+      }
+    }else {                /* Vector is defined at center or j+1/2 interface */
+      ip = 2*IBEG-i-1;
+      jp = j;
+    }
+    scrh1 = fabs(Vx1[k][j][i] + Vx1[k][jp][ip]); /* r-component:   antisymmetric */
+    scrh2 = fabs(Vx2[k][j][i] - Vx2[k][jp][ip]); /* z-component:   symmetric */
+    scrh3 = fabs(Vx3[k][j][i] + Vx3[k][jp][ip]); /* phi-component: antisymmetric */
+    #elif GEOMETRY == SPHERICAL
+    if (j >= JBEG) continue;
+
+    if (where == X2FACE){  /* Vector is define at meridional j+1/2 interfaces */
+      ip = i;
+      jp = 2*JBEG-j-2;
+    /* At JBEG-1/2 interface, check that there're no Inf or Nan values */
+      if (j == JBEG-1){
+        if (   fabs(Vx1[k][j][i]) > 1.e8 || Vx1[k][j][i] != Vx1[k][j][i]
+            || fabs(Vx2[k][j][i]) > 1.e8 || Vx2[k][j][i] != Vx2[k][j][i]
+            || fabs(Vx3[k][j][i]) > 1.e8 || Vx3[k][j][i] != Vx3[k][j][i]){
+          print ("! SymmetryCheck(): invalid value\n");
+          print ("! V = (%12.6e, %12.6e, %12.6e\n",
+                    Vx1[k][j][i],Vx2[k][j][i],Vx3[k][j][i]);
+          QUIT_PLUTO(1);
+        }
+        continue; /* Skip this point since j = jp would be the same */
+      }
+    }else {             /* Vector is define at center or radial interfaces */     
+      ip = i;
+      jp = 2*JBEG-j-1;
+    }
+    scrh1 = fabs(Vx1[k][j][i] - Vx1[k][jp][ip]); /* r-component:   symmetric */
+    scrh2 = fabs(Vx2[k][j][i] + Vx2[k][jp][ip]); /* th-component:  antisymmetric */
+    scrh3 = fabs(Vx3[k][j][i] + Vx3[k][jp][ip]); /* phi-component: antisymmetric */
+    #endif
+
+
+    if (scrh1 > 1.e-14 || scrh2 > 1.e-14 || scrh3 > 1.e-14){
+      #if GEOMETRY == CYLINDRICAL
+      if (where == X1FACE){
+        print ("! SymmetryCheck(): Vector not symmetric at i+1/2,j = %d+1/2, %d\n",i,j);
+      }else if (where == X2FACE){
+        print ("! SymmetryCheck(): Vector not symmetric at i,j+1/2 = %d, %d+1/2\n",i,j);
+      }else {
+        print ("! SymmetryCheck(): Vector not symmetric at i,j = %d, %d\n",i,j);
+      }
+      #elif GEOMETRY == SPHERICAL
+      if (where == X1FACE){
+        print ("! SymmetryCheck(): Vector not symmetric at i+1/2,j = %d+1/2, %d\n",i,j);
+      }else if (where == X2FACE){
+        print ("! SymmetryCheck(): Vector not symmetric at i,j+1/2 = %d, %d+1/2\n",i,j);
+      }else{
+        print ("! SymmetryCheck(): Vector not symmetric at i,j = %d, %d\n",i,j);
+      }
+      #endif
+      print ("! i, j, k = %d, %d, %d --> V = (%12.6e, %12.6e, %12.6e) \n",
+                   i,j,k,Vx1[k][j][i],Vx2[k][j][i], Vx3[k][j][i]);
+      print ("! ip,jp,k = %d, %d, %d --> V = (%12.6e, %12.6e, %12.6e)\n",
+                 ip,jp,k, Vx1[k][jp][ip],Vx2[k][jp][ip], Vx3[k][jp][ip]);
+
+      QUIT_PLUTO(1);
+    } 
+  }
 }
 
 /* ********************************************************************* */
@@ -228,7 +488,7 @@ void Trace (double xx)
 {
   static int ik;
 
-  printf ("Trace ------> %f ,  %d\n", xx, ++ik);
+  print ("Trace ------> %f ,  %d\n", xx, ++ik);
 }
 
 /* ********************************************************************* */
@@ -246,16 +506,14 @@ void Where (int i, Grid *grid)
 {
   int    ii=0, jj=0, kk=0;
   double x1, x2, x3;
-  static Grid *grid1, *grid2, *grid3;
+  static Grid *grid_copy;
 
 /* --------------------------------------------------
     Keep a local copy of grid for subsequent calls
    -------------------------------------------------- */
  
   if (grid != NULL){
-    grid1 = grid + IDIR;
-    grid2 = grid + JDIR;
-    grid3 = grid + KDIR;
+    grid_copy = grid;
     return;
   }
 
@@ -275,142 +533,26 @@ void Where (int i, Grid *grid)
   }
 
   D_EXPAND(
-    x1 = grid1->x[ii];  ,
-    x2 = grid2->x[jj];  ,
-    x3 = grid3->x[kk];
+    x1 = grid_copy->x[IDIR][ii];  ,
+    x2 = grid_copy->x[JDIR][jj];  ,
+    x3 = grid_copy->x[KDIR][kk];
   )
 
   D_SELECT(
-    print ("zone [x1(%d) = %f]",
-            ii, grid1->x[ii]);  ,
+    print ("  [i = %d], [x1 = %f]", ii, x1);  ,
 
-    print ("zone [x1(%d) = %f, x2(%d) = %f]",
-            ii, grid1->x[ii], 
-            jj, grid2->x[jj]);  ,
+    print ("  [i,j = %d, %d], [x1,x2 =  %f, %f]", ii, jj, x1, x2);  ,
 
-    print ("zone [x1(%d) = %f, x2(%d) = %f, x3(%d) = %f]",
-            ii, grid1->x[ii], 
-            jj, grid2->x[jj],
-            kk, grid3->x[kk]);
+    print ("  [i,j,k = %d, %d, %d], [x1,x2,x3 = %f, %f, %f]", ii, jj, kk,
+            x1, x2, x3);
   )
 
   #ifdef CHOMBO
-   print (", Level = %d\n", grid1->level);
-   return;
+  print (", Level = %d\n", grid_copy->level);
+  return;
   #endif
-  #ifdef PARALLEL
-   print (", proc %d\n", prank);
-   return;
-  #else
-   print ("\n");
-   return;
-  #endif  
+  print ("\n");
 }
-
-/* /////////////////////////////////////////////////////////////////////
-    The next set of functions provides basic functionalities to
-     
-     - set the log file
-     - formatted output to the log file through the print() and print1()
-       functions
-   ///////////////////////////////////////////////////////////////////// */
-
-static char log_file_name[512];
-
-/* ********************************************************************* */
-int SetLogFile(char *output_dir, Cmd_Line *cmd)
-/*!
- * Set the name of the log file and open in write or append mode
- * depending on whether restart is enabled or not.
- *
- * \param [in] output_dir  the name of the output directory
- * \param [in] cmd         pointer to cmd line option structure.
- *                           
- *********************************************************************** */
-{
-#if PRINT_TO_FILE == YES
-  FILE *fl;
-
-/* ------------------------------------------------
-    All processors set log file name
-   ------------------------------------------------ */
-
-  sprintf (log_file_name, "%s/pluto.log",output_dir);    
-
-/* ------------------------------------------------
-    Proc. #0 opens log file for writing if 
-    -restart or -h5restart have not been given.
-    Otherwise, open in append mode.
-   ------------------------------------------------ */
-  
-  if (prank == 0){
-    if (cmd->restart == NO && cmd->h5restart == NO){
-      fl = fopen(log_file_name,"w");
-    }else{
-      fl = fopen(log_file_name,"aw");
-    } 
-
-  /* -- check that we have a valid directory name -- */
-
-    if (fl == NULL){
-      printf ("! SetLogFile: pluto.log cannot be written.\n");
-      QUIT_PLUTO(1);
-    }
-    fprintf(fl,"\n");
-    fclose(fl);
-  }
-#endif
-}
-
-#ifndef CH_SPACEDIM
-/* ********************************************************************* */
-void print (const char *fmt, ...)
-/*!
- * Define print function for the static grid version
- * of PLUTO. The Chombo version is defined in Chombo/amrPLUTO.cpp
- *
- *********************************************************************** */
-{
-  FILE *fl;
-
-  va_list args;
-  va_start(args, fmt);
-
-#if PRINT_TO_FILE == YES
-  fl = fopen(log_file_name,"a");
-  vfprintf(fl, fmt, args);
-  fclose (fl);
-#else
-  vprintf(fmt, args);
-#endif
-
-  va_end(args);
-}
-/* ********************************************************************* */
-void print1 (const char *fmt, ...)
-/*!
- *
- *   Define print1 function
- *
- *********************************************************************** */
-{
-  FILE *fl;
-
-  va_list args;
-  va_start(args, fmt);
-
-  #if PRINT_TO_FILE == YES
-   if (prank == 0){
-     fl = fopen(log_file_name,"a");
-     vfprintf(fl,fmt, args);
-     fclose(fl);
-   }
-  #else
-   if (prank == 0) vprintf(fmt, args);
-  #endif
-  va_end(args);
-}
-#endif
 
 /* ********************************************************************* */
 void WriteAsciiFile (char *fname, double *q, int nvar)
@@ -440,3 +582,4 @@ void WriteAsciiFile (char *fname, double *q, int nvar)
   fclose(fp);
   
 }
+

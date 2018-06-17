@@ -73,7 +73,7 @@ void MakeInternalEnergyTable()
   double x, y, q;
   double T, rho, v[NVAR];
 
-  print1 ("> MakeInternalEnergyTable(): Generating table (%d x %d points)\n",
+  print ("> MakeInternalEnergyTable(): Generating table (%d x %d points)\n",
            TV_ENERGY_TABLE_NX, TV_ENERGY_TABLE_NY);
 
   InitializeTable2D(&rhoe_tab, 1.0, 1.e8, TV_ENERGY_TABLE_NX, 
@@ -201,7 +201,7 @@ void MakeEV_TemperatureTable()
   double rhoe, rho, Tlo, Thi, T;
   struct func_param par;
 
-  print1 ("> MakeEV_TemperatureTable(): Generating table...\n");
+  print ("> MakeEV_TemperatureTable(): Generating table...\n");
 
   InitializeTable2D(&Trhoe_tab, 1.e-9, 1.e9, 1200, 1.e-12, 1.e12, 1200);
   Tlo = 1.0;
@@ -411,8 +411,7 @@ double rhoeFunc(double T, void *par)
 }
 
 /* ********************************************************************* */
-void SoundSpeed2 (double **v, double *cs2, double *h, int beg, int end,
-                  int pos, Grid *grid)
+void SoundSpeed2 (const State *p, int beg, int end,int pos, Grid *grid)
 /*!
  * Define the square of the sound speed.
  * 
@@ -431,7 +430,7 @@ void SoundSpeed2 (double **v, double *cs2, double *h, int beg, int end,
   int  i;
 
   for (i = beg; i <= end; i++){
-     cs2[i] = Gamma1(v[i])*v[i][PRS]/v[i][RHO];
+    p->a2[i] = Gamma1(p->v[i])*p->v[i][PRS]/p->v[i][RHO];
 /*     cs2[i] = 1.6667*v[i][PRS]/v[i][RHO];  */
   }
 }

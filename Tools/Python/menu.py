@@ -60,7 +60,8 @@ def SetTitle (title, subtitle = ''):
 def Print (message, sleep=0.7,row=1):
 
   for x in sys.argv:  # avoid curses library with the --no-curses option.
-    if (x == "--no-curses" or gb.init == 0):
+#    if (x == "--no-curses" or gb.init == 0):
+    if (x == "--no-curses" and gb.init == 0):
       Print_no_curses(message,sleep,row)
       return
   
@@ -336,7 +337,7 @@ def Prompt_no_curses (message):
 
   os.system("clear")
   print(message)
-  q = input()
+  q = raw_input()
 
 ######################################################
 def Browse_no_curses(entries,  default, options):
@@ -355,8 +356,8 @@ def Browse_no_curses(entries,  default, options):
       else:
         print(str(i).rjust(2),') ',x.ljust(28))
 
-    print(" ")
-    q = input(">> choice ? ")
+    print (" ")
+    q = raw_input(">> choice ? ")
     if (q == ''):
       print("Enter")
     else:
@@ -372,7 +373,7 @@ def Browse_no_curses(entries,  default, options):
         opt_list += repr(i)+") "+x+"   "
     
       print("\n"+entries[q]+": ",opt_list)
-      c = input(">> choice ["+default[q]+"] ? ")
+      c = raw_input(">> choice ["+default[q]+"] ? ")
       try: 
         c = int(c)
       except:
@@ -390,13 +391,13 @@ def Insert_no_curses(entries, names):
   q = "c"
   while (q != ''):
     os.system("clear")
-    print(">> ",gb.title+"\n")
+    print (">> ",gb.title+"\n")
     for x in entries:
       i = entries.index(x)
       print(str(i).rjust(2),') ',names[i].ljust(28))
 
-    print(" ")
-    q = input(">> choice ? ")
+    print (" ")
+    q = raw_input(">> choice ? ")
     if (q == ''):
       print("Enter")
     else:
@@ -405,7 +406,7 @@ def Insert_no_curses(entries, names):
       except:
         continue
 
-      newname = input(">> new name ? ")
+      newname = raw_input(">> new name ? ")
       names[q] = newname
 
   return

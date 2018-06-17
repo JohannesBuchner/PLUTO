@@ -71,7 +71,7 @@
   \image html sb.06.png  "Density and magnetic field lines for configuration #06 at t = 50 using a grid resolution of 64 x 256 x 64."
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   Aug 25, 2015
+  \date   March 2, 2017
 
   \b References:
      - [Bod08]: "Aspect ratio dependence in magnetorotational instability 
@@ -104,8 +104,8 @@ void Init (double *v, double x, double y, double z)
   double kx, ky, kz;
 
 #ifndef SHEARINGBOX
-  print1 ("! ShearingBox module has not been included.\n");
-  print1 ("! Cannot continue.\n");
+  print ("! ShearingBox module has not been included.\n");
+  print ("! Cannot continue.\n");
   QUIT_PLUTO(1);
 #endif
 
@@ -208,6 +208,20 @@ void Init (double *v, double x, double y, double z)
    #endif
   #endif
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /*! 
@@ -234,8 +248,8 @@ void Analysis (const Data *d, Grid *grid)
 
 /* -- pointers to mesh spacing and coordinates -- */
 
-  dx = grid[IDIR].dx; dy = grid[JDIR].dx; dz = grid[KDIR].dx;
-   x = grid[IDIR].x;   y = grid[JDIR].x;   z = grid[KDIR].x;
+  dx = grid->dx[IDIR]; dy = grid->dx[JDIR]; dz = grid->dx[KDIR];
+   x = grid->x[IDIR];   y = grid->x[JDIR];   z = grid->x[KDIR];
 
 /* ------------------------------------------------------------
     Main analysis loop.
@@ -298,6 +312,10 @@ void Analysis (const Data *d, Grid *grid)
       if (tpos < 0.0){  /* obtain time coordinate of last written line */
         char   sline[512];
         fp = fopen("averages.dat","r");
+        if (fp == NULL){
+          print ("! Analysis(): file averages.dat not found\n");
+          QUIT_PLUTO(1);
+        }
         while (fgets(sline, 512, fp))  {
         }
         sscanf(sline, "%lf\n",&tpos);
@@ -366,8 +384,8 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
 
   H   = sqrt(2.0)*cs/SB_OMEGA;   /* pressure scale height */
 
-  z  = grid[KDIR].x;
-  dz = grid[KDIR].dx;
+  z  = grid->x[KDIR];
+  dz = grid->dx[KDIR];
 
   if (side == 0) {    /* -- Density threshold -- */
     DOM_LOOP(k,j,i){

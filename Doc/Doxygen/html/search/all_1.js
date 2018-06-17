@@ -1,8 +1,13 @@
 var searchData=
 [
+  ['b',['b',['../struct_r_box.html#a79efa7f58315bfdb060b03d99583ec2c',1,'RBox']]],
   ['b2',['B2',['../struct_map__param.html#ac25028524f0b3bb1e35a6f5b62bc4f47',1,'Map_param']]],
   ['backgroundfield',['BackgroundField',['../init_8c.html#aadd0bb6736fd57811642342df2a86492',1,'init.c']]],
-  ['beg',['beg',['../struct_grid.html#a19beace253d05f90e1cb466800398ef3',1,'Grid']]],
+  ['bbck',['Bbck',['../struct_state.html#ac9f82a078c0111fc179003439d01df25',1,'State']]],
+  ['bbeg',['bbeg',['../struct_r_box.html#af3c0c0de0be7f1228322fef6a4e2deae',1,'RBox']]],
+  ['bckgrnd_5ffield_2ec',['bckgrnd_field.c',['../bckgrnd__field_8c.html',1,'']]],
+  ['beg',['beg',['../struct_grid.html#ac58dfbec74d654821c0b7001217a12ef',1,'Grid']]],
+  ['bend',['bend',['../struct_r_box.html#a92c0dc730ab3612c145f7ec7ec63fe35',1,'RBox']]],
   ['besseli0',['BesselI0',['../math__misc_8c.html#a13905559652de3fa8a58bb30fad1301b',1,'math_misc.c']]],
   ['besseli1',['BesselI1',['../math__misc_8c.html#a2662bbfea0fccc0b4cf444708873ec9a',1,'math_misc.c']]],
   ['besselj0',['BesselJ0',['../math__misc_8c.html#aa07c398804c678f1c22e52f5e148f028',1,'math_misc.c']]],
@@ -11,7 +16,7 @@ var searchData=
   ['besselk1',['BesselK1',['../math__misc_8c.html#ac5678c8e6e9ca45d1f518d8a5770276b',1,'math_misc.c']]],
   ['besselkn',['BesselKn',['../math__misc_8c.html#a5e5fcf6cbd11fcf501c1a4e94216a570',1,'math_misc.c']]],
   ['bin_5fio_2ec',['bin_io.c',['../bin__io_8c.html',1,'']]],
-  ['bn',['bn',['../struct_state__1_d.html#af0320ed01144b5b95c6265f01bdeffbb',1,'State_1D']]],
+  ['bn',['bn',['../struct_sweep.html#af0320ed01144b5b95c6265f01bdeffbb',1,'Sweep']]],
   ['bodyforcepotential',['BodyForcePotential',['../init_8c.html#a50fbb57fcf94c4dbcc760d4c2a1a6fb0',1,'init.c']]],
   ['bodyforcevector',['BodyForceVector',['../init_8c.html#ab423919d12d949e5c00c7e8534bd07c1',1,'init.c']]],
   ['boundary',['Boundary',['../boundary_8c.html#a737d3862f4cf347b9f2216b6310edde7',1,'boundary.c']]],

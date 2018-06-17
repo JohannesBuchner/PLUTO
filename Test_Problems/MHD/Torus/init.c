@@ -80,7 +80,7 @@
   
   \author A. Mignone (mignone@ph.unito.it) \n
           T. Matsakos (titos@oddjob.uchicago.edu)
-  \date   Aug 16, 2012
+  \date   March 02, 2017
 
   \b References
      - "Global Magnetohydrodynamical Simulations of Accretion Tori", 
@@ -199,6 +199,20 @@ void Init (double *v, double x1, double x2, double x3)
 
   g_smallPressure = 1.e-8;
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 
@@ -240,9 +254,9 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
   static double vR1[NVAR];
   double R;
 
-  x1 = grid[IDIR].x;
-  x2 = grid[JDIR].x;
-  x3 = grid[KDIR].x;
+  x1 = grid->x[IDIR];
+  x2 = grid->x[JDIR];
+  x3 = grid->x[KDIR];
  
   if (side == X1_BEG){
     if (box->vpos == CENTER){

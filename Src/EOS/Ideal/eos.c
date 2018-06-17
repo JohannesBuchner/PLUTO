@@ -7,20 +7,17 @@
   hydro/MHD, relativistic hydro/relativistic MHD.
                     
   \author A. Mignone (mignone@ph.unito.it)
-  \date   April 14, 2014
+  \date   Oct 12, 2016
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
 /* ********************************************************************* */
-void SoundSpeed2 (double **v, double *cs2, double *h, int beg, int end,
-                  int pos, Grid *grid)
+void SoundSpeed2 (const State *p, int beg, int end, int pos, Grid *grid)
 /*!
  * Define the square of the sound speed.
  * 
- * \param [in]    v   1D array of primitive quantities
- * \param [out] cs2   1D array containing the square of the sound speed
- * \param [in]    h   1D array of enthalpy values
+ * \param [in]   p    pointer to a state structure
  * \param [in]  beg   initial index of computation 
  * \param [in]  end   final   index of computation
  * \param [in]  pos   an integer specifying the spatial position 
@@ -33,19 +30,19 @@ void SoundSpeed2 (double **v, double *cs2, double *h, int beg, int end,
   int  i;
 
   #if PHYSICS == HD || PHYSICS == MHD
-   for (i = beg; i <= end; i++) cs2[i] = g_gamma*v[i][PRS]/v[i][RHO];
+  for (i = beg; i <= end; i++) p->a2[i] = g_gamma*p->v[i][PRS]/p->v[i][RHO];
   #elif PHYSICS == RHD || PHYSICS == RMHD
-   double theta;
-   Enthalpy(v, h, beg, end);
-   for (i = beg; i <= end; i++) {
-     theta = v[i][PRS]/v[i][RHO];
-     cs2[i] = g_gamma*theta/h[i];
-   }
+  double theta;
+  Enthalpy(p->v, p->h, beg, end);
+  for (i = beg; i <= end; i++) {
+    theta = p->v[i][PRS]/p->v[i][RHO];
+    p->a2[i] = g_gamma*theta/p->h[i];
+  }
   #endif
 }
 
 /* ********************************************************************* */
-void Enthalpy (double **v, real *h, int beg, int end)
+void Enthalpy (double **v, double *h, int beg, int end)
 /*!
  * Compute the enthalpy.
  *

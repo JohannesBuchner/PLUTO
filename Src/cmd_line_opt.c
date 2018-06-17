@@ -7,7 +7,7 @@
   the Cmd_Line structure.
 
   \authors A. Mignone (mignone@ph.unito.it)
-  \date    July 17, 2013
+  \date    March 16, 2018
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -38,11 +38,10 @@ void ParseCmdLineArgs (int argc, char *argv[], char *ini_file,
 
   cmd->restart   = NO;
   cmd->h5restart = NO;
-  cmd->maxsteps  = 0 ;
+  cmd->maxsteps  = -1;
   cmd->write     = YES;
   cmd->makegrid  = NO; 
   cmd->jet       = -1; /* -- means no direction -- */
-  cmd->show_dec  = NO;
   cmd->xres      = -1; /* -- means no grid resizing -- */
 
   cmd->nproc[IDIR] = -1; /* means autodecomp will be used */
@@ -103,10 +102,10 @@ void ParseCmdLineArgs (int argc, char *argv[], char *ini_file,
         QUIT_PLUTO(1);
       }else{
         cmd->maxsteps = atoi(argv[i]);
-        if (cmd->maxsteps == 0) {
+        if (cmd->maxsteps < 0) {
           if (prank == 0)
-            printf ("! You must specify -maxsteps nn, with nn > 0 \n");
-          QUIT_PLUTO(0);
+            printf ("! You must specify -maxsteps nn, with nn >= 0 \n");
+            QUIT_PLUTO(0);
         }
       }
 
@@ -125,10 +124,6 @@ void ParseCmdLineArgs (int argc, char *argv[], char *ini_file,
     }else if (!strcmp(argv[i],"-no-x3par")) {
 
       cmd->parallel_dim[KDIR] = NO;
-
-    } else if (!strcmp(argv[i],"-show-dec")) {
-
-      cmd->show_dec = YES;
 
     } else if (!strcmp(argv[i],"-x1jet")) {
 

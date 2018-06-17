@@ -1,14 +1,22 @@
+/* ///////////////////////////////////////////////////////////////////// */
+/*! 
+  \file  
+  \brief Check if primitive states are physically admissible.
+
+  This function is called at the end of the Hancock or Characteristic
+  Tracing functions to verify that the L/R states at the half-step
+  are physically admissible.
+  
+  \authors A. Mignone (mignone@ph.unito.it)
+
+  \date   Sept 7, 2015
+*/
+/* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
 /* *********************************************************************** */
 void CheckPrimStates(double **vM, double **vP, double **v0,  int beg, int end)
-/*
- *
- *  PURPOSE
- *
- *   check if primitive states vL and vR are physically
- *   admissible. 
- *   Replace their value with v0 otherwise.
+/*!
  *
  *
  ************************************************************************** */
@@ -26,46 +34,38 @@ void CheckPrimStates(double **vM, double **vP, double **v0,  int beg, int end)
     am = vM[i];
     ap = vP[i];
 
-  /*  ----  Prevent unphysical states by revertin to first
+  /*  ----  Prevent unphysical states by reverting to first
             order in time and space,  i.e.  set dw = 0      ----  */
 
-    #if HAVE_ENERGY
-     switch_to_1st = (ap[PRS] < 0.0) || (am[PRS] < 0.0) ;
-    #endif
+#if HAVE_ENERGY
+    switch_to_1st = (ap[PRS] < 0.0) || (am[PRS] < 0.0) ;
+#endif
     switch_to_1st = switch_to_1st || 
                     (ap[RHO] < 0.0) || (am[RHO] < 0.0) ;
 
     /*  ----  Check for superluminal velocities  ---- */
 
 #if (PHYSICS == RHD) || (PHYSICS == RMHD)
-    #if RECONSTRUCT_4VEL == NO    
+    #if RECONSTRUCT_4VEL == NO
     scrhm = EXPAND(am[VX1]*am[VX1], + am[VX2]*am[VX2], + am[VX3]*am[VX3]);
     scrhp = EXPAND(ap[VX1]*ap[VX1], + ap[VX2]*ap[VX2], + ap[VX3]*ap[VX3]);
     switch_to_1st = switch_to_1st || (scrhm >= 1.0);
     switch_to_1st = switch_to_1st || (scrhp >= 1.0);
-    #endif  
+    #endif
 #endif
 
     if (switch_to_1st){
-/*
-      WARNING (
-        print (" ! CheckPrimStates: Unphysical state, ");
-        Where (i,NULL);
-      )
-*/              
-      #ifdef STAGGERED_MHD 
+#ifdef STAGGERED_MHD 
        scrhp = ap[BXn];
        scrhm = am[BXn];
-      #endif
+#endif
 
-      for (nv = 0; nv < NVAR; nv++){
-        am[nv] = ap[nv] = ac[nv];
-      }
+      NVAR_LOOP(nv) am[nv] = ap[nv] = ac[nv];
  
-      #ifdef STAGGERED_MHD
+#ifdef STAGGERED_MHD
        ap[BXn] = scrhp;
        am[BXn] = scrhm;
-      #endif
+#endif
       
     }
   }

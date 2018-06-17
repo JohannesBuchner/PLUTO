@@ -7,7 +7,7 @@
   variable declarations used by the MHD module.
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   April, 2, 2015
+  \date   June 19, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 
@@ -39,9 +39,6 @@
 #define VX3   MX3
 
 #define NFLX (1 + 2*COMPONENTS + HAVE_ENERGY + (DIVB_CONTROL == DIV_CLEANING))
-
-/* ****************************************************************
-   **************************************************************** */
 
 /* ********************************************************************* */
 /*! Label the different waves in increasing order 
@@ -110,46 +107,64 @@ enum KWAVES {
   #define BZ    BX3
 #endif
 
-#if GEOMETRY == CYLINDRICAL 
- #define iVR    VX1
- #define iVZ    VX2
- #define iVPHI  VX3
+#if GEOMETRY == CYLINDRICAL
+  #if COMPONENTS >= 1
+    #define iVR    VX1
+    #define iMR    MX1
+    #define iBR    BX1
+  #endif
 
- #define iMR    MX1
- #define iMZ    MX2
- #define iMPHI  MX3
+  #if COMPONENTS >= 2
+    #define iVZ    VX2
+    #define iMZ    MX2
+    #define iBZ    BX2
+  #endif
 
- #define iBR    BX1
- #define iBZ    BX2
- #define iBPHI  BX3
+  #if COMPONENTS >= 3 
+    #define iVPHI  VX3
+    #define iMPHI  MX3
+    #define iBPHI  BX3
+  #endif  
 #endif
 
-#if GEOMETRY == POLAR 
- #define iVR    VX1
- #define iVPHI  VX2
- #define iVZ    VX3
+#if GEOMETRY == POLAR
+  #if COMPONENTS >= 1
+    #define iVR    VX1
+    #define iMR    MX1
+    #define iBR    BX1
+  #endif
 
- #define iMR    MX1
- #define iMPHI  MX2
- #define iMZ    MX3
+  #if COMPONENTS >= 2 
+    #define iVPHI  VX2
+    #define iMPHI  MX2
+    #define iBPHI  BX2
+  #endif  
 
- #define iBR    BX1
- #define iBPHI  BX2
- #define iBZ    BX3
+  #if COMPONENTS == 3
+    #define iVZ    VX3
+    #define iMZ    MX3
+    #define iBZ    BX3
+  #endif
 #endif
 
-#if GEOMETRY == SPHERICAL 
- #define iVR     VX1
- #define iVTH    VX2
- #define iVPHI   VX3
-
- #define iMR    MX1
- #define iMTH   MX2
- #define iMPHI  MX3
-
- #define iBR    BX1
- #define iBTH   BX2
- #define iBPHI  BX3
+#if GEOMETRY == SPHERICAL
+  #if COMPONENTS >= 1
+    #define iVR    VX1
+    #define iMR    MX1
+    #define iBR    BX1
+  #endif
+  
+  #if COMPONENTS >= 2
+    #define iVTH   VX2
+    #define iMTH   MX2
+    #define iBTH   BX2
+  #endif
+ 
+  #if COMPONENTS == 3    
+    #define iVPHI  VX3
+    #define iMPHI  MX3
+    #define iBPHI  BX3
+  #endif
 #endif
 
 /* ***********************************************************
@@ -159,32 +174,28 @@ enum KWAVES {
 
 void BackgroundField (double x1, double x2, double x3, double *B0);
 
-#if BACKGROUND_FIELD == YES
- double **GetBackgroundField (int, int, int, Grid *);
-#endif 
-
-int  ConsToPrim   (double **, real **, int , int, unsigned char *);
-void Eigenvalues (double **, double *, double **, int, int);
-
-void PrimEigenvectors (double *, double, double, double *, double **, double **);
 void ConsEigenvectors (double *, double *, double,
                        double **, double **, double *);
+int  ConsToPrim   (double **, double **, int , int, unsigned char *);
+void Eigenvalues (double **, double *, double **, int, int);
 
-void Flux      (double **, double **, double *, double **, double **,
-                double *, int, int);
-void HLL_Speed (double **, double **, double *, double *, double **, 
-                double *, double *, int, int);
-void MaxSignalSpeed (double **, double *, double *, double *, double **, int, int);
-void PrimToCons   (double **, double **, int, int);
-void PrimRHS    (double *, double *, double, double, double *);
-void PrimSource (const State_1D *, int, int, 
-                 double *, double *, double **, Grid *);
+void Flux (const State *, int, int);
+#if BACKGROUND_FIELD == YES
+void GetBackgroundField (const State *, int, int, int, Grid *);
+#endif
+void GetCurrent (const Data *, Grid *);
+void HLL_Speed (const State *, const State *, double *, double *, int, int);
+
+void MaxSignalSpeed (const State *, double *, double *, int, int);
+
+void PrimEigenvectors(const State *, int, int);
+void PrimRHS     (double *, double *, double, double, double *);
+void PrimSource  (const State *, double **, int, int, Grid *);
+void PrimToCons  (double **, double **, int, int);
 
 #if DIVB_CONTROL == EIGHT_WAVES
-
- void Roe_DivBSource (const State_1D *, int, int, Grid *);
- void HLL_DivBSource (const State_1D *, double **, int, int, Grid *);
-
+ void Roe_DivBSource (const Sweep *, int, int, Grid *);
+ void HLL_DivBSource (const Sweep *, double **, int, int, Grid *);
 #elif DIVB_CONTROL == DIV_CLEANING
 
  #include "MHD/GLM/glm.h"
@@ -199,7 +210,9 @@ Riemann_Solver HLL_Solver, HLLC_Solver, HLLD_Solver;
 Riemann_Solver LF_Solver, Roe_Solver;
 Riemann_Solver HLL_Linde_Solver;
 
-
+#if AMBIPOLAR_DIFFUSION != NO
+ #include "Ambipolar_Diffusion/ad.h"
+#endif
 #if RESISTIVITY != NO
  #include "Resistivity/res.h"
 #endif

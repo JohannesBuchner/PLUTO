@@ -27,7 +27,7 @@ void ComputeUserVar (const Data *d, Grid *grid)
   }
 }
 /* ************************************************************* */
-void ChangeDumpVar ()
+void ChangeOutputVar ()
 /* 
  *
  * 

@@ -119,7 +119,7 @@ void WriteHDF5 (Output *output, Grid *grid)
                  node_coords[KDIR][kk][jj][ii] = (float)(x1*cos(x2));)
        #endif
       #else
-       print1 ("! HDF5_IO: Unknown geometry\n");
+       print ("! HDF5_IO: Unknown geometry\n");
        QUIT_PLUTO(1);
       #endif
     }}}
@@ -150,7 +150,7 @@ void WriteHDF5 (Output *output, Grid *grid)
                  cell_coords[KDIR][kk][jj][ii] = (float)(x1*cos(x2));)
        #endif
       #else
-       print1 ("! HDF5_IO: Unknown geometry\n");
+       print ("! HDF5_IO: Unknown geometry\n");
        QUIT_PLUTO(1);
       #endif
     }}}
@@ -557,7 +557,7 @@ void WriteHDF5 (Output *output, Grid *grid)
    MPI_Barrier (MPI_COMM_WORLD);
    if (prank == 0){
      time(&tend);
-     print1 (" [%5.2f sec]",difftime(tend,tbeg));
+     print (" [%5.2f sec]",difftime(tend,tbeg));
    }
   #endif
 }
@@ -597,7 +597,7 @@ void ReadHDF5 (Output *output, Grid *grid)
 
   for (nd = 0; nd < DIMENSIONS; nd++) wgrid[nd] = grid + DIMENSIONS - nd - 1;
 
-  print1 ("> restarting from file #%d (dbl.h5)\n",output->nfile);
+  print ("> restarting from file #%d (dbl.h5)\n",output->nfile);
   sprintf (filename, "%s/data.%04d.dbl.h5", output->dir, output->nfile);
 
   rank = DIMENSIONS;
@@ -615,7 +615,7 @@ void ReadHDF5 (Output *output, Grid *grid)
 
   file_identifier = H5Fopen(filename, H5F_ACC_RDONLY, file_access);
   if (file_identifier < 0){
-    print1 ("! HDF5_READ: file %s does not exist\n");
+    print ("! HDF5_READ: file %s does not exist\n");
     QUIT_PLUTO(1);
   }
 

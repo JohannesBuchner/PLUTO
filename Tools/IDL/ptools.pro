@@ -79,7 +79,7 @@ FUNCTION PAVERAGE, q, polar=polar, spherical=spherical, cylindrical=cylindrical,
    dVphi = dx2
    dVz   = dx3
    dV = FLTARR(NX1,NX2,NX3)
-   FOR k=0,NX3-1 DO dV(*,*,k) = (dVr#dVphi)*dVz(k)
+   FOR k=0,NX3-1 DO dV[*,*,k] = (dVr#dVphi)*dVz[k]
 
  ENDIF ELSE IF (KEYWORD_SET(cylindrical)) THEN BEGIN
 
@@ -107,7 +107,7 @@ FUNCTION PAVERAGE, q, polar=polar, spherical=spherical, cylindrical=cylindrical,
    dVth  = cos(thm) - cos(thp)
    dVphi = dx3
    dV = FLTARR(NX1,NX2,NX3)
-   FOR k=0,NX3-1 DO dV(*,*,k) = (dVr#dVth)*dVphi(k)
+   FOR k=0,NX3-1 DO dV[*,*,k] = (dVr#dVth)*dVphi[k]
  ENDIF ELSE BEGIN
 
 ; --------------------------------------------------------------------------
@@ -115,7 +115,7 @@ FUNCTION PAVERAGE, q, polar=polar, spherical=spherical, cylindrical=cylindrical,
 ; --------------------------------------------------------------------------
 
    dV = FLTARR(NX1,NX2,NX3)
-   FOR k=0,NX3-1 DO dV(*,*,k) = (dx1#dx2)*dx3(k)
+   FOR k=0,NX3-1 DO dV[*,*,k] = (dx1#dx2)*dx3[k]
  ENDELSE
  
 ; -----------------------------------------------------------------
@@ -145,7 +145,7 @@ END
 ;
 ; SYNTAX:      dq = PDIFF(q, /X1_DIR, /X2_DIR, /X3_DIR, /PERIODIC)
 ;
-; PURPOSE:     compute the derivative of a 2D or 3D array "q" in the 
+; PURPOSE:     Compute the derivative of a 2D or 3D array "q" in the 
 ;              direction given by either one of /X1_DIR, /X2_DIR or /X3_DIR.
 ;              The computational grid is defined from the most recent call 
 ;              to the PLOAD function.
@@ -169,7 +169,7 @@ END
 ;   PERIODIC   assume the domain is periodic in the specified direction. 
 ;              Central difference is used throughout, including boundaries.
 ;              
-; LAST MODIFIED:   Apr 11, 2013 by A. Mignone (mignone@ph.unito.it)
+; LAST MODIFIED:   Dec 28, 2016 by A. Mignone (mignone@ph.unito.it)
 ;
 ;-
 FUNCTION PDIFF, q, X1_DIR=X1_DIR, X2_DIR=X2_DIR, X3_DIR=X3_DIR,$
@@ -186,20 +186,23 @@ FUNCTION PDIFF, q, X1_DIR=X1_DIR, X2_DIR=X2_DIR, X3_DIR=X3_DIR,$
    IF (KEYWORD_SET(periodic)) THEN BEGIN
      inv_dh = 1.0/(2.0*dx1)
      dq     = SHIFT(q, sm) - SHIFT(q, sp)
-     FOR i = 0, NX1-1 DO dq(i,*,*) = dq(i,*,*)*inv_dh(i)
+     FOR i = 0, NX1-1 DO dq[i,*,*] = dq[i,*,*]*inv_dh[i]
      RETURN,dq
    ENDIF
 
    inv_dh = FLTARR(NX1)
 
-   inv_dh(0) = 1.0/(-x1(2) + 4.0*x1(1) - 3*x1(0))
-   dq(0,*,*) = (-q(2,*,*) + 4.0*q(1,*,*) - 3.0*q(0,*,*))*inv_dh(0)
+   ; -- One sided difference at i = 0 --
+   inv_dh[0] = 1.0/(-x1[2] + 4.0*x1[1] - 3*x1[0])
+   dq[0,*,*] = (-q[2,*,*] + 4.0*q[1,*,*] - 3.0*q[0,*,*])*inv_dh[0]
 
-   FOR i = 1, NX1-2 DO inv_dh(i) = 1.0/(x1(i+1)-x1(i-1))
-   FOR i = 1, NX1-2 DO dq(i,*,*) = (q(i+1,*,*) - q(i-1,*,*))*inv_dh(i)
+   ; -- Central difference  --
+   FOR i = 1, NX1-2 DO inv_dh[i] = 1.0/(x1[i+1]-x1[i-1])
+   FOR i = 1, NX1-2 DO dq[i,*,*] = (q[i+1,*,*] - q[i-1,*,*])*inv_dh[i]
 
-   inv_dh(i) = 1.0/(x1(i-2) - 4.0*x1(i-1) + 3.0*x1(i))
-   dq(i,*,*) = (q(i-2,*,*) - 4.0*q(i-1,*,*) + 3.0*q(i,*,*))*inv_dh(i)
+   ; -- One sided difference at i = NX1- --
+   inv_dh[i] = 1.0/(x1[i-2] - 4.0*x1[i-1] + 3.0*x1[i])
+   dq[i,*,*] = (q[i-2,*,*] - 4.0*q[i-1,*,*] + 3.0*q[i,*,*])*inv_dh[i]
    RETURN,dq
  ENDIF
 
@@ -211,20 +214,21 @@ FUNCTION PDIFF, q, X1_DIR=X1_DIR, X2_DIR=X2_DIR, X3_DIR=X3_DIR,$
    IF (KEYWORD_SET(periodic)) THEN BEGIN
      inv_dh = 1.0/(2.0*dx2)
      dq     = SHIFT(q, sm) - SHIFT(q, sp)
-     FOR j=0,NX2-1 DO dq(*,j,*) = dq(*,j,*)*inv_dh(j)
+     FOR j=0,NX2-1 DO dq[*,j,*] = dq[*,j,*]*inv_dh[j]
      RETURN,dq
    ENDIF
 
    inv_dh = FLTARR(NX2)
 
-   inv_dh(0) = 1.0/(-x2(2) + 4.0*x2(1) - 3*x2(0))
-   dq(*,0,*) = (-q(*,2,*) + 4.0*q(*,1,*) - 3.0*q(*,0,*))*inv_dh(0)
+   ; -- One sided difference at j = 0 --
+   inv_dh(0) = 1.0/(-x2[2] + 4.0*x2[1] - 3*x2[0])
+   dq[*,0,*] = (-q[*,2,*] + 4.0*q[*,1,*] - 3.0*q[*,0,*])*inv_dh[0]
 
-   FOR j = 1, NX2-2 DO inv_dh(j) = 1.0/(x2(j+1)-x2(j-1))
-   FOR j = 1, NX2-2 DO dq(*,j,*) = (q(*,j+1,*) - q(*,j-1,*))*inv_dh(j)
+   FOR j = 1, NX2-2 DO inv_dh[j] = 1.0/(x2[j+1]-x2[j-1])
+   FOR j = 1, NX2-2 DO dq[*,j,*] = (q[*,j+1,*] - q[*,j-1,*])*inv_dh[j]
 
    inv_dh(j) = 1.0/(x2(j-2) - 4.0*x2(j-1) + 3.0*x2(j))
-   dq(*,j,*) = (q(*,j-2,*) - 4.0*q(*,j-1,*) + 3.0*q(*,j,*))*inv_dh(j)
+   dq[*,j,*] = (q[*,j-2,*] - 4.0*q[*,j-1,*] + 3.0*q[*,j,*])*inv_dh[j]
    RETURN,dq
  ENDIF
 
@@ -233,20 +237,20 @@ FUNCTION PDIFF, q, X1_DIR=X1_DIR, X2_DIR=X2_DIR, X3_DIR=X3_DIR,$
    IF (KEYWORD_SET(periodic)) THEN BEGIN
      inv_dh = 1.0/(2.0*dx3)
      dq     = SHIFT(q,0,0,-1) - SHIFT(q,0,0,1)
-     FOR k=0,NX3-1 DO dq(*,*,k) = dq(*,*,k)*inv_dh(k)
+     FOR k=0,NX3-1 DO dq[*,*,k] = dq[*,*,k]*inv_dh[k]
      RETURN,dq
    ENDIF
 
    inv_dh = FLTARR(NX3)
 
-   inv_dh(0) = 1.0/(-x3(2) + 4.0*x3(1) - 3*x3(0))
-   dq(*,*,0) = (-q(*,*,2) + 4.0*q(*,*,1) - 3.0*q(*,*,0))*inv_dh(0)
+   inv_dh(0) = 1.0/(-x3[2] + 4.0*x3[1] - 3*x3[0])
+   dq[*,*,0] = (-q[*,*,2] + 4.0*q[*,*,1] - 3.0*q[*,*,0])*inv_dh[0]
 
-   FOR k = 1, NX3-2 DO inv_dh(k) = 1.0/(x3(k+1)-x3(k-1))
-   FOR k = 1, NX3-2 DO dq(*,*,k) = (q(*,*,k+1) - q(*,*,k-1))*inv_dh(k)
+   FOR k = 1, NX3-2 DO inv_dh[k] = 1.0/(x3[k+1]-x3[k-1])
+   FOR k = 1, NX3-2 DO dq[*,*,k] = (q[*,*,k+1] - q[*,*,k-1])*inv_dh[k]
 
-   inv_dh(k) = 1.0/(x3(k-2) - 4.0*x3(k-1) + 3.0*x3(k))
-   dq(*,*,k) = (q(*,*,k-2) - 4.0*q(*,*,k-1) + 3.0*q(*,*,k))*inv_dh(k)
+   inv_dh[k] = 1.0/(x3[k-2] - 4.0*x3[k-1] + 3.0*x3[k])
+   dq[*,*,k] = (q[*,*,k-2] - 4.0*q[*,*,k-1] + 3.0*q[*,*,k])*inv_dh[k]
    RETURN,dq
  ENDIF
 
@@ -266,9 +270,9 @@ END
 ;              On output, "curl_v" contains the three components of the curl
 ;              stored as 
 ;
-;                 dq(*,*,*,0) -> (curl_v)_x1
-;                 dq(*,*,*,1) -> (curl_v)_x2
-;                 dq(*,*,*,2) -> (curl_v)_x3
+;                 dq[*,*,*,0] -> (curl_v)_x1
+;                 dq[*,*,*,1] -> (curl_v)_x2
+;                 dq[*,*,*,2] -> (curl_v)_x3
 ;              
 ;              Note: if only 2 vector components are supplied, the output
 ;                    consists in a single 2D array w which, in the case
@@ -282,7 +286,7 @@ END
 ; KEYWORDS:
 ;
 ;   geometry   specify the geometry. 
-;              Possible options are /polar or /spherical. 
+;              Possible options are /cylindrical (only 2D), /polar or /spherical. 
 ;              If none is given, Cartesian coordinates are assumed.
 ;                          
 ; EXAMPLES:
@@ -295,60 +299,80 @@ END
 ;                Cartesian coordinates and take the modulus:
 ;
 ;    IDL> J = PCURL(Bx1, Bx2, Bx3)
-;    IDL> J2 = J(*,*,*,0)^2 + J(*,*,*,1)^2 + J(*,*,*,2)^2
+;    IDL> J2 = J[*,*,*,0]^2 + J[*,*,*,1]^2 + J[*,*,*,2]^2
 ;
-; LAST MODIFIED:   Jan 29, 2012 by A. Mignone (mignone@ph.unito.it)
+; LAST MODIFIED:   Dec 28, 2016 by A. Mignone (mignone@ph.unito.it)
 ;
 ;-
-FUNCTION PCURL, v1, v2, v3, polar=polar, spherical=spherical 
+FUNCTION PCURL, v1, v2, v3, $
+                cylindrical=cylindrical, polar=polar, spherical=spherical 
 
- COMMON PLUTO_GRID
+  COMMON PLUTO_GRID
 
 ; --------------------------------------------------------
 ;   check if the array size is correct
 ; --------------------------------------------------------
 
- ndim = SIZE(v1,/N_DIMENSIONS)
- sz   = SIZE(v1,/DIMENSIONS)
- n123 = [NX1,NX2,NX3]
- FOR idim = 0, ndim-1 DO BEGIN
-   IF (sz[idim] NE n123[idim]) THEN BEGIN
-     PRINT,"! Scalar dimensions does not match with PLUTO grid"
-     RETURN,-1
-   ENDIF
- ENDFOR
+  ndim = SIZE(v1,/N_DIMENSIONS)
+  sz   = SIZE(v1,/DIMENSIONS)
+  n123 = [NX1,NX2,NX3]
+  FOR idim = 0, ndim-1 DO BEGIN
+    IF (sz[idim] NE n123[idim]) THEN BEGIN
+      PRINT,"! Scalar dimensions does not match with PLUTO grid"
+      RETURN,-1
+    ENDIF
+  ENDFOR
 
- IF (N_PARAMS() EQ 2) THEN BEGIN
+  IF (N_PARAMS() EQ 2) THEN BEGIN; Only two vector components have been given
 
-   w = FLTARR(NX1,NX2)
+    w = FLTARR(NX1,NX2)
 
-   ; --------------------------------------------------------------
-   ;  2D Polar/Spherical coord, w = 1/r*d(r*v2)/dx1 - 1/r*dv1/dx2
-   ; --------------------------------------------------------------
+    ; --------------------------------------------------------------
+    ;  2D Polar/Spherical coord, w = 1/r*d(r*v2)/dx1 - 1/r*dv1/dx2
+    ; --------------------------------------------------------------
 
-   IF (KEYWORD_SET(polar)) THEN BEGIN
-     Ar = x1#replicate(1.0,NX2)
-     w  = (PDIFF(Ar*v2, /X1_DIR) - PDIFF(v1, /X2_DIR, /periodic))/Ar
-     RETURN,w
-   ENDIF 
+    IF (KEYWORD_SET(polar)) THEN BEGIN
+      Ar = x1#replicate(1.0,NX2)
+      w  = (PDIFF(Ar*v2, /X1_DIR) - PDIFF(v1, /X2_DIR, /periodic))/Ar
+      RETURN,w
+    ENDIF 
 
-   IF (KEYWORD_SET(spherical)) THEN BEGIN
-     Ar = x1#replicate(1.0,NX2)
-     w  = (PDIFF(Ar*v2, /X1_DIR) - PDIFF(v1, /X2_DIR))/Ar
-     RETURN,w
-   ENDIF 
+    IF (KEYWORD_SET(spherical)) THEN BEGIN
+      Ar = x1#replicate(1.0,NX2)
+      w  = (PDIFF(Ar*v2, /X1_DIR) - PDIFF(v1, /X2_DIR))/Ar
+      RETURN,w
+    ENDIF 
 
-   ; ----------------------------------------------------------------
-   ;  2D Cartesian, w = dv2/dx1 - dv1/dx2
-   ; ----------------------------------------------------------------
+    ; ----------------------------------------------------------------
+    ;  2D Cartesian, w = dv2/dx1 - dv1/dx2
+    ; ----------------------------------------------------------------
 
-   w  = PDIFF(v2, /X1_DIR) - PDIFF(v1, /X2_DIR)
-   RETURN,w
+    w  = PDIFF(v2, /X1_DIR) - PDIFF(v1, /X2_DIR)
+    RETURN,w
 
- ENDIF; N_PARAMS() EQ 2
+  ENDIF; N_PARAMS() EQ 2
 
- w = FLTARR(NX1,NX2,NX3,3)
 
+; ----------------------------------------------------------------
+;       2D Cylindrical Coordinates with 3 components
+;
+;   w = curl(v1,v2,v3) = [- dv3/dx2, 
+;                           dv1/dx2 - dv2/dx1,
+;                           1/r*d(r*v3)/dx1]
+; ----------------------------------------------------------------
+
+  w = FLTARR(NX1,NX2,3)
+  IF (KEYWORD_SET(cylindrical)) THEN BEGIN
+    Ar = x1#replicate(1.0,NX2)
+   
+    w[*,*,0] = - PDIFF(v3, /X2_DIR) 
+    w[*,*,1] =   PDIFF(Ar*v3, /X1_DIR)/Ar 
+    w[*,*,2] =   PDIFF(v1, /X2_DIR) - PDIFF(v2,/X1_DIR); 
+
+    RETURN,w
+  ENDIF
+
+  w = FLTARR(NX1,NX2,NX3,3)
 ; ----------------------------------------------------------------
 ;       3D Polar Coordinates,
 ;
@@ -357,22 +381,22 @@ FUNCTION PCURL, v1, v2, v3, polar=polar, spherical=spherical
 ;                         1/r*d(r*v2)/dx1 - 1/r*dv1/dx2]
 ; ----------------------------------------------------------------
 
- IF (KEYWORD_SET(polar)) THEN BEGIN
-   A  = x1#replicate(1.0,NX2)
-   Ar = FLTARR(NX1,NX2,NX3)
-   FOR k=0,NX3-1 DO Ar(*,*,k) = A
+  IF (KEYWORD_SET(polar)) THEN BEGIN
+    A  = x1#replicate(1.0,NX2)
+    Ar = FLTARR(NX1,NX2,NX3)
+    FOR k=0,NX3-1 DO Ar[*,*,k] = A
    
-   w(*,*,*,0) =   PDIFF(v3, /X2_DIR, /periodic)/Ar 
-   w(*,*,*,1) = - PDIFF(v3, /X1_DIR) 
-   w(*,*,*,2) =  (PDIFF(Ar*v2, /X1_DIR) - PDIFF(v1, /X2_DIR, /periodic))/Ar 
+    w[*,*,*,0] =   PDIFF(v3, /X2_DIR, /periodic)/Ar 
+    w[*,*,*,1] = - PDIFF(v3, /X1_DIR) 
+    w[*,*,*,2] =  (PDIFF(Ar*v2, /X1_DIR) - PDIFF(v1, /X2_DIR, /periodic))/Ar 
 
-   IF (ndim EQ 2) THEN RETURN, REFORM(w)
+    IF (ndim EQ 2) THEN RETURN, REFORM(w)
 
-   w(*,*,*,0) -=  PDIFF(v2, /X3_DIR) 
-   w(*,*,*,1) +=  PDIFF(v1, /X3_DIR) 
+    w[*,*,*,0] -=  PDIFF(v2, /X3_DIR) 
+    w[*,*,*,1] +=  PDIFF(v1, /X3_DIR) 
 
-   RETURN,w
- ENDIF
+    RETURN,w
+  ENDIF
 
 ; ----------------------------------------------------------------
 ;        3D   Spherical Coordinates, s = sin(theta)
@@ -382,26 +406,26 @@ FUNCTION PCURL, v1, v2, v3, polar=polar, spherical=spherical
 ;                         1/r*d(r*v2)/dx1     - 1/r*dv1/dx2]
 ; ----------------------------------------------------------------
 
- IF (KEYWORD_SET(spherical)) THEN BEGIN
-   Ar   = FLTARR(NX1,NX2,NX3)
-   Ath  = FLTARR(NX1,NX2,NX3)
-   Arth = FLTARR(NX1,NX2,NX3)
+  IF (KEYWORD_SET(spherical)) THEN BEGIN
+    Ar   = FLTARR(NX1,NX2,NX3)
+    Ath  = FLTARR(NX1,NX2,NX3)
+    Arth = FLTARR(NX1,NX2,NX3)
 
-   A  = x1#replicate(1.0,NX2)      & FOR k=0,NX3-1 DO Ar(*,*,k)   = A 
-   A  = replicate(1.0,NX1)#sin(x2) & FOR k=0,NX3-1 DO Ath(*,*,k)  = A 
-   A  = x1#sin(x2)                & FOR k=0,NX3-1 DO Arth(*,*,k) = A 
+    A  = x1#replicate(1.0,NX2)      & FOR k=0,NX3-1 DO Ar[*,*,k]   = A 
+    A  = replicate(1.0,NX1)#sin(x2) & FOR k=0,NX3-1 DO Ath[*,*,k]  = A 
+    A  = x1#sin(x2)                 & FOR k=0,NX3-1 DO Arth[*,*,k] = A 
    
-   w(*,*,*,0) =   PDIFF(Ath*v3, /X2_DIR)/Arth
-   w(*,*,*,1) = - PDIFF( Ar*v3, /X1_DIR)/Ar 
-   w(*,*,*,2) =  (PDIFF( Ar*v2, /X1_DIR) - PDIFF(v1, /X2_DIR))/Ar 
+    w[*,*,*,0] =   PDIFF(Ath*v3, /X2_DIR)/Arth
+    w[*,*,*,1] = - PDIFF( Ar*v3, /X1_DIR)/Ar 
+    w[*,*,*,2] =  (PDIFF( Ar*v2, /X1_DIR) - PDIFF(v1, /X2_DIR))/Ar 
 
-   IF (ndim EQ 2) THEN RETURN, REFORM(w)
+    IF (ndim EQ 2) THEN RETURN, REFORM(w)
 
-   w(*,*,*,0) -=  PDIFF(v2, /X3_DIR, /periodic)/Arth
-   w(*,*,*,1) +=  PDIFF(v1, /X3_DIR, /periodic)/Arth 
+    w[*,*,*,0] -=  PDIFF(v2, /X3_DIR, /periodic)/Arth
+    w[*,*,*,1] +=  PDIFF(v1, /X3_DIR, /periodic)/Arth 
 
-   RETURN,w
- ENDIF
+    RETURN,w
+  ENDIF
 
 ; ----------------------------------------------------------------
 ;        3D   Cartesian Coordinates (default)
@@ -411,16 +435,16 @@ FUNCTION PCURL, v1, v2, v3, polar=polar, spherical=spherical
 ;                             dv2/dx1 - dv1/dx2]
 ; ----------------------------------------------------------------
 
- w(*,*,*,0) =   PDIFF(v3, /X2_DIR)
- w(*,*,*,1) = - PDIFF(v3, /X1_DIR) 
- w(*,*,*,2) =   PDIFF(v2, /X1_DIR) - PDIFF(v1, /X2_DIR) 
+  w[*,*,*,0] =   PDIFF(v3, /X2_DIR)
+  w[*,*,*,1] = - PDIFF(v3, /X1_DIR) 
+  w[*,*,*,2] =   PDIFF(v2, /X1_DIR) - PDIFF(v1, /X2_DIR) 
 
- IF (ndim EQ 2) THEN RETURN, REFORM(w)
+  IF (ndim EQ 2) THEN RETURN, REFORM(w)
 
- w(*,*,*,0) -=  PDIFF(v2, /X3_DIR)
- w(*,*,*,1) +=  PDIFF(v1, /X3_DIR)
+  w[*,*,*,0] -=  PDIFF(v2, /X3_DIR)
+  w[*,*,*,1] +=  PDIFF(v1, /X3_DIR)
 
- RETURN,w
+  RETURN,w
 END
 
 ;+
@@ -437,9 +461,9 @@ END
 ;              On output "dq" contains the three components of the gradient
 ;              stored as 
 ;
-;                 dq(*,*,*,0) -> dq/dx1
-;                 dq(*,*,*,1) -> dq/dx2
-;                 dq(*,*,*,2) -> dq/dx3
+;                 dq[*,*,*,0] -> dq/dx1
+;                 dq[*,*,*,1] -> dq/dx2
+;                 dq[*,*,*,2] -> dq/dx3
 ;              
 ; ARGUMENTS:   
 ;
@@ -459,7 +483,7 @@ END
 ;
 ;    IDL> drho = PGRAD(rho, /SPHERICAL)
 ;
-; LAST MODIFIED:   Sep 25, 2012 by A. Mignone (mignone@ph.unito.it)
+; LAST MODIFIED:   Dec 28, 2016 by A. Mignone (mignone@ph.unito.it)
 ;
 ;-
 FUNCTION PGRAD, q, polar=polar, spherical=spherical 
@@ -491,14 +515,14 @@ FUNCTION PGRAD, q, polar=polar, spherical=spherical
  IF (KEYWORD_SET(polar)) THEN BEGIN
    Ar = FLTARR(NX1,NX2,NX3)
    A  = x1#replicate(1.0,NX2)    
-   FOR k=0,NX3-1 DO Ar(*,*,k) = A 
+   FOR k=0,NX3-1 DO Ar[*,*,k] = A 
 
    dq = FLTARR(NX1,NX2,NX3,ndim)
-   dq(*,*,*,0) = PDIFF(q, /X1_DIR)
-   dq(*,*,*,1) = PDIFF(q, /X2_DIR)/Ar
+   dq[*,*,*,0] = PDIFF(q, /X1_DIR)
+   dq[*,*,*,1] = PDIFF(q, /X2_DIR)/Ar
    IF (ndim EQ 2) THEN RETURN, REFORM(dq)
    
-   dq(*,*,*,2) = PDIFF(q, /X3_DIR)
+   dq[*,*,*,2] = PDIFF(q, /X3_DIR)
    RETURN,dq
  ENDIF
 
@@ -511,16 +535,16 @@ FUNCTION PGRAD, q, polar=polar, spherical=spherical
  IF (KEYWORD_SET(spherical)) THEN BEGIN
    Ar = FLTARR(NX1,NX2,NX3)
    A  = x1#replicate(1.0,NX2)      
-   FOR k=0,NX3-1 DO Ar(*,*,k) = A 
+   FOR k=0,NX3-1 DO Ar[*,*,k] = A 
 
-   dq(*,*,*,0) = PDIFF(q, /X1_DIR)
-   dq(*,*,*,1) = PDIFF(q, /X2_DIR)/Ar
+   dq[*,*,*,0] = PDIFF(q, /X1_DIR)
+   dq[*,*,*,1] = PDIFF(q, /X2_DIR)/Ar
    IF (ndim EQ 2) THEN RETURN, REFORM(dq)
 
    Arth = FLTARR(NX1,NX2,NX3)
    A    = x1#sin(x2)  
-   FOR k=0,NX3-1 DO Arth(*,*,k) = A 
-   dq(*,*,*,2) = PDIFF(q, /X3_DIR)/Arth
+   FOR k=0,NX3-1 DO Arth[*,*,k] = A 
+   dq[*,*,*,2] = PDIFF(q, /X3_DIR)/Arth
    RETURN, dq
  ENDIF
 
@@ -531,11 +555,11 @@ FUNCTION PGRAD, q, polar=polar, spherical=spherical
 ; ----------------------------------------------------------------
 
  dq = FLTARR(NX1,NX2,NX3,ndim)
- dq(*,*,*,0) = PDIFF(q, /X1_DIR)
- dq(*,*,*,1) = PDIFF(q, /X2_DIR)
+ dq[*,*,*,0] = PDIFF(q, /X1_DIR)
+ dq[*,*,*,1] = PDIFF(q, /X2_DIR)
  IF (ndim EQ 2) THEN RETURN, REFORM(dq)
 
- dq(*,*,*,2) = PDIFF(q, /X3_DIR)
+ dq[*,*,*,2] = PDIFF(q, /X3_DIR)
  RETURN, dq
 
 END
@@ -546,7 +570,7 @@ END
 ;
 ; AUTHOR:      A. Mignone (mignone@ph.unito.it)
 ;
-; SYNTAX:      div_v = PDIV(v1,v1[,v3],/geometry)
+; SYNTAX:      div_v = PDIV(v1,v2[,v3],/geometry)
 ;
 ; PURPOSE:     compute the divergence of a vector field {v1,v2} (in 2D) or 
 ;              {v1,v2,v3} (in 2.5D or 3D) on the computational grid defined
@@ -572,7 +596,7 @@ END
 ;    IDL> divB = PDIV(Bx1,Bx2, /polar)
 ;
 ;
-; LAST MODIFIED:   July 11, 2013 by A. Mignone (mignone@ph.unito.it)
+; LAST MODIFIED:   Dec 28, 2016 by A. Mignone (mignone@ph.unito.it)
 ;
 ;-
 FUNCTION PDIV, v1, v2, v3, polar=polar, spherical=spherical 
@@ -635,7 +659,7 @@ FUNCTION PDIV, v1, v2, v3, polar=polar, spherical=spherical
 
  IF (KEYWORD_SET(polar)) THEN BEGIN
    scrh = x1#REPLICATE(1.0, nx2)
-   r    = FLTARR(NX1,NX2,NX3) & FOR k=0,NX3-1 DO r(*,*,k) = scrh
+   r    = FLTARR(NX1,NX2,NX3) & FOR k=0,NX3-1 DO r[*,*,k] = scrh
    
    div  =   PDIFF(r*v1, /X1_DIR)/r $
           + PDIFF(v2, /X2_DIR, /PERIODIC)/r + PDIFF(v3, /X3_DIR)
@@ -665,11 +689,14 @@ FUNCTION PDIV, v1, v2, v3, polar=polar, spherical=spherical
  ENDIF
 
 ; ----------------------------------------------------------------
-;  3D   Cartesian Coordinates (default)
+;  1,2,3D   Cartesian Coordinates (default)
 ;
 ;  div = dv1/dx + dv2/dy + dv3/dz
 ; ----------------------------------------------------------------
 
- div = PDIFF(v1, /X1_DIR) + PDIFF(v2, /X2_DIR) + PDIFF(v3, /X3_DIR)
+ IF (ndim EQ 1) THEN div = PDIFF(v1, /X1_DIR)
+ IF (ndim EQ 2) THEN div = PDIFF(v1, /X1_DIR) + PDIFF(v2, /X2_DIR)
+ IF (ndim EQ 3) THEN div = PDIFF(v1, /X1_DIR) + PDIFF(v2, /X2_DIR) + PDIFF(v3, /X3_DIR)
+ 
  RETURN,div
 END

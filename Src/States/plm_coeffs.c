@@ -17,7 +17,7 @@
         A. Mignone, JCP (2014), 270, 784.
         
   \authors A. Mignone (mignone@ph.unito.it)
-  \date    May 19, 2014
+  \date    Feb 28, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -31,7 +31,7 @@ void PLM_CoefficientsSet(Grid *grid)
 /*!
  *  Compute interpolation coefficients for linear reconstruction.
  *
- * \param[in] grid      pointer to array of grid structure
+ * \param[in] grid    pointer to Grid structure
  *
  * \return  This function has no return value
  *********************************************************************** */
@@ -55,14 +55,14 @@ void PLM_CoefficientsSet(Grid *grid)
    ----------------------------------------------------- */
 
   for (d = 0; d < DIMENSIONS; d++){
-    dx  = grid[d].dx;
-    xgc = grid[d].xgc;
-    xr  = grid[d].xr;
+    dx  = grid->dx[d];
+    xgc = grid->xgc[d];
+    xr  = grid->xr[d];
 
   /* -- first and last zone are excluded -- */
     
     beg = 1;
-    end = grid[d].np_tot - 2;
+    end = grid->np_tot[d] - 2;
     for (i = beg; i <= end; i++){
       wp3D[d][i] = dx[i]/(xgc[i+1] - xgc[i]); /* coeff. for dQF in Eq. [29] */
       wm3D[d][i] = dx[i]/(xgc[i] - xgc[i-1]); /* coeff. for dQB in Eq. [29] */
@@ -89,7 +89,7 @@ void PLM_CoefficientsGet(PLM_Coeffs *plm_coeffs, int dir)
  *********************************************************************** */
 {
   if (cp3D == NULL) {
-    print1 ("! PLM_Coefficients: coefficients not set.\n");
+    print ("! PLM_Coefficients: coefficients not set.\n");
     QUIT_PLUTO(1);
   }
 

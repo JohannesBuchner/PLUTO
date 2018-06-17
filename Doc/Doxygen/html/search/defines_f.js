@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['t_5fcut_5frhoe',['T_CUT_RHOE',['../_p_v_t_e_2eos_8h.html#a5c4f52b29f6ff9e053a4a02fbcd202c1',1,'eos.h']]],
-  ['tc_5fsaturated_5fflux',['TC_SATURATED_FLUX',['../tc__flux_8c.html#ae978c509369cd554e6ab368a3386dfae',1,'tc_flux.c']]],
-  ['tot',['TOT',['../pluto_8h.html#ab74ea0985ed254421a2ec2a9348eaf91',1,'pluto.h']]]
+  ['unit_5fdensity',['UNIT_DENSITY',['../pluto_8h.html#a1e411ee12bfbc3e7b61dd978a2faf737',1,'pluto.h']]],
+  ['unit_5flength',['UNIT_LENGTH',['../pluto_8h.html#a1b2dfce30d2dd62f2c1a7b3782d50d14',1,'pluto.h']]],
+  ['unit_5fvelocity',['UNIT_VELOCITY',['../pluto_8h.html#a038fb4c48089f0cc2e50e9936c1895d8',1,'pluto.h']]]
 ];

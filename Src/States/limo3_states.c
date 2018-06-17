@@ -7,7 +7,7 @@
   based on the limiter function of Cada & Torrilhon
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   June 11, 2015
+  \date   Oct 10, 2016
 
   \b References
      - "Compact third-order limiter functions for finite volume
@@ -18,42 +18,53 @@
 static double LimO3Func (double, double, double);
 
 /* ********************************************************************* */
-void States (const State_1D *state, int beg, int end, Grid *grid)
+void States (const Sweep *sweep, int beg, int end, Grid *grid)
 /* 
  *
  *
  *********************************************************************** */
 {
   int    k, nv, i;
+
+  const State *stateC = &(sweep->stateC);
+  const State *stateL = &(sweep->stateL);
+  const State *stateR = &(sweep->stateR);
+
+  double **v  = stateC->v;
+  double **vp = stateL->v;
+  double **vm = stateR->v-1;
+  double **up = stateL->u;
+  double **um = stateR->u-1;
+
   double dmm;
-  double **v, **vp, **vm, *dvp, *dvm, *dx;
+  double *dvp, *dvm, *dx;
   double **L, **R, *lambda;
   double dwp[NVAR], dwp_lim[NVAR];
   double dwm[NVAR], dwm_lim[NVAR];
   double dvpR, dvmR;
   static double **dv;
 
-/* ----------------------------------------------------
+/* --------------------------------------------------------
    0. Allocate memory, set pointer shortcuts 
-   ---------------------------------------------------- */
+   -------------------------------------------------------- */
 
   if (dv == NULL) {
     dv = ARRAY_2D(NMAX_POINT, NVAR, double);
   }
 
-  v  = state->v;
-  vp = state->vp;
-  vm = state->vm;
+  v  = stateC->v;
+  vp = stateL->v;
+  vm = stateR->v-1;
 
 #if RECONSTRUCT_4VEL
-  ConvertTo4vel (state->v, beg-1, end+1);
+  ConvertTo4vel (stateC->v, beg-1, end+1);
 #endif
    
-  dx = grid[g_dir].dx;
+  dx = grid->dx[g_dir];
 
-/* ----------------------------------------------------
+/* --------------------------------------------------------
    1. compute slopes and left and right interface values 
-   ---------------------------------------------------- */
+   -------------------------------------------------------- */
 
   #if CHAR_LIMITING == NO  /* ----------------------------------------
                                  Limiter on primitive variables
@@ -68,7 +79,7 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
      dvm = dv[i-1]; 
 
      #if SHOCK_FLATTENING == MULTID    
-      if (state->flag[i] & FLAG_MINMOD){  
+      if (sweep->flag[i] & FLAG_MINMOD){  
         for (nv = NVAR; nv--;    ) {
           dmm = MINMOD(dvp[nv], dvm[nv]);
           vp[i][nv] = v[i][nv] + 0.5*dmm;
@@ -88,16 +99,17 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
                     Limiter on characteristic variables
                  --------------------------------------------  */
 
-   SoundSpeed2 (state->v, state->a2, state->h, beg, end, CELL_CENTER, grid);
+   SoundSpeed2 (stateC, beg, end, CELL_CENTER, grid);
+   PrimEigenvectors (stateC, beg, end);
    i = beg-1;
    NVAR_LOOP(nv) dv[i][nv] = v[i+1][nv] - v[i][nv];
 
    for (i = beg; i <= end; i++){
 
      NVAR_LOOP(nv) dv[i][nv] = v[i+1][nv] - v[i][nv];
-     L      = state->Lp[i];
-     R      = state->Rp[i];
-     lambda = state->lambda[i];
+     L      = stateC->Lp[i];
+     R      = stateC->Rp[i];
+     lambda = stateC->lambda[i];
      dvp = dv[i];  
      dvm = dv[i-1];
     
@@ -106,12 +118,11 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
       onto characteristic space
      ------------------------------- */
      
-     PrimEigenvectors (v[i], state->a2[i], state->h[i], lambda, L, R);
      PrimToChar(L, dvp, dwp);
      PrimToChar(L, dvm, dwm);
 
      #if SHOCK_FLATTENING == MULTID    
-      if (state->flag[i] & FLAG_MINMOD){  
+      if (sweep->flag[i] & FLAG_MINMOD){  
         for (nv = NVAR; nv--;    ) {
           dmm = MINMOD(dvp[nv], dvm[nv]);
           vp[i][nv] = v[i][nv] + 0.5*dmm;
@@ -149,21 +160,21 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
      -------------------------------------- */            
 
     #if NFLX != NVAR
-     for (nv = NFLX; nv < NVAR; nv++ ){
-       dvpR = dvp[nv]*LimO3Func(dvp[nv], dvm[nv], dx[i]);
-       dvmR = dvm[nv]*LimO3Func(dvm[nv], dvp[nv], dx[i]);
-       vp[i][nv] = v[i][nv] + 0.5*dvpR;
-       vm[i][nv] = v[i][nv] - 0.5*dvmR;
-     }
+    for (nv = NFLX; nv < NVAR; nv++ ){
+      dvpR = dvp[nv]*LimO3Func(dvp[nv], dvm[nv], dx[i]);
+      dvmR = dvm[nv]*LimO3Func(dvm[nv], dvp[nv], dx[i]);
+      vp[i][nv] = v[i][nv] + 0.5*dvpR;
+      vm[i][nv] = v[i][nv] - 0.5*dvmR;
+    }
     #endif
    }
    
   #endif /* CHAR_LIMITING == YES */
    
-/* --------------------------------------------------
+/* --------------------------------------------------------
    2. Since the third-order limiter is not TVD, we 
       need to ensure positivity of density and pressure 
-   -------------------------------------------------- */
+   -------------------------------------------------------- */
 
   for (i = beg; i <= end; i++){
     dvp = dv[i];   
@@ -175,53 +186,53 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
     }
 
     #if HAVE_ENERGY
-     if (vp[i][PRS] < 0.0 || vm[i][PRS] < 0.0){
-       dmm = MINMOD(dvp[PRS], dvm[PRS]);
-       vp[i][PRS] = v[i][PRS] + 0.5*dmm;
-       vm[i][PRS] = v[i][PRS] - 0.5*dmm;
-     }
+    if (vp[i][PRS] < 0.0 || vm[i][PRS] < 0.0){
+      dmm = MINMOD(dvp[PRS], dvm[PRS]);
+      vp[i][PRS] = v[i][PRS] + 0.5*dmm;
+      vm[i][PRS] = v[i][PRS] - 0.5*dmm;
+    }
     #endif
     #if ENTROPY_SWITCH
-     if (vp[i][ENTR] < 0.0 || vm[i][ENTR] < 0.0){
-       dmm = MINMOD(dvp[ENTR], dvm[ENTR]);
-       vp[i][ENTR] = v[i][ENTR] + 0.5*dmm;
-       vm[i][ENTR] = v[i][ENTR] - 0.5*dmm;
-     }
+    if (vp[i][ENTR] < 0.0 || vm[i][ENTR] < 0.0){
+      dmm = MINMOD(dvp[ENTR], dvm[ENTR]);
+      vp[i][ENTR] = v[i][ENTR] + 0.5*dmm;
+      vm[i][ENTR] = v[i][ENTR] - 0.5*dmm;
+    }
     #endif      
 
   /* -- relativistic limiter --*/
 
     #if PHYSICS == RHD || PHYSICS == RMHD
-     VelocityLimiter (v[i], vp[i], vm[i]);
+    VelocityLimiter (v[i], vp[i], vm[i]);
     #endif
   }
 
-/*  -------------------------------------------
+/* --------------------------------------------------------
     3. Shock flattening 
-    -------------------------------------------  */
+   -------------------------------------------------------- */
 
-  #if SHOCK_FLATTENING == ONED 
-   Flatten (state, beg, end, grid);
-  #endif
+#if SHOCK_FLATTENING == ONED 
+  Flatten (sweep, beg, end, grid);
+#endif
 
-/* -------------------------------------------
+/* --------------------------------------------------------
    4. Assign face-centered magnetic field
-   -------------------------------------------  */
+   -------------------------------------------------------- */
 
-  #ifdef STAGGERED_MHD
-   for (i = beg - 1; i <= end; i++) {
-     state->vR[i][BXn] = state->vL[i][BXn] = state->bn[i];
-   }
-  #endif
+#ifdef STAGGERED_MHD
+  for (i = beg - 1; i <= end; i++) {
+    stateL->v[i][BXn] = stateR->v[i][BXn] = sweep->bn[i];
+  }
+#endif
 
 /* --------------------------------------------------------
    5. Evolve L/R states and center value by dt/2
    -------------------------------------------------------- */
 
 #if TIME_STEPPING == CHARACTERISTIC_TRACING
-  CharTracingStep(state, beg, end, grid);
+  CharTracingStep(sweep, beg, end, grid);
 #elif TIME_STEPPING == HANCOCK
-  HancockStep(state, beg, end, grid);
+  HancockStep(sweep, beg, end, grid);
 #endif
 
 /* --------------------------------------------------------
@@ -229,17 +240,17 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
    -------------------------------------------------------- */
 
 #if RECONSTRUCT_4VEL
-  ConvertTo3vel (state->v, beg-1, end+1);
-  ConvertTo3vel (state->vp, beg, end);
-  ConvertTo3vel (state->vm, beg, end);  
+  ConvertTo3vel (v, beg-1, end+1);
+  ConvertTo3vel (vp, beg, end);
+  ConvertTo3vel (vm, beg, end);  
 #endif
 
-/* ----------------------------------------------
+/* --------------------------------------------------------
    7. Obtain L/R states in conservative variables
-   ---------------------------------------------- */
+   -------------------------------------------------------- */
 
-  PrimToCons (state->vp, state->up, beg, end);
-  PrimToCons (state->vm, state->um, beg, end);
+  PrimToCons (vp, up, beg, end);
+  PrimToCons (vm, um, beg, end);
 }
 
 /* ********************************************************************* */
@@ -278,6 +289,3 @@ double LimO3Func (double dvp, double dvm, double dx)
   }
   return (lim);
 }
-
-
-

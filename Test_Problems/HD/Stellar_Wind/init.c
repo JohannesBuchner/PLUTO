@@ -77,6 +77,20 @@ void Init (double *us, double x1, double x2, double x3)
   g_smallPressure = 1.e-5;
 }
 
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
+
 /* **************************************************************** */
 void Analysis (const Data *d, Grid *grid)
 /*
@@ -99,9 +113,9 @@ void UserDefBoundary (const Data *d, RBox * box, int side, Grid *grid)
   double  r, r0, cs;
   double  Vwind  = 1.0, rho, vr;
 
-  x1 = grid[IDIR].xgc;
-  x2 = grid[JDIR].xgc;
-  x3 = grid[KDIR].xgc;
+  x1 = grid->xgc[IDIR];
+  x2 = grid->xgc[JDIR];
+  x3 = grid->xgc[KDIR];
 
   if (side == 0){
     r0 = 1.0;

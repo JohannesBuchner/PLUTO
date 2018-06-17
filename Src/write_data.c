@@ -1,7 +1,7 @@
 /* ///////////////////////////////////////////////////////////////////// */
 /*! 
   \file  
-  \brief Main output driver.
+  \brief Main output driver for fluid variables.
 
   WriteData() is the main driver for writing data arrays in any of
   the available formats (binary, VTK, HDF5, etc...).  
@@ -18,7 +18,7 @@
   \authors A. Mignone (mignone@ph.unito.it)\n
            G. Muscianisi (g.muscianisi@cineca.it)
 
-  \date   Aug 24, 2012
+  \date   Sep 30, 2016
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -49,23 +49,23 @@ void WriteData (const Data *d, Output *output, Grid *grid)
   long long offset;
 
 /* -----------------------------------------------------------
-            Increment the file number and initialize units
+   0. Increment the file number and initialize units
    ----------------------------------------------------------- */
 
   output->nfile++;
 
-  print1 ("> Writing file #%d (%s) to disk...", output->nfile, output->ext);
+  print ("> Writing file #%d (%s) to disk...", output->nfile, output->ext);
 
-  #ifdef PARALLEL
-   MPI_Barrier (MPI_COMM_WORLD);
-   if (prank == 0) time(&tbeg);
-  #endif
+#ifdef PARALLEL
+  MPI_Barrier (MPI_COMM_WORLD);
+  if (prank == 0) time(&tbeg);
+#endif
 
   for (nv = 0; nv < MAX_OUTPUT_VARS; nv++) units[nv] = 1.0;
   if (output->cgs) GetCGSUnits(units);
 
 /* --------------------------------------------------------
-            Get user var if necessary 
+   1. Compute user-defined output arrays if necessary 
    -------------------------------------------------------- */
 
   if (last_computed_var != g_stepNumber && d->Vuser != NULL) {
@@ -74,7 +74,19 @@ void WriteData (const Data *d, Output *output, Grid *grid)
   }
 
 /* --------------------------------------------------------
-            Select the output type 
+   2. With FARGO, we can output total or residual velocity 
+   -------------------------------------------------------- */
+
+#if (defined FARGO)
+  #if  (FARGO_OUTPUT_VTOT == YES)
+  if (FARGO_TotalVelocityIsSet() == 0) FARGO_AddVelocity (d,grid); 
+  #else 
+  if (FARGO_TotalVelocityIsSet() == 1) FARGO_SubtractVelocity (d,grid); 
+  #endif
+#endif
+
+/* --------------------------------------------------------
+   3. Select the output type 
    -------------------------------------------------------- */
 
   if (output->type == DBL_OUTPUT) {
@@ -105,9 +117,11 @@ void WriteData (const Data *d, Output *output, Grid *grid)
 
       sprintf (filename, "%s/data.%04d.%s", output->dir,output->nfile, 
                                             output->ext);
+ 
+      FileDelete (filename);  /* Avoid partial fill of pre-existing files */
       offset = 0;
       #ifndef PARALLEL
-       fbin = OpenBinaryFile (filename, 0, "w");
+       fbin = FileOpen (filename, 0, "w");
       #endif
       for (nv = 0; nv < output->nvar; nv++) {
         if (!output->dump_var[nv]) continue;
@@ -126,17 +140,17 @@ void WriteData (const Data *d, Output *output, Grid *grid)
            Vpt = (void *)output->V[nv][-1][0];
         }
         #ifdef PARALLEL
-         fbin = OpenBinaryFile (filename, sz, "w");
+         fbin = FileOpen (filename, sz, "w");
          AL_Set_offset(sz, offset);
         #endif
-        WriteBinaryArray (Vpt, dsize, sz, fbin, output->stag_var[nv]);
+        FileWriteData (Vpt, dsize, sz, fbin, output->stag_var[nv]);
         #ifdef PARALLEL
          offset = AL_Get_offset(sz);
-         CloseBinaryFile(fbin, sz);
+         FileClose(fbin, sz);
         #endif
       }
       #ifndef PARALLEL
-       CloseBinaryFile(fbin, sz);
+       FileClose(fbin, sz);
       #endif
 
     }else{              /* -- multiple files -- */
@@ -146,6 +160,7 @@ void WriteData (const Data *d, Output *output, Grid *grid)
         sprintf (filename, "%s/%s.%04d.%s", output->dir, output->var_name[nv], 
                                             output->nfile, output->ext);
 
+        FileDelete (filename);  /* Avoid partial fill of pre-existing files */
         if      (output->stag_var[nv] == -1) {  /* -- cell-centered data -- */
           sz = SZ;
           Vpt = (void *)output->V[nv][0][0];
@@ -159,9 +174,9 @@ void WriteData (const Data *d, Output *output, Grid *grid)
            sz = SZ_stagz;
            Vpt = (void *)output->V[nv][-1][0];
         }
-        fbin = OpenBinaryFile (filename, sz, "w");
-        WriteBinaryArray (Vpt, dsize, sz, fbin, output->stag_var[nv]);
-        CloseBinaryFile (fbin, sz);
+        fbin = FileOpen (filename, sz, "w");
+        FileWriteData (Vpt, dsize, sz, fbin, output->stag_var[nv]);
+        FileClose (fbin, sz);
       }
     }
 
@@ -176,16 +191,16 @@ void WriteData (const Data *d, Output *output, Grid *grid)
     if (single_file){  /* -- single output file -- */
       sprintf (filename, "%s/data.%04d.%s", output->dir, output->nfile, 
                                             output->ext);
-      fbin = OpenBinaryFile (filename, SZ_float, "w");
+      FileDelete (filename);  /* Avoid partial fill of pre-existing files */
+      fbin = FileOpen (filename, SZ_float, "w");
       for (nv = 0; nv < output->nvar; nv++) {
         if (!output->dump_var[nv]) continue;
-/*        Vpt = (void *)(Convert_dbl2flt(output->V[nv],0))[0][0];  */
         Vpt3 = Convert_dbl2flt(output->V[nv], units[nv],0);
         Vpt = (void *)Vpt3[0][0];
-        WriteBinaryArray (Vpt, sizeof(float), SZ_float, fbin, 
+        FileWriteData (Vpt, sizeof(float), SZ_float, fbin, 
                           output->stag_var[nv]);
       }
-      CloseBinaryFile(fbin, SZ_float);
+      FileClose(fbin, SZ_float);
 /*
 BOV_Header(output, filename);
 */
@@ -196,13 +211,13 @@ BOV_Header(output, filename);
         sprintf (filename, "%s/%s.%04d.%s", output->dir, output->var_name[nv], 
                                             output->nfile, output->ext);
 
-        fbin = OpenBinaryFile (filename, SZ_float, "w");
-/*        Vpt = (void *)(Convert_dbl2flt(output->V[nv],0))[0][0];   */
+        FileDelete (filename);  /* Avoid partial fill of pre-existing files */
+        fbin = FileOpen (filename, SZ_float, "w");
         Vpt3 = Convert_dbl2flt(output->V[nv], units[nv],0);
         Vpt = (void *)Vpt3[0][0];
-        WriteBinaryArray (Vpt, sizeof(float), SZ_float, fbin, 
+        FileWriteData (Vpt, sizeof(float), SZ_float, fbin, 
                           output->stag_var[nv]);
-        CloseBinaryFile (fbin, SZ_float);
+        FileClose (fbin, SZ_float);
       }
     }
 
@@ -216,7 +231,7 @@ BOV_Header(output, filename);
      single_file = YES;
      WriteHDF5 (output, grid);
     #else
-     print1 ("! WriteData: HDF5 library not available\n");
+     print ("! WriteData: HDF5 library not available\n");
      return;
     #endif
 
@@ -236,7 +251,8 @@ BOV_Header(output, filename);
 
     if (single_file){  /* -- single output file -- */
 
-      fbin  = OpenBinaryFile(filename, SZ_Float_Vect, "w");
+      FileDelete (filename);  /* Avoid partial fill of pre-existing files */
+      fbin  = FileOpen(filename, SZ_Float_Vect, "w");
       WriteVTK_Header(fbin, grid);
       for (nv = 0; nv < output->nvar; nv++) {  /* -- write vectors -- */
         if (output->dump_var[nv] != VTK_VECTOR) continue;
@@ -246,8 +262,8 @@ BOV_Header(output, filename);
 
       #ifdef PARALLEL
        offset = AL_Get_offset(SZ_Float_Vect);
-       CloseBinaryFile(fbin, SZ_Float_Vect);
-       fbin  = OpenBinaryFile(filename, SZ_float, "w");
+       FileClose(fbin, SZ_Float_Vect);
+       fbin  = FileOpen(filename, SZ_float, "w");
        AL_Set_offset(SZ_float, offset);
       #endif
       
@@ -256,7 +272,7 @@ BOV_Header(output, filename);
         WriteVTK_Scalar (fbin, output->V[nv], units[nv],
                          output->var_name[nv], grid);
       }
-      CloseBinaryFile(fbin, SZ_float);
+      FileClose(fbin, SZ_float);
 
     }else{          /* -- multiple output files -- */
 
@@ -269,32 +285,34 @@ BOV_Header(output, filename);
           sprintf (filename, "%s/bfield.%04d.%s", output->dir, output->nfile, 
                                                   output->ext);
         }else{
-          print1 ("! WriteData: unknown vector type in VTK output\n"); 
+          print ("! WriteData: unknown vector type in VTK output\n"); 
           QUIT_PLUTO(1);
         }
 
-        fbin = OpenBinaryFile(filename, SZ_Float_Vect, "w");
+        FileDelete (filename);  /* Avoid partial fill of pre-existing files */
+        fbin = FileOpen(filename, SZ_Float_Vect, "w");
         WriteVTK_Header(fbin, grid);
         WriteVTK_Vector(fbin, output->V + nv, units[nv],
                         output->var_name[nv], grid);
-        CloseBinaryFile(fbin, SZ_Float_Vect);
+        FileClose(fbin, SZ_Float_Vect);
       }
 
       for (nv = 0; nv < output->nvar; nv++) {  /* -- write scalars -- */
         if (output->dump_var[nv] != YES) continue;
         sprintf (filename, "%s/%s.%04d.%s", output->dir, output->var_name[nv], 
                                             output->nfile,  output->ext);
-        fbin = OpenBinaryFile(filename, SZ_Float_Vect, "w");
+        FileDelete (filename);  /* Avoid partial fill of pre-existing files */
+        fbin = FileOpen(filename, SZ_Float_Vect, "w");
         WriteVTK_Header(fbin, grid);
-        #ifdef PARALLEL
-         offset = AL_Get_offset(SZ_Float_Vect);
-         CloseBinaryFile(fbin, SZ_Float_Vect);
-         fbin  = OpenBinaryFile(filename, SZ_float, "w");
-         AL_Set_offset(SZ_float, offset);
-        #endif
+      #ifdef PARALLEL
+        offset = AL_Get_offset(SZ_Float_Vect);
+        FileClose(fbin, SZ_Float_Vect);
+        fbin  = FileOpen(filename, SZ_float, "w");
+        AL_Set_offset(SZ_float, offset);
+      #endif
         WriteVTK_Scalar(fbin, output->V[nv], units[nv],
                         output->var_name[nv], grid);
-        CloseBinaryFile (fbin, SZ_float);
+        FileClose (fbin, SZ_float);
       }
     }
 
@@ -338,14 +356,13 @@ BOV_Header(output, filename);
        WritePNG (output->V[nv], output->var_name[nv], filename, grid);
      }
     #else
-     print1 ("! PNG library not available\n");
+     print ("! PNG library not available\n");
      return;
     #endif
-
-  }
+  }       
 
 /* -------------------------------------------------------------
-           Update corresponding ".out" file
+   3. Update corresponding ".out" file
    ------------------------------------------------------------- */
 
   sprintf (filename,"%s/%s.out",output->dir, output->ext);
@@ -378,180 +395,16 @@ BOV_Header(output, filename);
     fclose (fout);
   }
 
-  #ifdef PARALLEL
-   MPI_Barrier (MPI_COMM_WORLD);
-   if (prank == 0){
-     time(&tend);
-     print1 (" [%5.2f sec]",difftime(tend,tbeg));
-   }
-  #endif
-  print1 ("\n");
+#ifdef PARALLEL
+  MPI_Barrier (MPI_COMM_WORLD);
+  if (prank == 0){
+    time(&tend);
+    print (" [%5.2f sec]",difftime(tend,tbeg));
+  }
+#endif
+  print ("\n");
 
 }
-
-#ifdef USE_ASYNC_IO
-static float ****Vflt;
-static int perf_output[16] = {0};
-/* ********************************************************************* */
-void Async_BegWriteData (const Data *d, Output *output, Grid *grid)
-/*!
- *
- * PURPOSE:
- *
- *  Write data to disk using binary format and asyncronous MPI functions: 
- *   dbl, flt.
- *
- *  \author CINECA (g.muscianisi@cineca.it), A. Mignone (mignone@ph.unito.it)
- *
- *********************************************************************** */
-{
-  int  i, j, k, nv;
-  size_t dsize;
-  char   filename[128];
-  static int last_computed_var = -1;
-
-/* -----------------------------------------------------------
-                Increment the file number 
-   ----------------------------------------------------------- */
-
-  output->nfile++;
-  print1 ("> Writing file #%d (%s) to disk [async: beg]...\n",
-             output->nfile, output->ext);
-
-/* --------------------------------------------------------
-            Get user var if necessary 
-   -------------------------------------------------------- */
-
-  if (last_computed_var != g_stepNumber && d->Vuser != NULL) {
-    ComputeUserVar (d, grid);
-    last_computed_var = g_stepNumber;
-  }
-
-/* ------------------------------------------------------
-                  DBL/FLT OUTPUTS 
-   ------------------------------------------------------ */
-
-  if (output->type == DBL_OUTPUT) {
-    dsize = sizeof(double);
-    perf_output[DBL_OUTPUT] = 1;
-  } else{
-    dsize = sizeof(float);
-    perf_output[FLT_OUTPUT] = 1;
-  }    
-  
-  sprintf (filename, "%s/data.%04d.%s", output->dir, output->nfile,
-                                        output->ext);
-
-  if (dsize == sizeof(double)) AL_File_open(filename, SZ);
-  if (dsize == sizeof(float))  AL_File_open(filename, SZ_float);
-
-  if (dsize == sizeof(double)){
-    AL_Write_array_begin ((void *)output->V[0][0][0], SZ, output->stag_var,
-                                  output->dump_var, output->nvar);
-  }
-  if (dsize == sizeof(float)){
-    if (Vflt == NULL){
-      Vflt = ARRAY_4D(output->nvar, NX3_TOT, NX2_TOT, NX1_TOT, float);
-    }
-  
-    /* similar to CONVERT_TO_FLOAT, with swap_endian disabled */
-    
-    for (nv = 0; nv < output->nvar; nv++){
-      DOM_LOOP(k,j,i) Vflt[nv][k][j][i] = (float)output->V[nv][k][j][i]; 
-    }
-    AL_Write_array_begin ((void *)Vflt[0][0][0], SZ_float, 
-                          output->stag_var, output->dump_var, output->nvar);
-  }
-}
-
-/* ********************************************************************* */
-void Async_EndWriteData (Runtime *ini)
-/*!
- *
- * PURPOSE:
- *
- *  Writing data completition using binary format and asyncronous 
- *  MPI functions: dbl, flt.
- *
- * \author CINECA (g.muscianisi@cineca.it), A. Mignone (mignone@ph.unito.it)
- *
- *********************************************************************** */
-{
-  char filename[128], sline[512];
-  FILE *fout;
-  int nv;
-  Output *output;
-
-  if (perf_output[DBL_OUTPUT]){   /* asynchronous dbl output */
-    output = ini->output + 0;
-    print1 ("> Writing file #%d (%s) to disk [async: end]...\n",
-             output->nfile, output->ext);
-    AL_Write_array_end((void *)output->V[0][0][0], SZ);
-    AL_File_close(SZ);
-
-    sprintf (filename,"%s.out",output->ext);   
-    if (prank == 0) {
-      if (output->nfile == 0) {
-        fout = fopen (filename, "w");
-      }else{
-        fout = fopen (filename, "r+");
-        for (nv = 0; nv < output->nfile; nv++) fgets (sline, 512, fout);
-           fseek (fout, ftell(fout), SEEK_SET);
-      }
-
-      /* -- write a multi-column file -- */
-      fprintf (fout, "%d %8.3e %8.3e %ld ", output->nfile, g_time, 
-                                            g_dt, g_stepNumber);
-      fprintf (fout,"single_file ");
-
-      if (IsLittleEndian()) fprintf (fout, "little ");
-      else                 fprintf (fout, "big ");
-
-      for (nv = 0; nv < output->nvar; nv++) {
-         if (output->dump_var[nv]) fprintf (fout, "%s ", output->var_name[nv]);
-      }
-      fprintf (fout,"\n");
-      fclose (fout);
-    }
-    perf_output[DBL_OUTPUT] = 0;
-  }
-  if (perf_output[FLT_OUTPUT]){  /* asynchronous flt output */
-    output =ini->output + 1;
-    print1 ("> Writing file #%d (%s) to disk [async: end]...\n",
-             output->nfile, output->ext);
-
-    AL_Write_array_end((void *)Vflt[0][0][0], SZ_float);
-    AL_File_close(SZ_float);
-
-    sprintf (filename,"%s.out",output->ext);  
-    if (prank == 0) {
-      if (output->nfile == 0) {
-        fout = fopen (filename, "w");
-      }else {
-        fout = fopen (filename, "r+");
-        for (nv = 0; nv < output->nfile; nv++) fgets (sline, 512, fout);
-           fseek (fout, ftell(fout), SEEK_SET);
-      }
-
-      /* -- write a multi-column file -- */
-      fprintf (fout, "%d %8.3e %8.3e %ld ", 
-                output->nfile, g_time, g_dt, g_stepNumber);
-      fprintf (fout,"single_file ");
-
-      if (IsLittleEndian()) fprintf (fout, "little ");
-      else                  fprintf (fout, "big ");
-
-      for (nv = 0; nv < output->nvar; nv++) {
-         if (output->dump_var[nv]) fprintf (fout, "%s ", output->var_name[nv]);
-      }
-      fprintf (fout,"\n");
-      fclose (fout);
-    }
-    perf_output[FLT_OUTPUT] = 0;
-  }
-
-}
-#endif /* USE_ASYNC_IO */
 
 /* ********************************************************************* */
 void GetCGSUnits (double *u)

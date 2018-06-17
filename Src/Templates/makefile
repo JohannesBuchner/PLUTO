@@ -29,10 +29,11 @@ OBJ = adv_flux.o arrays.o boundary.o check_states.o  \
       tools.o var_names.o  
 
 OBJ += bin_io.o colortable.o initialize.o jet_domain.o \
-       main.o restart.o runtime_setup.o show_config.o  \
-       set_image.o set_grid.o startup.o split_source.o \
+       main.o output_log.o restart.o runtime_setup.o \
+       set_image.o show_config.o  \
+       set_grid.o startup.o split_source.o \
        userdef_output.o write_data.o write_tab.o \
-       write_img.o write_vtk.o 
+       write_img.o write_vtk.o write_vtk_proc.o
 
 include $(SRC)/Math_Tools/makefile
 

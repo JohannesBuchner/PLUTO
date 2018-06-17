@@ -5,8 +5,9 @@
 
   Fill the ghost boundaries along selected dimensions
 
-  \author A. Malagoli (University of Chicago)
-  \date Jul 17, 1999
+  \author A. Malagoli (University of Chicago)\n
+          A. Mignone 
+  \date   Oct 28, 2015
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "al_hidden.h"  /*I "al_hidden.h" I*/

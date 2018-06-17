@@ -61,7 +61,7 @@
   the FOURTH_ORDER_LIM which requires  5 zones. 
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   June 16, 2015
+  \date   Oct 18, 2016
 
   \b References
      - "High-order conservative reconstruction schemes for finite
@@ -74,14 +74,14 @@
 static void MonotonicityTest(double **, double **, double **, int, int);
 
 #if CHAR_LIMITING == NO
-static void FourthOrderLinear(const State_1D *, int, int, Grid *);
+static void FourthOrderLinear(const Sweep *, int, int, Grid *);
 
 /* ********************************************************************* */
-void States (const State_1D *state, int beg, int end, Grid *grid)
+void States (const Sweep *sweep, int beg, int end, Grid *grid)
 /*! 
  * Compute states using piecewise linear interpolation.
  *
- * \param [in] state pointer to a State_1D structure
+ * \param [in] sweep pointer to a Sweep structure
  * \param [in] beg   starting point where vp and vm must be computed
  * \param [in] end   final    point where vp and vm must be computed
  * \param [in] grid  pointer to array of Grid structures
@@ -91,16 +91,24 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
  ************************************************************************ */
 {
   int    nv, i;
-  double **v, **vp, **vm;
+  const State *stateC = &(sweep->stateC);
+  const State *stateL = &(sweep->stateL);
+  const State *stateR = &(sweep->stateR);
+  double **v  = stateC->v;
+  double **vp = stateL->v;
+  double **vm = stateR->v-1;
+  double **up = stateL->u;
+  double **um = stateR->u-1;
+
   double dv_lim[NVAR], dvp[NVAR], dvm[NVAR];
   double cp, cm, wp, wm, dp, dm;
   PLM_Coeffs plm_coeffs;
   static double **dv;
 
-  #if LIMITER == FOURTH_ORDER_LIM
-   FourthOrderLinear(state, beg, end, grid);
-   return;
-  #endif
+#if LIMITER == FOURTH_ORDER_LIM
+  FourthOrderLinear(sweep, beg, end, grid);
+  return;
+#endif
   
 /* -----------------------------------------------------------
    0. Memory allocation and pointer shortcuts, geometrical
@@ -111,20 +119,16 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
     dv = ARRAY_2D(NMAX_POINT, NVAR, double);
   }
 
-  v  = state->v;
-  vp = state->vp;
-  vm = state->vm;
-
 #if UNIFORM_CARTESIAN_GRID == NO
   PLM_CoefficientsGet (&plm_coeffs, g_dir);
 #endif
 
-#if RECONSTRUCT_4VEL
-  ConvertTo4vel (state->v, beg-1, end+1);
+#if RECONSTRUCT_4VEL == YES
+  ConvertTo4vel (v, beg-1, end+1);
 #endif
 
 /* -------------------------------------------
-        compute undivided differences
+   1. Compute undivided differences
    ------------------------------------------- */
 
   for (i = beg-1; i <= end; i++){
@@ -142,21 +146,21 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
      --------------------------------------------------------- */
 
     #if UNIFORM_CARTESIAN_GRID == YES
-     cp = cm = 2.0;
-     wp = wm = 1.0;
-     dp = dm = 0.5;
-     NVAR_LOOP(nv) {
-       dvp[nv] = dv[i][nv];
-       dvm[nv] = dv[i-1][nv];
-     }
+    cp = cm = 2.0;
+    wp = wm = 1.0;
+    dp = dm = 0.5;
+    NVAR_LOOP(nv) {
+      dvp[nv] = dv[i][nv];
+      dvm[nv] = dv[i-1][nv];
+    }
     #else
-     cp = plm_coeffs.cp[i]; cm = plm_coeffs.cm[i];
-     wp = plm_coeffs.wp[i]; wm = plm_coeffs.wm[i];
-     dp = plm_coeffs.dp[i]; dm = plm_coeffs.dm[i];
-     NVAR_LOOP(nv) {
-       dvp[nv] = dv[i][nv]*wp;
-       dvm[nv] = dv[i-1][nv]*wm;
-     }
+    cp = plm_coeffs.cp[i]; cm = plm_coeffs.cm[i];
+    wp = plm_coeffs.wp[i]; wm = plm_coeffs.wm[i];
+    dp = plm_coeffs.dp[i]; dm = plm_coeffs.dm[i];
+    NVAR_LOOP(nv) {
+      dvp[nv] = dv[i][nv]*wp;
+      dvm[nv] = dv[i-1][nv]*wm;
+    }
     #endif
 
   /* ---------------------------------------------------------------
@@ -164,18 +168,18 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
      --------------------------------------------------------------- */
      
 #if SHOCK_FLATTENING == MULTID
-    if (state->flag[i] & FLAG_FLAT) {
+    if (sweep->flag[i] & FLAG_FLAT) {
       NVAR_LOOP(nv)vp[i][nv] = vm[i][nv] = v[i][nv];
       continue;
-    }else if (state->flag[i] & FLAG_MINMOD) {
+    }else if (sweep->flag[i] & FLAG_MINMOD) {
       NVAR_LOOP(nv){
         SET_MM_LIMITER(dv_lim[nv], dvp[nv], dvm[nv], cp, cm);
         vp[i][nv] = v[i][nv] + dv_lim[nv]*dp;
         vm[i][nv] = v[i][nv] - dv_lim[nv]*dm;
       }
-  #if (PHYSICS == RHD || PHYSICS == RMHD)
+      #if (PHYSICS == RHD || PHYSICS == RMHD)
       VelocityLimiter (v[i], vp[i], vm[i]);
-  #endif
+      #endif
       continue;
     }
 #endif    
@@ -185,33 +189,42 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
         (this has some hystorical reasons)
      --------------------------------------------------------- */
 
-    #if LIMITER == DEFAULT
-     SET_MC_LIMITER(dv_lim[RHO], dvp[RHO], dvm[RHO], cp, cm);
-     #if PHYSICS != ADVECTION
-      EXPAND(SET_VL_LIMITER(dv_lim[VX1], dvp[VX1], dvm[VX1], cp, cm);  ,
-             SET_VL_LIMITER(dv_lim[VX2], dvp[VX2], dvm[VX2], cp, cm);  ,
-             SET_VL_LIMITER(dv_lim[VX3], dvp[VX3], dvm[VX3], cp, cm);)
-     #endif
+#if LIMITER == DEFAULT
+    SET_MC_LIMITER(dv_lim[RHO], dvp[RHO], dvm[RHO], cp, cm);
+    #if PHYSICS != ADVECTION
+    EXPAND(SET_VL_LIMITER(dv_lim[VX1], dvp[VX1], dvm[VX1], cp, cm);  ,
+           SET_VL_LIMITER(dv_lim[VX2], dvp[VX2], dvm[VX2], cp, cm);  ,
+           SET_VL_LIMITER(dv_lim[VX3], dvp[VX3], dvm[VX3], cp, cm);)
+    #endif
 
-     #if PHYSICS == MHD || PHYSICS == RMHD
-      EXPAND(SET_VL_LIMITER(dv_lim[BX1], dvp[BX1], dvm[BX1], cp, cm);  ,
-             SET_VL_LIMITER(dv_lim[BX2], dvp[BX2], dvm[BX2], cp, cm);  ,
-             SET_VL_LIMITER(dv_lim[BX3], dvp[BX3], dvm[BX3], cp, cm);)
-      #ifdef GLM_MHD
-       SET_MC_LIMITER(dv_lim[PSI_GLM], dvp[PSI_GLM], dvm[PSI_GLM], cp, cm);
-      #endif
-     #endif
+    #if PHYSICS == MHD || PHYSICS == RMHD
+    EXPAND(SET_VL_LIMITER(dv_lim[BX1], dvp[BX1], dvm[BX1], cp, cm);  ,
+           SET_VL_LIMITER(dv_lim[BX2], dvp[BX2], dvm[BX2], cp, cm);  ,
+           SET_VL_LIMITER(dv_lim[BX3], dvp[BX3], dvm[BX3], cp, cm);)
+    #if PHYSICS == RMHD && RESISTIVITY != NO
+    EXPAND(SET_VL_LIMITER(dv_lim[EX1], dvp[EX1], dvm[EX1], cp, cm);  ,
+           SET_VL_LIMITER(dv_lim[EX2], dvp[EX2], dvm[EX2], cp, cm);  ,
+           SET_VL_LIMITER(dv_lim[EX3], dvp[EX3], dvm[EX3], cp, cm);)
+    #endif
 
-     #if HAVE_ENERGY
-      SET_MM_LIMITER(dv_lim[PRS], dvp[PRS], dvm[PRS], cp, cm);
-     #endif
+    #ifdef GLM_MHD
+    SET_MC_LIMITER(dv_lim[PSI_GLM], dvp[PSI_GLM], dvm[PSI_GLM], cp, cm);
+    #ifdef PHI_GLM
+    SET_MC_LIMITER(dv_lim[PHI_GLM], dvp[PHI_GLM], dvm[PHI_GLM], cp, cm);
+    #endif
+    #endif
+    #endif
+
+    #if HAVE_ENERGY
+    SET_MM_LIMITER(dv_lim[PRS], dvp[PRS], dvm[PRS], cp, cm);
+    #endif
  
-     #if NFLX != NVAR /* -- scalars: MC lim  -- */
-      for (nv = NFLX; nv < NVAR; nv++){
-        SET_MC_LIMITER(dv_lim[nv], dvp[nv], dvm[nv], cp, cm);
-      }
-     #endif
-    #endif /* LIMITER == DEFAULT */
+    #if NFLX != NVAR /* -- scalars: MC lim  -- */
+     for (nv = NFLX; nv < NVAR; nv++){
+       SET_MC_LIMITER(dv_lim[nv], dvp[nv], dvm[nv], cp, cm);
+     }
+    #endif
+#endif /* LIMITER == DEFAULT */
 
   /* ----------------------------------------
      2d. construct (+) and (-) states
@@ -219,7 +232,7 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
 
     for (nv = 0; nv < NVAR; nv++){
       #if LIMITER != DEFAULT  /* -- same limiter for all variables -- */
-       SET_LIMITER(dv_lim[nv], dvp[nv], dvm[nv], cp, cm);
+      SET_LIMITER(dv_lim[nv], dvp[nv], dvm[nv], cp, cm);
       #endif
 
       vp[i][nv] = v[i][nv] + dv_lim[nv]*dp;
@@ -231,7 +244,7 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
      -------------------------------------- */
 
     #if (PHYSICS == RHD || PHYSICS == RMHD) 
-     VelocityLimiter (v[i], vp[i], vm[i]);
+    VelocityLimiter (v[i], vp[i], vm[i]);
     #endif
   } /* -- end loop on zones -- */
 
@@ -240,7 +253,7 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
    ---------------------------------------------------- */ 
 
 #if CHECK_MONOTONICITY == YES
-  MonotonicityTest(state->v, state->vp, state->vm, beg, end);
+  MonotonicityTest(v, vp, vm, beg, end);
 #endif
 
 /* -------------------------------------------
@@ -248,7 +261,7 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
    -------------------------------------------  */
 
 #if SHOCK_FLATTENING == ONED
-  Flatten (state, beg, end, grid);
+  Flatten (sweep, beg, end, grid);
 #endif
 
 /* -------------------------------------------
@@ -257,7 +270,7 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
 
 #ifdef STAGGERED_MHD
   for (i = beg - 1; i <= end; i++) {
-    state->vR[i][BXn] = state->vL[i][BXn] = state->bn[i];
+    vp[i][BXn] = vm[i+1][BXn] = sweep->bn[i];
   }
 #endif
 
@@ -266,18 +279,9 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
    -------------------------------------------------------- */
 
 #if TIME_STEPPING == CHARACTERISTIC_TRACING
-  CharTracingStep(state, beg, end, grid);
-#elif TIME_STEPPING == HANCOCK
-  HancockStep(state, beg, end, grid);
-  /* The conservative hancock scheme is used only for RMHD with linear
-     interpolation in primitive variables.
-     In this case, the conversion to 3-vel is already carried out in
-     the predictor step and we need to skip it here. */
-  #if PRIMITIVE_HANCOCK == NO
-    PrimToCons (state->vp, state->up, beg, end);
-    PrimToCons (state->vm, state->um, beg, end);
-    return;
-  #endif
+  CharTracingStep(sweep, beg, end, grid);
+#elif TIME_STEPPING == HANCOCK && PRIMITIVE_HANCOCK == YES
+  HancockStep(sweep, beg, end, grid);  
 #endif
 
 /* --------------------------------------------------------
@@ -285,20 +289,30 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
    -------------------------------------------------------- */
 
 #if RECONSTRUCT_4VEL
-  ConvertTo3vel (state->v, beg-1, end+1);
-  ConvertTo3vel (state->vp, beg, end);
-  ConvertTo3vel (state->vm, beg, end);  
+  ConvertTo3vel (v, beg-1, end+1);
+  ConvertTo3vel (vp, beg, end);
+  ConvertTo3vel (vm, beg, end);
+#endif
+
+/* --------------------------------------------------------
+   7. Evolve L/R state and center value by dt/2 using
+      conservative Hancock scheme [requires 3-vel in input]
+   -------------------------------------------------------- */
+
+#if TIME_STEPPING == HANCOCK && PRIMITIVE_HANCOCK == NO
+  HancockStep(sweep, beg, end, grid);  
 #endif
 
 /* ----------------------------------------------
-   7. Obtain L/R states in conservative variables
+   8. Obtain L/R states in conservative variables
    ---------------------------------------------- */
 
-  PrimToCons (state->vp, state->up, beg, end);
-  PrimToCons (state->vm, state->um, beg, end);
+  PrimToCons (vp, up, beg, end);
+  PrimToCons (vm, um, beg, end);
 }
+#if LIMITER == FOURTH_ORDER_LIM
 /* ********************************************************************** */
-void FourthOrderLinear(const State_1D *state, int beg, int end, Grid *grid)
+void FourthOrderLinear(const Sweep *sweep, int beg, int end, Grid *grid)
 /*
  * PURPOSE
  *
@@ -317,14 +331,18 @@ void FourthOrderLinear(const State_1D *state, int beg, int end, Grid *grid)
  *********************************************************************** */
 {
   int    i, nv;
+  const State *stateC = &(sweep->stateC);
+  const State *stateL = &(sweep->stateL);
+  const State *stateR = &(sweep->stateR);
+  double **v  = stateC->v;
+  double **vp = stateL->v;
+  double **vm = stateR->v-1;
+  double **up = stateL->u;
+  double **um = stateR->u-1;
+
   static double **s;
   static double **dv, **dvf, **dvc, **dvlim; 
   double scrh, dvp, dvm, dvl;
-  double **v, **vp, **vm;
-
-  v  = state->v;
-  vp = state->vp;
-  vm = state->vm;
 
   if (s == NULL){
     s     = ARRAY_2D(NMAX_POINT, NVAR, double);
@@ -334,12 +352,13 @@ void FourthOrderLinear(const State_1D *state, int beg, int end, Grid *grid)
     dvlim = ARRAY_2D(NMAX_POINT, NVAR, double);
   }
 
-  #if TIME_STEPPING == HANCOCK && PHYSICS != RMHD
-   SoundSpeed2 (state->v, state->a2, state->h, beg, end, CELL_CENTER, grid);
-  #endif
+#if TIME_STEPPING == HANCOCK && PHYSICS != RMHD
+  SoundSpeed2 (stateC, beg, end, CELL_CENTER, grid);
+#endif
+
 /*
   #if GEOMETRY != CARTESIAN
-   print1 ("! FourthOrderLinear: only Cartesian geometry supported\n");
+   print ("! FourthOrderLinear: only Cartesian geometry supported\n");
    QUIT_PLUTO(1);  
   #endif
 */
@@ -348,7 +367,7 @@ void FourthOrderLinear(const State_1D *state, int beg, int end, Grid *grid)
    ----------------------------------------------------------- */
 
   for (i = beg-2; i <= end+1; i++){
-    for (nv = 0; nv < NVAR; nv++) dv[i][nv] = v[i+1][nv] - v[i][nv];
+    NVAR_LOOP(nv) dv[i][nv] = v[i+1][nv] - v[i][nv];
   }
 
   for (i = beg - 1; i <= end + 1; i++){
@@ -376,7 +395,7 @@ void FourthOrderLinear(const State_1D *state, int beg, int end, Grid *grid)
       vm[i][nv] = v[i][nv] - 0.5*dvlim[i][nv];
     }
     #if (PHYSICS == RHD || PHYSICS == RMHD)
-     VelocityLimiter(v[i], vp[i], vm[i]);
+    VelocityLimiter(v[i], vp[i], vm[i]);
     #endif
   }
 
@@ -384,69 +403,77 @@ void FourthOrderLinear(const State_1D *state, int beg, int end, Grid *grid)
                Shock flattening
     -------------------------------------------  */
 
-  #if SHOCK_FLATTENING == MULTID && CHAR_LIMITING == NO
-   Flatten (state, beg, end, grid);
-  #endif
+#if SHOCK_FLATTENING == MULTID && CHAR_LIMITING == NO
+  Flatten (sweep, beg, end, grid);
+#endif
 
 /*  -------------------------------------------
         Shock flattening
     -------------------------------------------  */
 
-  #if SHOCK_FLATTENING == ONED
-   Flatten (state, beg, end, grid);
-  #endif
+#if SHOCK_FLATTENING == ONED
+  Flatten (sweep, beg, end, grid);
+#endif
 
 /*  -------------------------------------------
       Assign face-centered magnetic field
     -------------------------------------------  */
 
-  #ifdef STAGGERED_MHD
-   for (i = beg - 1; i <= end; i++) {
-     state->vR[i][BXn] = state->vL[i][BXn] = state->bn[i];
-   }
-  #endif
+#ifdef STAGGERED_MHD
+  for (i = beg - 1; i <= end; i++) {
+    stateL->v[i][BXn] = stateR->v[i][BXn] = sweep->bn[i];
+  }
+#endif
 
 /* --------------------------------------------------------
       evolve center values by dt/2
    -------------------------------------------------------- */
 
-
-  #if TIME_STEPPING == HANCOCK
-   HancockStep(state, beg, end, grid);
-  #endif
+#if TIME_STEPPING == HANCOCK
+  HancockStep(sweep, beg, end, grid);
+#endif
 
 /* -------------------------------------------
     compute states in conservative variables
    ------------------------------------------- */
 
-  PrimToCons (state->vp, state->up, beg, end);
-  PrimToCons (state->vm, state->um, beg, end);
+  PrimToCons (vp, up, beg, end);
+  PrimToCons (vm, um, beg, end);
 }
-
-#endif
+#endif  /* LIMITER == FOURTH_ORDER_LIM */
+#endif  /* CHAR_LIMITING == NO */
 
 #if CHAR_LIMITING == YES
 /* *********************************************************************** */
-void States (const State_1D *state, int beg, int end,  Grid *grid)
+void States (const Sweep *sweep, int beg, int end,  Grid *grid)
 /*! 
- *   Compute 1D left and right interface states using piecewise
- *   linear reconstruction and the characteristic decomposition of the
- *   quasi-linear form of the equations.
+ * Compute 1D left and right interface states using piecewise
+ * linear reconstruction and the characteristic decomposition of the
+ * quasi-linear form of the equations.
  *
- *   This is done by first extrapolating the cell center value to the 
- *   interface using piecewise limited linear reconstruction
- *   on the characteristic variables.
+ * This is done by first extrapolating the cell center value to the 
+ * interface using piecewise limited linear reconstruction
+ * on the characteristic variables.
  *
- *   Left and right states are then evolved for the half time step 
- *   using characteristic tracing if necessary.
+ * Left and right states are then evolved for the half time step 
+ * using characteristic tracing if necessary.
  *
  ************************************************************************* */
 {
   int    i, j, k, nv;
+
+  const State *stateC = &(sweep->stateC);
+  const State *stateL = &(sweep->stateL);
+  const State *stateR = &(sweep->stateR);
+
+  double **v  = stateC->v; 
+  double **vp = stateL->v;
+  double **vm = stateR->v - 1;
+  double  *a2 = stateC->a2;
+
   double dvp[NVAR], dvm[NVAR], dv_lim[NVAR], dvc[NVAR], d2v;
   double dw_lim[NVAR], dwp[NVAR], dwm[NVAR];
   double dp, dm, dc;
-  double **vp, **vm, **v;
   double **L, **R, *lambda;
   double cp, cm, wp, wm, cpk[NVAR], cmk[NVAR];
   double kstp[NVAR];
@@ -461,10 +488,6 @@ void States (const State_1D *state, int beg, int end,  Grid *grid)
     dv = ARRAY_2D(NMAX_POINT, NVAR, double);
   }
 
-  v  = state->v; 
-  vp = state->vp;
-  vm = state->vm;
-
   #if UNIFORM_CARTESIAN_GRID == NO
    PLM_CoefficientsGet(&plm_coeffs, g_dir);
   #endif
@@ -474,10 +497,10 @@ void States (const State_1D *state, int beg, int end,  Grid *grid)
     to 4-vel if necessary. 
    --------------------------------------------- */
  
-  SoundSpeed2 (state->v, state->a2, state->h, beg, end, CELL_CENTER, grid);
+  SoundSpeed2 (stateC, beg, end, CELL_CENTER, grid);
 
-#if RECONSTRUCT_4VEL
-   ConvertTo4vel (state->v, beg-1, end+1); /* From now up to the end of the
+#if RECONSTRUCT_4VEL 
+  ConvertTo4vel (v, beg-1, end+1); /* From now up to the end of the
                                             * function, v contains the 4-vel */
 #endif
 
@@ -492,26 +515,25 @@ void States (const State_1D *state, int beg, int end,  Grid *grid)
    -------------------------------------------------------------- */
 
   for (k = NVAR; k--;  ) kstp[k] = 2.0;
-  #if PHYSICS == HD || PHYSICS == RHD
-   kstp[0] = kstp[1] = 1.0;
-  #elif PHYSICS == MHD
-   kstp[KFASTP] = kstp[KFASTM] = 1.0;
-   #if COMPONENTS > 1
-    kstp[KSLOWP] = kstp[KSLOWM] = 1.0; 
-   #endif
+#if PHYSICS == HD || PHYSICS == RHD
+  kstp[0] = kstp[1] = 1.0;
+#elif PHYSICS == MHD
+  kstp[KFASTP] = kstp[KFASTM] = 1.0;
+  #if COMPONENTS > 1
+  kstp[KSLOWP] = kstp[KSLOWM] = 1.0; 
   #endif
+#endif
 
 /* --------------------------------------------------------------
    2. Start main spatial loop
    -------------------------------------------------------------- */
 
+  PrimEigenvectors(stateC, beg, end);
   for (i = beg; i <= end; i++){    
 
-    L      = state->Lp[i];
-    R      = state->Rp[i];
-    lambda = state->lambda[i];
-
-    PrimEigenvectors(v[i], state->a2[i], state->h[i], lambda, L, R);
+    L      = stateC->Lp[i];
+    R      = stateC->Rp[i];
+    lambda = stateC->lambda[i];
 
   /* ---------------------------------------------------------------
      2a. Project forward, backward (and centered) undivided 
@@ -520,30 +542,30 @@ void States (const State_1D *state, int beg, int end,  Grid *grid)
      --------------------------------------------------------------- */
 
     #if UNIFORM_CARTESIAN_GRID == YES
-     cp = cm = 2.0;
-     wp = wm = 1.0;
-     dp = dm = 0.5;
-     NVAR_LOOP(nv) {
-       dvp[nv] = dv[i][nv];
-       dvm[nv] = dv[i-1][nv];
+    cp = cm = 2.0;
+    wp = wm = 1.0;
+    dp = dm = 0.5;
+    NVAR_LOOP(nv) {
+      dvp[nv] = dv[i][nv];
+      dvm[nv] = dv[i-1][nv];
 
-       k = nv;
-       cpk[k] = cmk[k] = kstp[k];
-     }
+      k = nv;
+      cpk[k] = cmk[k] = kstp[k];
+    }
     #else
-     cp = plm_coeffs.cp[i]; cm = plm_coeffs.cm[i];
-     wp = plm_coeffs.wp[i]; wm = plm_coeffs.wm[i];
-     dp = plm_coeffs.dp[i]; dm = plm_coeffs.dm[i];
-     NVAR_LOOP(nv) {
-       dvp[nv] = dv[i][nv]*wp;
-       dvm[nv] = dv[i-1][nv]*wm;
+    cp = plm_coeffs.cp[i]; cm = plm_coeffs.cm[i];
+    wp = plm_coeffs.wp[i]; wm = plm_coeffs.wm[i];
+    dp = plm_coeffs.dp[i]; dm = plm_coeffs.dm[i];
+    NVAR_LOOP(nv) {
+      dvp[nv] = dv[i][nv]*wp;
+      dvm[nv] = dv[i-1][nv]*wm;
 
-     /* -- Map 1 < kstp < 2  ==>  1 < ck < c -- */
+    /* -- Map 1 < kstp < 2  ==>  1 < ck < c -- */
 
-       k = nv;
-       cpk[k] = (2.0 - cp) + (cp - 1.0)*kstp[k]; /* used only for general */
-       cmk[k] = (2.0 - cm) + (cm - 1.0)*kstp[k]; /* minmod limiter        */
-     }
+      k = nv;
+      cpk[k] = (2.0 - cp) + (cp - 1.0)*kstp[k]; /* used only for general */
+      cmk[k] = (2.0 - cm) + (cm - 1.0)*kstp[k]; /* minmod limiter        */
+    }
     #endif
 
     PrimToChar(L, dvm, dwm);
@@ -555,19 +577,19 @@ void States (const State_1D *state, int beg, int end,  Grid *grid)
      ------------------------------------------------------- */
 
     #if SHOCK_FLATTENING == MULTID
-     if (state->flag[i] & FLAG_FLAT) {
-       for (k = NFLX; k--;   )   dw_lim[k] = 0.0;
-     } else if (state->flag[i] & FLAG_MINMOD) {
-       for (k = NFLX; k--;   ){
-         SET_MM_LIMITER(dw_lim[k], dwp[k], dwm[k], cp, cm);
-       }
-     } else
+    if (sweep->flag[i] & FLAG_FLAT) {
+      for (k = NFLX; k--;   )   dw_lim[k] = 0.0;
+    } else if (sweep->flag[i] & FLAG_MINMOD) {
+      for (k = NFLX; k--;   ){
+        SET_MM_LIMITER(dw_lim[k], dwp[k], dwm[k], cp, cm);
+      }
+    } else
     #endif
     for (k = NFLX; k--;    ){
       #if LIMITER == DEFAULT
-       SET_GM_LIMITER(dw_lim[k], dwp[k], dwm[k], cpk[k], cmk[k]);
+      SET_GM_LIMITER(dw_lim[k], dwp[k], dwm[k], cpk[k], cmk[k]);
       #else 
-       SET_LIMITER(dw_lim[k], dwp[k], dwm[k], cp, cm);
+      SET_LIMITER(dw_lim[k], dwp[k], dwm[k], cp, cm);
       #endif
     }
 
@@ -595,13 +617,13 @@ void States (const State_1D *state, int beg, int end,  Grid *grid)
      ----------------------------------------------------------------- */
      
     #if NFLX != NVAR
-     for (nv = NFLX; nv < NVAR; nv++ ){
-       #if LIMITER == DEFAULT
-        SET_MC_LIMITER(dv_lim[nv], dvp[nv], dvm[nv], cp, cm);
-       #else
-        SET_LIMITER(dv_lim[nv], dvp[nv], dvm[nv], cp, cm);
-       #endif
-     }
+    for (nv = NFLX; nv < NVAR; nv++ ){
+      #if LIMITER == DEFAULT
+      SET_MC_LIMITER(dv_lim[nv], dvp[nv], dvm[nv], cp, cm);
+      #else
+      SET_LIMITER(dv_lim[nv], dvp[nv], dvm[nv], cp, cm);
+      #endif
+    }
     #endif
 
   /* --------------------------------------------------------------------
@@ -614,7 +636,7 @@ void States (const State_1D *state, int beg, int end,  Grid *grid)
     }
 
     #if (PHYSICS == RHD || PHYSICS == RMHD)
-     VelocityLimiter (v[i], vp[i], vm[i]);
+    VelocityLimiter (v[i], vp[i], vm[i]);
     #endif
 
   }  /* -- end main loop on grid points -- */
@@ -623,54 +645,63 @@ void States (const State_1D *state, int beg, int end,  Grid *grid)
    3a. Check monotonicity
    ---------------------------------------------------- */ 
 
-  #if CHECK_MONOTONICITY == YES
-   MonotonicityTest(state->v, state->vp, state->vm, beg, end);
-  #endif
+#if CHECK_MONOTONICITY == YES
+  MonotonicityTest(v, vp, vm, beg, end);
+#endif
 
 /*  -------------------------------------------
     3b. Shock flattening (only 1D)
     -------------------------------------------  */
 
-  #if SHOCK_FLATTENING == ONED
-   Flatten (state, beg, end, grid);
-  #endif
+#if SHOCK_FLATTENING == ONED
+  Flatten (sweep, beg, end, grid);
+#endif
 
 /*  -------------------------------------------
     4. Assign face-centered magnetic field
     -------------------------------------------  */
 
-  #ifdef STAGGERED_MHD
-   for (i = beg-1; i <= end; i++) {
-     state->vR[i][BXn] = state->vL[i][BXn] = state->bn[i];
-   }
-  #endif
+#ifdef STAGGERED_MHD
+  for (i = beg-1; i <= end; i++) {
+    stateR->v[i][BXn] = stateL->v[i][BXn] = sweep->bn[i];
+  }
+#endif
 
 /* --------------------------------------------------------
    5. Evolve L/R states and center value by dt/2
    -------------------------------------------------------- */
 
-  #if TIME_STEPPING == CHARACTERISTIC_TRACING
-   CharTracingStep(state, beg, end, grid);
-  #elif TIME_STEPPING == HANCOCK
-   HancockStep(state, beg, end, grid);
-  #endif
+#if TIME_STEPPING == CHARACTERISTIC_TRACING
+  CharTracingStep(sweep, beg, end, grid);
+#elif TIME_STEPPING == HANCOCK && PRIMITIVE_HANCOCK == YES
+  HancockStep(sweep, beg, end, grid);
+#endif
 
 /* --------------------------------------------------------
    6. Convert back to 3-velocity
    -------------------------------------------------------- */
 
 #if RECONSTRUCT_4VEL
-  ConvertTo3vel (state->v, beg-1, end+1);
-  ConvertTo3vel (state->vp, beg, end);
-  ConvertTo3vel (state->vm, beg, end);  
+  ConvertTo3vel (v, beg-1, end+1);
+  ConvertTo3vel (vp, beg, end);
+  ConvertTo3vel (vm, beg, end);
+#endif
+
+/* --------------------------------------------------------
+   7. Evolve L/R state and center value by dt/2 using
+      conservative Hancock scheme [requires 3-vel in input]
+   -------------------------------------------------------- */
+
+#if TIME_STEPPING == HANCOCK && PRIMITIVE_HANCOCK == NO
+  HancockStep(sweep, beg, end, grid);  
 #endif
 
 /* ----------------------------------------------
-   7. Obtain L/R states in conservative variables
+   8. Obtain L/R states in conservative variables
    ---------------------------------------------- */
 
-  PrimToCons (state->vp, state->up, beg, end);
-  PrimToCons (state->vm, state->um, beg, end);
+  PrimToCons (vp, stateL->u, beg, end);
+  PrimToCons (vm, stateR->u-1, beg, end);
 }
 #endif  /* CHAR_LIMITING == YES */
 

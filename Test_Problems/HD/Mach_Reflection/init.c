@@ -77,7 +77,22 @@ void Init (double *us, double x1, double x2, double x3)
     us[VX2] = -8.25*cos(alpha);
     us[PRS] = 116.5;
   }      
+
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 
@@ -118,7 +133,7 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
   } else if (side == X2_BEG){
 
     X2_BEG_LOOP(k,j,i) {  
-      x1 = grid[IDIR].x[i];
+      x1 = grid->x[IDIR][i];
       if (x1 < 1.0/6.0){
         d->Vc[RHO][k][j][i] = 8.0;
         d->Vc[VX1][k][j][i] =   8.25*sin(alpha);
@@ -136,7 +151,7 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
 
     X2_END_LOOP(k,j,i){
 
-      x1 = grid[IDIR].x[i];
+      x1 = grid->x[IDIR][i];
       xs = 10.0*g_time/sin(alpha) + 1.0/6.0 + 1.0/tan(alpha);
       if (x1 < xs){
         d->Vc[RHO][k][j][i] = 8.0;

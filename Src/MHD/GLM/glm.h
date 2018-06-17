@@ -36,27 +36,39 @@
                                 low-beta plasma. */
 #endif
 
+#ifndef GLM_COMPUTE_DIVB
+  #define GLM_COMPUTE_DIVB  NO
+#endif
 
-#define COMPUTE_DIVB  NO
+#ifndef GLM_COMPUTE_DIVE
+  #define GLM_COMPUTE_DIVE  NO
+#endif
 
 /* with chombo, COMPUTE_DIVB must be 
    disabled or a segfault will occur */
 
 #ifdef CHOMBO
- #undef COMPUTE_DIVB  
- #define COMPUTE_DIVB NO
+ #undef GLM_COMPUTE_DIVB  
+ #undef GLM_COMPUTE_DIVE
+ #define GLM_COMPUTE_DIVB NO
+ #define GLM_COMPUTE_DIVE NO
 #endif
 
 extern double glm_ch; /**< The propagation speed of divergence error. */
     
-void  GLM_Solve (const State_1D *, double **, double **, int, int, Grid *);
-void  GLM_SolveNEW (const State_1D *state, int beg, int end, Grid *grid);
-void  GLM_Init      (const Data *, const Time_Step *, Grid *);
+void  GLM_Solve (const Sweep *, int, int, Grid *);
+void  GLM_SolveNEW (const Sweep *sweep, int beg, int end, Grid *grid);
+void  GLM_Init      (const Data *, const timeStep *, Grid *);
 void  GLM_Source (const Data_Arr, double, Grid *);
-void  GLM_ExtendedSource (const State_1D *, double, int, int, Grid *);
+void  GLM_ExtendedSource (const Sweep *, double, int, int, Grid *);
 
-#if COMPUTE_DIVB == YES
- void GLM_ComputeDivB(const State_1D *state, Grid *grid);
+#if GLM_COMPUTE_DIVB == YES
+ void GLM_ComputeDivB(const Sweep *sweep, Grid *grid);
  double ***GLM_GetDivB(void);
+#endif
+
+#if GLM_COMPUTE_DIVE == YES
+ void GLM_ComputeDivE(const Sweep *sweep, Grid *grid);
+ double ***GLM_GetDivE(void);
 #endif
 

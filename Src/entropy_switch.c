@@ -93,7 +93,7 @@ void EntropyOhmicHeating (const Data *d, Data_Arr UU, double dt, Grid *grid)
      Jc[KDIR] = CDIFF_X1(V[BX2],k,j,i)/dx1[i] - CDIFF_X2(V[BX1],k,j,i)/dx2[j];
 
      #if GEOMETRY != CARTESIAN
-      print1 ("! EntropyOhmicHeating: only CT supported in this geometry.\n")
+      print ("! EntropyOhmicHeating: only CT supported in this geometry.\n")
       QUIT_PLUTO(1);
      #endif
 

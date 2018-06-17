@@ -4,7 +4,7 @@
   \brief Performs various magnetic field averaging operations.
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   Aug 16, 2012
+  \date   March 04, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -28,8 +28,8 @@ void CT_AverageMagneticField (double ****bf, double ****UU, Grid *grid)
  *   E_i \to E_i - \frac{\mathbf{B}_i^2}{2} + \frac{<\mathbf{B}_i^2>}{2}
  *  \f]
  *
- * \param [in]   bf   array of staggered fields
- * \param [out]  UU   array of conservative variables
+ * \param [in]   bf    array of staggered fields
+ * \param [out]  UU    array of conservative variables
  * \param [in]   grid  pointer to Grid structure
  ************************************************************************ */
 {
@@ -37,20 +37,16 @@ void CT_AverageMagneticField (double ****bf, double ****UU, Grid *grid)
   double b2_old, b2_new, bx_ave, by_ave, bz_ave;
   double rp, rm;
   double ***bx, ***by, ***bz;
-  double *dx, *dy, *A1, *A2, *dV1, *dV2;
+  double *dx, *dy;
   double *r;
   
   D_EXPAND(bx = bf[BX1s];  ,
            by = bf[BX2s];  ,
            bz = bf[BX3s]; )
   
-  dx = grid[IDIR].dx; 
-  dy = grid[JDIR].dx;
-  A1  = grid[IDIR].A;
-  A2  = grid[JDIR].A;
-  dV1 = grid[IDIR].dV;
-  dV2 = grid[JDIR].dV;
-  r   = grid[IDIR].x;
+  dx  = grid->dx[IDIR]; 
+  dy  = grid->dx[JDIR];
+  r   = grid->x[IDIR];
 
 /* ---------------------------------------------------------
     Loop over all zones in the domain. 
@@ -65,9 +61,9 @@ void CT_AverageMagneticField (double ****bf, double ****UU, Grid *grid)
 
     #if GEOMETRY == CARTESIAN 
 
-     D_EXPAND( bx_ave = 0.5*(bx[k][j][i] + bx[k][j][i - 1]);  ,
-               by_ave = 0.5*(by[k][j][i] + by[k][j - 1][i]);  ,
-               bz_ave = 0.5*(bz[k][j][i] + bz[k - 1][j][i]); )
+     D_EXPAND( bx_ave = 0.5*(bx[k][j][i] + bx[k][j][i-1]);  ,
+               by_ave = 0.5*(by[k][j][i] + by[k][j-1][i]);  ,
+               bz_ave = 0.5*(bz[k][j][i] + bz[k-1][j][i]); )
 
     #elif GEOMETRY == CYLINDRICAL
 /*
@@ -75,27 +71,42 @@ void CT_AverageMagneticField (double ****bf, double ****UU, Grid *grid)
      by_ave = 0.5*(   by[k][j][i] +    by[k][j - 1][i]);
 */
 
-     bx_ave = 0.5*(bx[k][j][i] + bx[k][j][i - 1]);
-     by_ave = 0.5*(by[k][j][i] + by[k][j - 1][i]);
+     bx_ave = 0.5*(bx[k][j][i] + bx[k][j][i-1]);
+     by_ave = 0.5*(by[k][j][i] + by[k][j-1][i]);
 
     #elif GEOMETRY == POLAR
 
-     rp = grid[IDIR].xr[i];
-     rm = grid[IDIR].xl[i];
+     rp = grid->xr[IDIR][i];
+     rm = grid->xl[IDIR][i];
 
-     D_EXPAND(bx_ave = (rp*bx[k][j][i] + rm*bx[k][j][i - 1])/(rp + rm); ,
-              by_ave = 0.5*(by[k][j][i] + by[k][j - 1][i]);             ,
-              bz_ave = 0.5*(bz[k][j][i] + bz[k - 1][j][i]);)
+     D_EXPAND(bx_ave = (rp*bx[k][j][i] + rm*bx[k][j][i-1])/(rp + rm); ,
+              by_ave = 0.5*(by[k][j][i] + by[k][j-1][i]);             ,
+              bz_ave = 0.5*(bz[k][j][i] + bz[k-1][j][i]);)
 
     #elif GEOMETRY == SPHERICAL
+    {
+     double Ap, Am, dV1;
+     double thp, thm, sp, sm, dV2;
+     rp  = grid->xr[IDIR][i];
+     rm  = grid->xl[IDIR][i];
+     Ap  = rp*rp;
+     Am  = rm*rm;
+     dV1 = (rp*rp*rp - rm*rm*rm)/3.0;
+     
+     thp = grid->xr[JDIR][j];
+     thm = grid->xl[JDIR][j];
+     sp  = fabs(sin(thp));
+     sm  = fabs(sin(thm));
+     dV2 = fabs(cos(thm) - cos(thp));
 
-     D_EXPAND(bx_ave  = 0.5*(A1[i]*bx[k][j][i] + A1[i - 1]*bx[k][j][i - 1]);
-              bx_ave *= dx[i]/dV1[i];                                        ,
+     D_EXPAND(bx_ave  = 0.5*(Ap*bx[k][j][i] + Am*bx[k][j][i - 1]);
+              bx_ave *= dx[i]/dV1;                                            ,
 
-              by_ave  = 0.5*(A2[j]*by[k][j][i] + A2[j - 1]*by[k][j - 1][i]);
-              by_ave *= dy[j]/dV2[j];                                        ,
+              by_ave  = 0.5*(sp*by[k][j][i] + sm*by[k][j - 1][i]);
+              by_ave *= dy[j]/dV2;                                        ,
 
               bz_ave  = 0.5*(bz[k][j][i] + bz[k - 1][j][i]);)
+    }
     #endif
    
    /* ---------------------------------------------
@@ -143,40 +154,45 @@ void CT_AverageNormalMagField (const Data *d, int side, Grid *grid)
  *********************************************************************** */
 {
   int    i, j, k;
-  double *Ap, *Am;
   double ***Bx, ***By, ***Bz;
   double ***bx, ***by, ***bz;
+  double *rp = grid->xr[IDIR];
+  double *rm = grid->xl[IDIR];
+  double Ap, Am, thp, thm;
 
 /* ------------------------------------------------------
                    X1 boundaries
    ------------------------------------------------------ */
 
   if (side == X1_BEG){
-    Ap = grid[IDIR].A;  Am = Ap - 1;
     Bx = d->Vc[BX1]; bx = d->Vs[BX1s];
     KTOT_LOOP(k) JTOT_LOOP(j) for (i = 0; i < IBEG; i++) {
       #if GEOMETRY == CARTESIAN 
-       Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i - 1]);  
+      Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i-1]);  
       #elif GEOMETRY == CYLINDRICAL
-       Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i - 1]);  
+      Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i-1]);  
       #elif GEOMETRY == POLAR
-       Bx[k][j][i] = (Ap[i]*bx[k][j][i] + Am[i]*bx[k][j][i - 1])/(Ap[i] + Am[i]); 
+      Bx[k][j][i] = (rp[i]*bx[k][j][i] + rm[i]*bx[k][j][i-1])/(rp[i] + rm[i]); 
       #elif GEOMETRY == SPHERICAL
-       Bx[k][j][i] = (Ap[i]*bx[k][j][i] + Am[i]*bx[k][j][i - 1])/(Ap[i] + Am[i]);   
+      Ap = rp[i]*rp[i];
+      Am = rm[i]*rm[i];
+
+      Bx[k][j][i] = (Ap*bx[k][j][i] + Am*bx[k][j][i-1])/(Ap + Am);   
       #endif
     }    
   }else if (side == X1_END){
-    Ap = grid[IDIR].A; Am = Ap - 1;
     Bx = d->Vc[BX1]; bx = d->Vs[BX1s];
     KTOT_LOOP(k) JTOT_LOOP(j) for (i = IEND+1; i < NX1_TOT; i++) {
       #if GEOMETRY == CARTESIAN 
-       Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i - 1]);  
+      Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i-1]);  
       #elif GEOMETRY == CYLINDRICAL
-       Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i - 1]);  
+      Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i-1]);
       #elif GEOMETRY == POLAR
-       Bx[k][j][i] = (Ap[i]*bx[k][j][i] + Am[i]*bx[k][j][i - 1])/(Ap[i] + Am[i]); 
+      Bx[k][j][i] = (rp[i]*bx[k][j][i] + rm[i]*bx[k][j][i-1])/(rp[i] + rm[i]); 
       #elif GEOMETRY == SPHERICAL
-       Bx[k][j][i] = (Ap[i]*bx[k][j][i] + Am[i]*bx[k][j][i - 1])/(Ap[i] + Am[i]);   
+      Ap = rp[i]*rp[i];
+      Am = rm[i]*rm[i];
+      Bx[k][j][i] = (Ap*bx[k][j][i] + Am*bx[k][j][i-1])/(Ap + Am);   
       #endif
     }
   }
@@ -186,31 +202,38 @@ void CT_AverageNormalMagField (const Data *d, int side, Grid *grid)
    ------------------------------------------------------ */
 
   if (side == X2_BEG){
-    Ap = grid[JDIR].A; Am = Ap - 1;
     By = d->Vc[BX2]; by = d->Vs[BX2s];
     KTOT_LOOP(k) for (j = 0; j < JBEG; j++) ITOT_LOOP(i){
       #if GEOMETRY == CARTESIAN 
-       By[k][j][i] = 0.5*(by[k][j][i] + by[k][j - 1][i]);  
+      By[k][j][i] = 0.5*(by[k][j][i] + by[k][j-1][i]);  
       #elif GEOMETRY == CYLINDRICAL
-       By[k][j][i] = 0.5*(by[k][j][i] + by[k][j - 1][i]);  
+      By[k][j][i] = 0.5*(by[k][j][i] + by[k][j-1][i]);  
       #elif GEOMETRY == POLAR
-       By[k][j][i] = 0.5*(by[k][j][i] + by[k][j - 1][i]);                
+      By[k][j][i] = 0.5*(by[k][j][i] + by[k][j-1][i]);                
       #elif GEOMETRY == SPHERICAL
-       By[k][j][i] = (Ap[j]*by[k][j][i] + Am[j]*by[k][j - 1][i])/(Ap[j] + Am[j]); 
+      thp = grid->xr[JDIR][j];
+      thm = grid->xl[JDIR][j];
+      Ap  = fabs(sin(thp));
+      Am  = fabs(sin(thm));
+
+      By[k][j][i] = (Ap*by[k][j][i] + Am*by[k][j-1][i])/(Ap + Am); 
       #endif
     }    
   }else if (side == X2_END){
-    Ap = grid[JDIR].A; Am = Ap - 1;
     By = d->Vc[BX2]; by = d->Vs[BX2s];
     KTOT_LOOP(k) for (j = JEND+1; j < NX2_TOT; j++) ITOT_LOOP(i){
       #if GEOMETRY == CARTESIAN 
-       By[k][j][i] = 0.5*(by[k][j][i] + by[k][j - 1][i]);  
+      By[k][j][i] = 0.5*(by[k][j][i] + by[k][j-1][i]);  
       #elif GEOMETRY == CYLINDRICAL
-       By[k][j][i] = 0.5*(by[k][j][i] + by[k][j - 1][i]);  
+      By[k][j][i] = 0.5*(by[k][j][i] + by[k][j-1][i]);  
       #elif GEOMETRY == POLAR
-       By[k][j][i] = 0.5*(by[k][j][i] + by[k][j - 1][i]);   
+      By[k][j][i] = 0.5*(by[k][j][i] + by[k][j-1][i]);   
       #elif GEOMETRY == SPHERICAL
-       By[k][j][i] = (Ap[j]*by[k][j][i] + Am[j]*by[k][j - 1][i])/(Ap[j] + Am[j]); 
+      thp = grid->xr[JDIR][j];
+      thm = grid->xl[JDIR][j];
+      Ap  = fabs(sin(thp));
+      Am  = fabs(sin(thm));
+      By[k][j][i] = (Ap*by[k][j][i] + Am*by[k][j-1][i])/(Ap + Am); 
       #endif
     }    
   }
@@ -223,26 +246,26 @@ void CT_AverageNormalMagField (const Data *d, int side, Grid *grid)
     Bz = d->Vc[BX3]; bz = d->Vs[BX3s];
     for (k = 0; k < KBEG; k++) JTOT_LOOP(j) ITOT_LOOP(i){
       #if GEOMETRY == CARTESIAN 
-       Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]); 
+      Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]); 
       #elif GEOMETRY == CYLINDRICAL
-       Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]); 
+      Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]); 
       #elif GEOMETRY == POLAR
-       Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]);
+      Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]);
       #elif GEOMETRY == SPHERICAL
-       Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]);
+      Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]);
       #endif
     }    
   }else if (side == X3_END){
     Bz = d->Vc[BX3]; bz = d->Vs[BX3s];
     for (k = KEND+1; k < NX3_TOT; k++) JTOT_LOOP(j) ITOT_LOOP(i){
       #if GEOMETRY == CARTESIAN 
-       Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]); 
+      Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]); 
       #elif GEOMETRY == CYLINDRICAL
-       Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]); 
+      Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]); 
       #elif GEOMETRY == POLAR
-       Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]);
+      Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]);
       #elif GEOMETRY == SPHERICAL
-       Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]);
+      Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]);
       #endif
     }    
   }
@@ -274,13 +297,11 @@ void CT_AverageTransverseMagField (const Data *d, int side, Grid *grid)
 #define KEXT_LOOP(k) for (k = KOFFSET; k < NX3_TOT - KOFFSET; k++)
 {
   int    i, j, k;
-  double *A1, *A2, *A3;
   double ***Bx, ***By, ***Bz;
   double ***bx, ***by, ***bz;
-
-  A1 = grid[IDIR].A;
-  A2 = grid[JDIR].A;
-  A3 = grid[KDIR].A;
+  double *rp = grid->xr[IDIR];
+  double *rm = grid->xl[IDIR];
+  double thp, thm, A1p, A1m, A2p, A2m;
 
   D_EXPAND(Bx = d->Vc[BX1]; bx = d->Vs[BX1s];  ,
            By = d->Vc[BX2]; by = d->Vs[BX2s];  ,
@@ -293,27 +314,35 @@ void CT_AverageTransverseMagField (const Data *d, int side, Grid *grid)
   if (side == X1_BEG){
     X1_BEG_LOOP(k,j,i){
       #if GEOMETRY != SPHERICAL
-       D_EXPAND(                                                    ,
-                By[k][j][i] = 0.5*(by[k][j][i] + by[k][j - 1][i]);  ,
-                Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]); )
+      D_EXPAND(                                                    ,
+               By[k][j][i] = 0.5*(by[k][j][i] + by[k][j-1][i]);  ,
+               Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]); )
       #else
-       D_EXPAND(                                                              ,
-                By[k][j][i] = (A2[j]*by[k][j][i] + A2[j-1]*by[k][j - 1][i])/
-                              (A2[j] + A2[j-1]);                              ,
-                Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]);)
+      thp = grid->xr[JDIR][j];
+      thm = grid->xl[JDIR][j];
+      A2p = fabs(sin(thp));
+      A2m = fabs(sin(thm));
+      D_EXPAND(                                                      ,
+               By[k][j][i] = (A2p*by[k][j][i] + A2m*by[k][j - 1][i])/
+                             (A2p + A2m);                              ,
+               Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]);)
       #endif
     }    
   }else if (side == X1_END){
     X1_END_LOOP(k,j,i){
       #if GEOMETRY != SPHERICAL
-       D_EXPAND(                                                    ,
-                By[k][j][i] = 0.5*(by[k][j][i] + by[k][j - 1][i]);  ,
-                Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]); )
+      D_EXPAND(                                                    ,
+               By[k][j][i] = 0.5*(by[k][j][i] + by[k][j-1][i]);  ,
+               Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]); )
       #else
-       D_EXPAND(                                                              ,
-                By[k][j][i] = (A2[j]*by[k][j][i] + A2[j-1]*by[k][j - 1][i])/
-                              (A2[j] + A2[j-1]);                              ,
-                Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]);)
+      thp = grid->xr[JDIR][j];
+      thm = grid->xl[JDIR][j];
+      A2p = fabs(sin(thp));
+      A2m = fabs(sin(thm));
+      D_EXPAND(                                                        ,
+               By[k][j][i] = (A2p*by[k][j][i] + A2m*by[k][j - 1][i])/
+                             (A2p + A2m);                              ,
+               Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]);)
       #endif
     }    
   }
@@ -325,35 +354,35 @@ void CT_AverageTransverseMagField (const Data *d, int side, Grid *grid)
   if (side == X2_BEG){
     X2_BEG_LOOP(k,j,i){
       #if GEOMETRY == CARTESIAN 
-       D_EXPAND( Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i - 1]);  ,
-                                                                     ,
-                 Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]); )
+      D_EXPAND( Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i-1]);  ,
+                                                                    ,
+                Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]); )
       #elif GEOMETRY == CYLINDRICAL
-       D_EXPAND( Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i - 1]);  ,
-                                                                     ,
-                 Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]); )
+      D_EXPAND( Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i-1]);  ,
+                                                                    ,
+                Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]); )
       #elif GEOMETRY == POLAR || GEOMETRY == SPHERICAL
-       D_EXPAND(Bx[k][j][i] = (A1[i]*bx[k][j][i] + A1[i-1]*bx[k][j][i - 1])/
-                              (A1[i] + A1[i-1]);                              ,
-                                                                              ,
-                Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]);)
+      D_EXPAND(Bx[k][j][i] = (rp[i]*bx[k][j][i] + rm[i]*bx[k][j][i - 1])/
+                             (rp[i] + rm[i]);                                ,
+                                                                             ,
+               Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]);)
       #endif
     }
   }else if (side == X2_END){
     X2_END_LOOP(k,j,i){
       #if GEOMETRY == CARTESIAN 
-       D_EXPAND( Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i - 1]);  ,
-                                                                     ,
-                 Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]); )
+      D_EXPAND( Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i-1]);  ,
+                                                                    ,
+                Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]); )
       #elif GEOMETRY == CYLINDRICAL
-       D_EXPAND( Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i - 1]);  ,
-                                                                     ,
-                 Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]); )
+      D_EXPAND( Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i-1]);  ,
+                                                                    ,
+                Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]); )
       #elif GEOMETRY == POLAR || GEOMETRY == SPHERICAL
-       D_EXPAND(Bx[k][j][i] = (A1[i]*bx[k][j][i] + A1[i-1]*bx[k][j][i - 1])/
-                              (A1[i] + A1[i-1]);                              ,
-                                                                              ,
-                Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k - 1][j][i]);)
+      D_EXPAND(Bx[k][j][i] = (rp[i]*bx[k][j][i] + rm[i]*bx[k][j][i-1])/
+                             (rp[i] + rm[i]);                            ,
+                                                                          ,
+               Bz[k][j][i] = 0.5*(bz[k][j][i] + bz[k-1][j][i]);)
       #endif
     }    
   }
@@ -365,51 +394,60 @@ void CT_AverageTransverseMagField (const Data *d, int side, Grid *grid)
   if (side == X3_BEG){
     X3_BEG_LOOP(k,j,i){
       #if GEOMETRY == CARTESIAN 
-       D_EXPAND( Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i - 1]);  ,
-                 By[k][j][i] = 0.5*(by[k][j][i] + by[k][j - 1][i]);  ,
-                                                                    )
+      D_EXPAND( Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i-1]);  ,
+                By[k][j][i] = 0.5*(by[k][j][i] + by[k][j-1][i]);  ,
+                                                                   )
 
       #elif GEOMETRY == CYLINDRICAL
-       D_EXPAND( Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i - 1]);  ,
-                 By[k][j][i] = 0.5*(by[k][j][i] + by[k][j - 1][i]);  ,
+      D_EXPAND( Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i-1]);  ,
+                By[k][j][i] = 0.5*(by[k][j][i] + by[k][j-1][i]);  ,
                                                                   )
       #elif GEOMETRY == POLAR
-       D_EXPAND(Bx[k][j][i] = (A1[i]*bx[k][j][i] + A1[i-1]*bx[k][j][i - 1])/
-                              (A1[i] + A1[i-1]);                             ,
-                By[k][j][i] = 0.5*(by[k][j][i] + by[k][j - 1][i]);           ,
-                                                                 )
+      D_EXPAND(Bx[k][j][i] = (rp[i]*bx[k][j][i] + rm[i]*bx[k][j][i-1])/
+                             (rp[i] + rm[i]);                             ,
+               By[k][j][i] = 0.5*(by[k][j][i] + by[k][j-1][i]);           ,
+                                                                )
       #elif GEOMETRY == SPHERICAL
-
-       D_EXPAND(Bx[k][j][i] = (A1[i]*bx[k][j][i] + A1[i-1]*bx[k][j][i - 1])/ 
-                              (A1[i] + A1[i-1]);                              ,
-                By[k][j][i] = (A2[j]*by[k][j][i] + A2[j-1]*by[k][j - 1][i])/
-                              (A2[j] + A2[j-1]);                              ,
+      A1p = rp[i]*rp[i];
+      A1m = rm[i]*rm[i];
+      thp = grid->xr[JDIR][j];
+      thm = grid->xl[JDIR][j];
+      A2p = fabs(sin(thp));
+      A2m = fabs(sin(thm));
+      D_EXPAND(Bx[k][j][i] = (A1p*bx[k][j][i] + A1m*bx[k][j][i-1])/ 
+                             (A1p + A1m);                              ,
+               By[k][j][i] = (A2p*by[k][j][i] + A2m*by[k][j-1][i])/
+                             (A2p + A2m);                              ,
                                                              )
       #endif
     }
   }else if (side == X3_END){
     X3_END_LOOP(k,j,i){
       #if GEOMETRY == CARTESIAN 
-       D_EXPAND( Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i - 1]);  ,
-                 By[k][j][i] = 0.5*(by[k][j][i] + by[k][j - 1][i]);  ,
+      D_EXPAND( Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i-1]);  ,
+                By[k][j][i] = 0.5*(by[k][j][i] + by[k][j-1][i]);  ,
                                                                     )
-
       #elif GEOMETRY == CYLINDRICAL
-       D_EXPAND( Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i - 1]);  ,
-                 By[k][j][i] = 0.5*(by[k][j][i] + by[k][j - 1][i]);  ,
+      D_EXPAND( Bx[k][j][i] = 0.5*(bx[k][j][i] + bx[k][j][i-1]);  ,
+                By[k][j][i] = 0.5*(by[k][j][i] + by[k][j-1][i]);  ,
                                                                   )
       #elif GEOMETRY == POLAR
-       D_EXPAND(Bx[k][j][i] = (A1[i]*bx[k][j][i] + A1[i-1]*bx[k][j][i - 1])/
-                              (A1[i] + A1[i-1]);                             ,
-                By[k][j][i] = 0.5*(by[k][j][i] + by[k][j - 1][i]);           ,
-                                                                 )
+      D_EXPAND(Bx[k][j][i] = (rp[i]*bx[k][j][i] + rm[i]*bx[k][j][i-1])/
+                             (rp[i] + rm[i]);                             ,
+               By[k][j][i] = 0.5*(by[k][j][i] + by[k][j-1][i]);           ,
+                                                               )
       #elif GEOMETRY == SPHERICAL
-
-       D_EXPAND(Bx[k][j][i] = (A1[i]*bx[k][j][i] + A1[i-1]*bx[k][j][i - 1])/ 
-                              (A1[i] + A1[i-1]);                              ,
-                By[k][j][i] = (A2[j]*by[k][j][i] + A2[j-1]*by[k][j - 1][i])/
-                              (A2[j] + A2[j-1]);                              ,
-                                                             )
+      A1p = rp[i]*rp[i];
+      A1m = rm[i]*rm[i];
+      thp = grid->xr[JDIR][j];
+      thm = grid->xl[JDIR][j];
+      A2p = fabs(sin(thp));
+      A2m = fabs(sin(thm));
+      D_EXPAND(Bx[k][j][i] = (A1p*bx[k][j][i] + A1m*bx[k][j][i-1])/ 
+                             (A1p + A1m);                              ,
+               By[k][j][i] = (A2p*by[k][j][i] + A2m*by[k][j-1][i])/
+                             (A2p + A2m);                              ,
+                                                            )
       #endif
     }    
   }

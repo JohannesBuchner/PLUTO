@@ -11,7 +11,7 @@
   \authors A. Mignone (mignone@ph.unito.it)\n
            G. Muscianisi (g.muscianisi@cineca.it)
          
-  \date   Sept 12, 2012
+  \date    June 22, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -28,7 +28,7 @@ static double **wA;
 /* ********************************************************************* */
 void FARGO_ComputeVelocity(const Data *d, Grid *grid)
 /*!
- * Compute the mean orbital velocity as a 2D array by averaging
+ * Compute the average orbital velocity as a 2D array by averaging
  * for each pair (x,z)/(r,z)/(r,theta)  (in Cartesian/polar/spherical)
  * along the orbital coordinate y/phi/phi.
  *
@@ -44,9 +44,9 @@ void FARGO_ComputeVelocity(const Data *d, Grid *grid)
   double *x1, *x2, *x3, th, w;
   double ***vphi;
 
-  x1 = grid[IDIR].x;
-  x2 = grid[JDIR].x;
-  x3 = grid[KDIR].x;
+  x1 = grid->x[IDIR];
+  x2 = grid->x[JDIR];
+  x3 = grid->x[KDIR];
 
   #if GEOMETRY == CARTESIAN || GEOMETRY == POLAR
    if (wA == NULL){
@@ -66,73 +66,73 @@ void FARGO_ComputeVelocity(const Data *d, Grid *grid)
    }
   #endif
 
-  #if GEOMETRY == CARTESIAN
-   vphi = d->Vc[VX2];
-  #else
-   vphi = d->Vc[iVPHI];
-  #endif
+#if GEOMETRY == CARTESIAN
+  vphi = d->Vc[VX2];
+#else
+  vphi = d->Vc[iVPHI];
+#endif
 
-  #if FARGO_AVERAGE_VELOCITY == YES
+#if FARGO_AVERAGE_VELOCITY == YES
 
 /* ---------------------------------------------------------------------
       average velocity along the transport direction every 10 steps
    --------------------------------------------------------------------- */
 
-   if (g_stepNumber%FARGO_NSTEP_AVERAGE == 0 || first_call){
-     #ifdef PARALLEL
-      double w_recv=0.0, w_sum=0.0;
-      int count, coords[3], src, dst;
-      MPI_Comm cartcomm;
-      MPI_Status status;
-     #endif
+  if (g_stepNumber%FARGO_NSTEP_AVERAGE == 0 || first_call){
+  #ifdef PARALLEL
+    double w_recv=0.0, w_sum=0.0;
+    int count, coords[3], src, dst;
+    MPI_Comm cartcomm;
+    MPI_Status status;
+  #endif
      
   /* -- fill ghost zones -- */
 
-     Boundary(d, ALL_DIR, grid); 
+    Boundary(d, ALL_DIR, grid); 
 
   /* ---- get ranks of the upper and lower processsors ---- */
 
-     #ifdef PARALLEL
-      AL_Get_cart_comm(SZ, &cartcomm);
-      for (i = 0; i < DIMENSIONS; i++) coords[i] = grid[i].rank_coord;
-      coords[SDIR] += 1;
-      MPI_Cart_rank(cartcomm, coords, &dst);
+  #ifdef PARALLEL
+    AL_Get_cart_comm(SZ, &cartcomm);
+    for (i = 0; i < DIMENSIONS; i++) coords[i] = grid->rank_coord[i];
+    coords[SDIR] += 1;
+    MPI_Cart_rank(cartcomm, coords, &dst);
 
-      for (i = 0; i < DIMENSIONS; i++) coords[i] = grid[i].rank_coord;
-      coords[SDIR] -= 1;
-      MPI_Cart_rank(cartcomm, coords, &src);
-     #endif
+    for (i = 0; i < DIMENSIONS; i++) coords[i] = grid->rank_coord[i];
+    coords[SDIR] -= 1;
+    MPI_Cart_rank(cartcomm, coords, &src);
+  #endif
 
   /* ---- compute average orbital speed ---- */
 
-     #if GEOMETRY == CARTESIAN || GEOMETRY == POLAR
-      KTOT_LOOP(k) ITOT_LOOP(i) {
-     #else
-      JTOT_LOOP(j) ITOT_LOOP(i) {
-     #endif
-       w = 0.0;
-       SDOM_LOOP(s) w += vphi[k][j][i];
-       if (grid[SDIR].nproc > 1){
-         #ifdef PARALLEL
-          w_sum = w;
-          for (count=1; count < grid[SDIR].nproc; count++ ){
-            MPI_Sendrecv(&w, 1, MPI_DOUBLE, dst, 0,  &w_recv, 1,
-                                MPI_DOUBLE, src, 0, cartcomm, &status);
-            w      = w_recv;
-            w_sum += w;
-          }
-          w = w_sum/(double)(grid[SDIR].np_int_glob);
-         #endif
-       }else{
-        w = w/(double)NS;
-       }
-       #if GEOMETRY == CARTESIAN || GEOMETRY == POLAR
+  #if GEOMETRY == CARTESIAN || GEOMETRY == POLAR
+    KTOT_LOOP(k) ITOT_LOOP(i) {
+  #else
+    JTOT_LOOP(j) ITOT_LOOP(i) {
+  #endif
+      w = 0.0;
+      SDOM_LOOP(s) w += vphi[k][j][i];
+      if (grid->nproc[SDIR] > 1){
+      #ifdef PARALLEL
+        w_sum = w;
+        for (count=1; count < grid->nproc[SDIR]; count++ ){
+          MPI_Sendrecv(&w, 1, MPI_DOUBLE, dst, 0,  &w_recv, 1,
+                              MPI_DOUBLE, src, 0, cartcomm, &status);
+          w      = w_recv;
+          w_sum += w;
+        }
+        w = w_sum/(double)(grid->np_int_glob[SDIR]);
+      #endif
+      }else{
+         w = w/(double)NS;
+      }
+      #if GEOMETRY == CARTESIAN || GEOMETRY == POLAR
         wA[k][i] = w;
-       #elif GEOMETRY == SPHERICAL
+      #elif GEOMETRY == SPHERICAL
         wA[j][i] = w;
-       #endif
-     }
-   }
+      #endif
+    }
+  }
 
   /* -- compute interface velocity -- */
 /*
@@ -156,34 +156,36 @@ void FARGO_ComputeVelocity(const Data *d, Grid *grid)
    #endif
 */
 
-  #else
+#else
 
 /* ---------------------------------------------------------------------
               define velocity analytically
    --------------------------------------------------------------------- */
 
-   if (first_call){
-     #if GEOMETRY == CARTESIAN 
-      KTOT_LOOP(k) ITOT_LOOP(i) wA[k][i] = FARGO_SetVelocity(x1[i], x3[k]);
-     #elif GEOMETRY == POLAR
-      KTOT_LOOP(k) ITOT_LOOP(i) wA[k][i] = x1[i]*FARGO_SetVelocity(x1[i], x3[k]);
-     #elif GEOMETRY == SPHERICAL
-      JTOT_LOOP(j) ITOT_LOOP(i) {
-        th = x2[j];
-        wA[j][i] = x1[i]*sin(th)*FARGO_SetVelocity(x1[i], x2[j]);
-      }
-     #else
-      print1 ("! FARGO not supported in this geometry\n");
-      QUIT_PLUTO(1);
-     #endif
-   }
-  #endif  /* FARGO_AVERAGE_VELOCITY */
+  if (first_call){
+  #if GEOMETRY == CARTESIAN 
+    KTOT_LOOP(k) ITOT_LOOP(i) wA[k][i] = FARGO_SetVelocity(x1[i], x3[k]);
+  #elif GEOMETRY == POLAR
+    KTOT_LOOP(k) ITOT_LOOP(i) wA[k][i] = x1[i]*FARGO_SetVelocity(x1[i], x3[k]);
+  #elif GEOMETRY == SPHERICAL
+    JTOT_LOOP(j) ITOT_LOOP(i) {
+      th = x2[j];
+      wA[j][i] = x1[i]*sin(th)*FARGO_SetVelocity(x1[i], x2[j]);
+    }
+  #else
+    print ("! FARGO not supported in this geometry\n");
+    QUIT_PLUTO(1);
+   #endif
+  }
+#endif  /* FARGO_AVERAGE_VELOCITY */
   
   first_call = 0;
 }
 
-static int vphi_is_total_velocity = YES; /* Used to make sure either operation
-                                            is not repeated twice in a row */
+static int tot_vphi=1; /* A flag that tracks whether the input velocity field
+                          contains the residual (tot_vphi=0) or the total
+                          velocity (tot_vphi=1).
+                          On first call it is assumed that tot_vphi=1.
 /* ********************************************************************* */
 void FARGO_SubtractVelocity(const Data *d, Grid *grid)
 /*!
@@ -199,28 +201,77 @@ void FARGO_SubtractVelocity(const Data *d, Grid *grid)
   int i,j,k;
   double ***vphi;
 
-  #if GEOMETRY == CARTESIAN
-   vphi = d->Vc[VX2];
-  #else
-   vphi = d->Vc[iVPHI];
-  #endif
+/* -------------------------------------------------------
+   0. Check that input velocity does not contain residual
+   ------------------------------------------------------- */
 
-/* ----------------------------------------------------------------------
-                      subtract velocity
-   ---------------------------------------------------------------------- */
+  if (tot_vphi == 0) {
+    print ("! FARGO_SubtractVelocity(): input velocity already contains residual\n");
+    QUIT_PLUTO(1);
+  }
+
+/* -----------------------------------------------------
+   1. Assign pointer shortcut
+   ----------------------------------------------------- */
+
+#if GEOMETRY == CARTESIAN
+  vphi = d->Vc[VX2];
+#else
+  vphi = d->Vc[iVPHI];
+#endif
+
+/* ------------------------------------------------------
+   2. Subtract velocity
+   ------------------------------------------------------ */
 
   TOT_LOOP(k,j,i){
     #if GEOMETRY == CARTESIAN || GEOMETRY == POLAR
-     vphi[k][j][i] -= wA[k][i];
+    vphi[k][j][i] -= wA[k][i];
     #elif GEOMETRY == SPHERICAL
-     vphi[k][j][i] -= wA[j][i];
+    vphi[k][j][i] -= wA[j][i];
     #else
-     print1 ("! FARGO not supported in this geometry\n");
-     QUIT_PLUTO(1);
+    print ("! FARGO not supported in this geometry\n");
+    QUIT_PLUTO(1);
     #endif
   }
 
-  vphi_is_total_velocity = NO;
+
+#ifdef PARTICLES
+  int i1,j1,k1;
+  particleNode *curNode;
+  Particle *p;
+  double v;
+  static double ***wp;
+  if (wp == NULL){
+    wp = ArrayBox (-1, 1, -1, 1, -1, 1);
+  }
+
+  PARTICLES_LOOP(curNode, d->PHead){
+    p = &(curNode->p);
+
+  /* -- Interpolate fargo shift velocity at particle position -- */
+
+    Particles_GetWeights(p, p->cell, wp, grid);  
+    i = p->cell[IDIR];
+    j = p->cell[JDIR];
+    k = p->cell[KDIR];
+
+    v = 0.0;
+    for (k1 = -KOFFSET; k1 <= KOFFSET; k1++){
+    for (j1 = -JOFFSET; j1 <= JOFFSET; j1++){
+    for (i1 = -IOFFSET; i1 <= IOFFSET; i1++){
+      v += wp[k1][j1][i1]*wA[k + k1][i + i1];
+    }}}
+
+
+// v = -SB_Q*SB_OMEGA*p->coord[IDIR];
+//print ("vy' = %12.6e\n",p->speed[JDIR]);
+    p->speed[JDIR] -= v;
+//print ("vy' = %12.6e\n",p->speed[JDIR]);
+  }
+#endif
+
+  tot_vphi = 0;
 }
 /* ************************************************************** */
 void FARGO_AddVelocity(const Data *d, Grid *grid)
@@ -237,35 +288,66 @@ void FARGO_AddVelocity(const Data *d, Grid *grid)
   int i,j,k;
   double ***vphi;
 
-  #if GEOMETRY == CARTESIAN
-   vphi = d->Vc[VX2];
-  #else
-   vphi = d->Vc[iVPHI];
-  #endif
+/* -----------------------------------------------------------
+    Check that input velocity does not contain total velocity
+   ----------------------------------------------------------- */
+
+  if (tot_vphi == 1) {
+    print ("! FARGO_AddVelocity(): input velocity already contains total velocity\n");
+    QUIT_PLUTO(1);
+  }
+
+#if GEOMETRY == CARTESIAN
+  vphi = d->Vc[VX2];
+#else
+  vphi = d->Vc[iVPHI];
+#endif
 
   TOT_LOOP(k,j,i){
     #if GEOMETRY == CARTESIAN || GEOMETRY == POLAR
-     vphi[k][j][i] += wA[k][i];
+    vphi[k][j][i] += wA[k][i];
     #elif GEOMETRY == SPHERICAL
-     vphi[k][j][i] += wA[j][i];
+    vphi[k][j][i] += wA[j][i];
     #else
-     print1 ("! FARGO not supported in this geometry\n");
-     QUIT_PLUTO(1);
+    print ("! FARGO not supported in this geometry\n");
+    QUIT_PLUTO(1);
     #endif 
   }
 
-  vphi_is_total_velocity = YES;
+#ifdef PARTICLES
+  int i1,j1,k1;
+  particleNode *curNode;
+  Particle *p;
+  double v;
+  static double ***wp;
+  if (wp == NULL){
+    wp = ArrayBox (-1, 1, -1, 1, -1, 1);
+  }
+
+  PARTICLES_LOOP(curNode, d->PHead){
+    p = &(curNode->p);
+
+  /* -- Interpolate fargo shift velocity at particle position -- */
+
+    Particles_GetWeights(p, p->cell, wp, grid);  
+    i = p->cell[IDIR];
+    j = p->cell[JDIR];
+    k = p->cell[KDIR];
+
+    v = 0.0;
+    for (k1 = -KOFFSET; k1 <= KOFFSET; k1++){
+    for (j1 = -JOFFSET; j1 <= JOFFSET; j1++){
+    for (i1 = -IOFFSET; i1 <= IOFFSET; i1++){
+      v += wp[k1][j1][i1]*wA[k + k1][i + i1];
+    }}}
+// v = -SB_Q*SB_OMEGA*p->coord[IDIR];
+    p->speed[JDIR] += v;
+  }
+#endif
+
+  tot_vphi = 1;
 }
 
-/* ********************************************************************* */
-int FARGO_HasTotalVelocity ()
-/*!
- *  Return 1 if the velocity array contains the total velocity.
- *  Return 0 otherwise.
- *********************************************************************** */
-{
-  return vphi_is_total_velocity;
-}
 /* ********************************************************************* */
 double **FARGO_GetVelocity(void)
 /*!
@@ -290,7 +372,7 @@ double **FARGO_GetVelocity(void)
     #if GEOMETRY == SPHERICAL
      return wAx2;
     #else
-     print1 ("! FARGO_GetVelocity: incorrect direction\n");
+     print ("! FARGO_GetVelocity: incorrect direction\n");
      QUIT_PLUTO(1);
     #endif
     
@@ -299,7 +381,7 @@ double **FARGO_GetVelocity(void)
     #if GEOMETRY == CARTESIAN || GEOMETRY == POLAR
      return wAx3;
     #else
-     print1 ("! FARGO_GetVelocity: incorrect direction\n");
+     print ("! FARGO_GetVelocity: incorrect direction\n");
      QUIT_PLUTO(1);
     #endif
 
@@ -307,3 +389,14 @@ double **FARGO_GetVelocity(void)
 
 */
 }
+/* ********************************************************************* */
+int FARGO_TotalVelocityIsSet(void)
+/*!
+ * Return 1 if velocity is the azimuthal direction contains
+ * the total velocity. Return 0 is velocity contains the residual.
+ *
+ *********************************************************************** */
+{
+  return tot_vphi;
+}
+

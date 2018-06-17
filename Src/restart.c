@@ -8,7 +8,7 @@
   version of the code.
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   Aug 24, 2015
+  \date   DEc 21, 2016
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -20,9 +20,9 @@ void RestartFromFile (Runtime *ini, int nrestart, int type, Grid *grid)
  *
  * \param [in] ini       
  * \param [in] nrestart
- * \param [in] type specifies the output data type (type should be 
- *             either DBL_OUTPUT or DBL_H5_OUTPUT).
- * \param [in]      grid  pointer to an array of Grid structures
+ * \param [in] type       specifies the output data type (type should be 
+ *                        either DBL_OUTPUT or DBL_H5_OUTPUT).
+ * \param [in] grid       pointer to an array of Grid structures
  *
  ***********************************************************************  */
 {
@@ -59,14 +59,15 @@ void RestartFromFile (Runtime *ini, int nrestart, int type, Grid *grid)
       fbin = fopen (fout, "r");
     }
     if (fbin == NULL){
-      print1 ("! Restart: cannot find dbl.out or dbl.h5.out\n");
+      print ("! RestartFromFile(): cannot find dbl.out or dbl.h5.out\n");
       QUIT_PLUTO(1);
     }
 
     while (fgets(str, 512, fbin) != 0) nlines++;  /* -- count lines in dbl.out -- */
     rewind(fbin);
     if (nrestart > nlines-1){
-      printf ("! Restart: position too large\n");
+      print ("! RestartFromFile(): output #%d does not exist in file %s\n",
+             nrestart, fout);
       QUIT_PLUTO(1);
     }
     origin = (nrestart >= 0 ? nrestart:(nlines+nrestart));
@@ -75,7 +76,7 @@ void RestartFromFile (Runtime *ini, int nrestart, int type, Grid *grid)
     if ( (!strcmp(str,"big")    &&  IsLittleEndian()) ||
          (!strcmp(str,"little") && !IsLittleEndian())) {
       swap_endian = 1;
-      print1 ("> Restart: endianity is reversed\n");
+      print ("> RestartFromFile(): endianity is reversed\n");
     }
     fclose(fbin);
   }
@@ -95,7 +96,7 @@ void RestartFromFile (Runtime *ini, int nrestart, int type, Grid *grid)
     return;
   }
 
-  print1 ("> restarting from file #%d (dbl)\n",output->nfile);
+  print ("> Restarting from file #%d (dbl)\n",output->nfile);
   single_file = strcmp(output->mode,"single_file") == 0;
   
 /* -----------------------------------------------------------------
@@ -109,7 +110,7 @@ void RestartFromFile (Runtime *ini, int nrestart, int type, Grid *grid)
     sprintf (fname, "%s/data.%04d.dbl", output->dir, output->nfile);
     offset = 0;
     #ifndef PARALLEL
-     fbin = OpenBinaryFile (fname, 0, "r");
+     fbin = FileOpen (fname, 0, "r");
     #endif
     for (nv = 0; nv < output->nvar; nv++) {
       if (!output->dump_var[nv]) continue;
@@ -128,18 +129,18 @@ void RestartFromFile (Runtime *ini, int nrestart, int type, Grid *grid)
          Vpt = (void *)output->V[nv][-1][0];
       }
       #ifdef PARALLEL
-       fbin = OpenBinaryFile (fname, sz, "r");
+       fbin = FileOpen (fname, sz, "r");
        AL_Set_offset(sz, offset);
       #endif
-      ReadBinaryArray (Vpt, sizeof(double), sz, fbin,
-                       output->stag_var[nv], swap_endian);
+      FileReadData (Vpt, sizeof(double), sz, fbin,
+                    output->stag_var[nv], swap_endian);
       #ifdef PARALLEL
        offset = AL_Get_offset(sz);
-       CloseBinaryFile(fbin, sz);
+       FileClose(fbin, sz);
       #endif
     }
     #ifndef PARALLEL
-     CloseBinaryFile(fbin, sz);
+     FileClose(fbin, sz);
     #endif
 
   }else{
@@ -163,10 +164,10 @@ void RestartFromFile (Runtime *ini, int nrestart, int type, Grid *grid)
          sz = SZ_stagz;
          Vpt = (void *)output->V[nv][-1][0];
       }
-      fbin = OpenBinaryFile (fname, sz, "r");
-      ReadBinaryArray (Vpt, sizeof(double), sz, fbin,
-                       output->stag_var[nv], swap_endian);
-      CloseBinaryFile (fbin, sz);
+      fbin = FileOpen (fname, sz, "r");
+      FileReadData (Vpt, sizeof(double), sz, fbin,
+                    output->stag_var[nv], swap_endian);
+      FileClose (fbin, sz);
     }
   }
 }
@@ -188,7 +189,7 @@ void RestartGet (Runtime *ini, int nrestart, int out_type,
   FILE *fr;
 
   if (nrestart < 0){
-    printf ("! negative restart file temporarily disabled\n");
+    print ("! RestartGet(): negative restart file temporarily disabled\n");
     QUIT_PLUTO(1);
   }
 
@@ -204,7 +205,7 @@ void RestartGet (Runtime *ini, int nrestart, int out_type,
     sprintf (fout,"%s/restart.out",ini->output_dir);
     fr = fopen (fout, "rb");
     if (fr == NULL){
-      print1 ("! RestartGet: cannot find restart.out\n");
+      print ("! RestartGet(): cannot find restart.out\n");
       QUIT_PLUTO(1);
     }
 
@@ -212,7 +213,7 @@ void RestartGet (Runtime *ini, int nrestart, int out_type,
     k = 0;
     while (counter == -1){
       if (feof(fr)){
-        print("! RestartGet: end of file encountered.\n");
+        print("! RestartGet(): end of file encountered.\n");
         QUIT_PLUTO(1);
       }
       fseek (fr, k*sizeof(Restart), origin);
@@ -235,9 +236,9 @@ void RestartGet (Runtime *ini, int nrestart, int out_type,
 
 /* printf ("counter = %d\n",counter); */
 
-  #ifdef PARALLEL
-   MPI_Bcast (&restart, sizeof (Restart), MPI_BYTE, 0, MPI_COMM_WORLD);
-  #endif
+#ifdef PARALLEL
+  MPI_Bcast (&restart, sizeof (Restart), MPI_BYTE, 0, MPI_COMM_WORLD);
+#endif
 
   g_time       = restart.t;
   g_dt         = restart.dt;
@@ -245,6 +246,14 @@ void RestartGet (Runtime *ini, int nrestart, int out_type,
 
   for (n = 0; n < MAX_OUTPUT_TYPES; n++){
     ini->output[n].nfile = restart.nfile[n];
+  }
+
+/* -- Check that tstop > g_time -- */
+
+  if (RuntimeGet()->tstop < g_time){
+    print ("! RestartGet(): tstop = %f < g_time = %f\n",
+            RuntimeGet()->tstop, g_time);
+    QUIT_PLUTO(1);
   }
 }
 /* ********************************************************************* */
@@ -275,8 +284,8 @@ void RestartDump (Runtime *ini)
    -------------------------------------------------- */
 
   counter++;
-  if (prank == 0) {
-    sprintf (fout,"%s/restart.out",ini->output_dir);
+  if (prank == 0) {   /* Only processor 0 does the writing */
+    sprintf (fout,"%s/restart.out",ini->output_dir); /* File name */
     if (counter == 0) {
       fr = fopen (fout, "wb");
     }else {

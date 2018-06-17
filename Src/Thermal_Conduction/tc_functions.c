@@ -47,19 +47,19 @@ void GetGradient (double ***T, double **gradT,
   double dl1, dl2, dl3, theta, r_1, s_1;
   double dx1, dx2, dx3;
   
-  D_EXPAND(inv_dx  = grid[IDIR].inv_dx; inv_dxi = grid[IDIR].inv_dxi;  ,
-           inv_dy  = grid[JDIR].inv_dx; inv_dyi = grid[JDIR].inv_dxi;  ,
-           inv_dz  = grid[KDIR].inv_dx; inv_dzi = grid[KDIR].inv_dxi;)
+  D_EXPAND(inv_dx  = grid->inv_dx[IDIR]; inv_dxi = grid->inv_dxi[IDIR];  ,
+           inv_dy  = grid->inv_dx[JDIR]; inv_dyi = grid->inv_dxi[JDIR];  ,
+           inv_dz  = grid->inv_dx[KDIR]; inv_dzi = grid->inv_dxi[KDIR];)
 
-  r  = grid[IDIR].x;
-  rp = grid[IDIR].xr;
+  r  = grid->x[IDIR];
+  rp = grid->xr[IDIR];
 
   i = g_i; j = g_j; k = g_k;
 
   if (g_dir == IDIR) {
 
     #if GEOMETRY == SPHERICAL
-     theta = grid[JDIR].x[j];
+     theta = grid->x[JDIR][j];
      s_1   = 1.0/sin(theta);
     #endif
     D_EXPAND(                 ,
@@ -99,7 +99,7 @@ void GetGradient (double ***T, double **gradT,
       #elif GEOMETRY == SPHERICAL
        D_EXPAND(               ,
                 dl2  *= r_1;   ,
-                theta = grid[JDIR].xr[j];
+                theta = grid->xr[JDIR][j];
                 dl3   = dx3*r_1/sin(theta);)
       #endif
        D_EXPAND( 
@@ -120,7 +120,7 @@ void GetGradient (double ***T, double **gradT,
      dl2 *= r_1; 
     #endif
     #if GEOMETRY == SPHERICAL
-     theta = grid[JDIR].x[j];
+     theta = grid->x[JDIR][j];
      s_1   = 1.0/sin(theta);
     #endif
 

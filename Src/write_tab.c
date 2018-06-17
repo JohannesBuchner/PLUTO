@@ -22,7 +22,7 @@
   serial runs.
  
   \author A. Mignone (mignone@ph.unito.it)
-  \date   June 27, 2014
+  \date   April 6, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -42,12 +42,12 @@ void WriteTabArray (Output *output, char *filename, Grid *grid)
   FILE *fout;
 
   #ifdef PARALLEL
-   print1 ("! WriteTabArray: tab output not supported in parallel\n");
+   print ("! WriteTabArray: tab output not supported in parallel\n");
    return;
   #endif
 
   #if DIMENSIONS == 3
-   print1 ("! WriteTabArray: tab output not supported in 3D\n");
+   print ("! WriteTabArray: tab output not supported in 3D\n");
    return;
   #endif
 
@@ -59,7 +59,7 @@ void WriteTabArray (Output *output, char *filename, Grid *grid)
   k = 0;
   IDOM_LOOP (i){
     JDOM_LOOP(j){
-      fprintf (fout, "%f %f ", grid[IDIR].x[i], grid[JDIR].x[j]);
+      fprintf (fout, "%f %f ", grid->x[IDIR][i], grid->x[JDIR][j]);
       for (nv = 0; nv < output->nvar; nv++) {
         if (output->dump_var[nv]) 
           fprintf (fout, "%12.6e ", output->V[nv][k][j][i]);

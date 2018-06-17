@@ -5,6 +5,8 @@ using std::string;
 #include "PatchPluto.H"
 #include "LoHiSide.H"
 
+static void StatesFlat (const Sweep *sweep, int beg, int end);
+
 /* ********************************************************************* */
 void PatchPluto::advanceStep(FArrayBox&       a_U,
                              FArrayBox&       a_Utmp,
@@ -12,7 +14,7 @@ void PatchPluto::advanceStep(FArrayBox&       a_U,
                              FArrayBox&  split_tags,
                              BaseFab<unsigned char>& a_Flags,
                              FluxBox&         a_F,
-                             Time_Step        *Dts,
+                             timeStep        *Dts,
                              const Box&       UBox, 
                              Grid *grid)
 /*
@@ -29,338 +31,360 @@ void PatchPluto::advanceStep(FArrayBox&       a_U,
   int nxf, nyf, nzf, indf;
   int nxb, nyb, nzb;
   int i, j, k;
-
+  int nbeg, nend, ntot; 
   int    errp, errm, errh;
+
+  static unsigned char *flagp, *flagm;  // these should go inside sweep !!
+
+  static Sweep sweep;
+
+  State *stateC = &(sweep.stateC);
+  State *stateL = &(sweep.stateL);
+  State *stateR = &(sweep.stateR);
+
   double ***UU[NVAR], *du;
  #ifdef SKIP_SPLIT_CELLS 
   double ***splitcells;
  #endif
-  double inv_dtp, *inv_dl;
+  double invDt_par, *inv_dl;
+  double **up, **um, **vp, **vm;
   static Data d;
-  static Data_Arr UH, dU;
-  static Data_Arr UP[DIMENSIONS], UM[DIMENSIONS];
-  static double **u, ***T;
-  #if (PARABOLIC_FLUX & EXPLICIT)
-   static double **dcoeff;
-  #endif   
-  RBox *rbox = GetRBox(DOM, CENTER);
-  Index indx;
-  static State_1D state;
-  static unsigned char *flagp, *flagm;  // these should go inside state !!
+  static Data_Arr Uh, Vc0;
+  static Data_Arr rhs, Up[DIMENSIONS], Um[DIMENSIONS];
+  static double **u;
 
   Riemann_Solver *Riemann = rsolver;
+  RBox   sweepBox;
 
-/* -----------------------------------------------------------------
-               Check algorithm compatibilities
-   ----------------------------------------------------------------- */
+/* ---------------------------------------------------------
+   0. Check algorithm compatibilities
+   --------------------------------------------------------- */
 
-  #if !(GEOMETRY == CARTESIAN || GEOMETRY == CYLINDRICAL)
-   print1 ("! CTU only works in cartesian or cylindrical coordinates\n");
-   QUIT_PLUTO(1);
-  #endif     
+#if !(GEOMETRY == CARTESIAN || GEOMETRY == CYLINDRICAL)
+  print1 ("! CTU only works in cartesian or cylindrical coordinates\n");
+  QUIT_PLUTO(1);
+#endif     
 
   if (NX1_TOT > NMAX_POINT || NX2_TOT > NMAX_POINT || NX3_TOT > NMAX_POINT){
     print ("! advanceStep(): need to re-allocate matrix\n");
     QUIT_PLUTO(1);
   }
 
-/* -----------------------------------------------------------------
-                          Allocate memory
-   ----------------------------------------------------------------- */
+/* ---------------------------------------------------------
+   1. Map Chombo data structure.
+   --------------------------------------------------------- */
 
-  #if GEOMETRY != CARTESIAN
-   for (nv = 0; nv < NVAR; nv++) a_U.divide(a_dV,0,nv);
-   #if CHOMBO_CONS_AM == YES
-    #if ROTATING_FRAME == YES
-     Box curBox = a_U.box();
-     for(BoxIterator bit(curBox); bit.ok(); ++bit) {
-       const IntVect& iv = bit();
-       a_U(iv,iMPHI) /= a_dV(iv,1);
-       a_U(iv,iMPHI) -= a_U(iv,RHO)*a_dV(iv,1)*g_OmegaZ;
-     }
-    #else
-     a_U.divide(a_dV,1,iMPHI);
-    #endif
-   #endif
+#if GEOMETRY != CARTESIAN
+  for (nv = 0; nv < NVAR; nv++) a_U.divide(a_dV,0,nv);
+  #if CHOMBO_CONS_AM == YES
+  #if ROTATING_FRAME == YES
+  Box curBox = a_U.box();
+  for(BoxIterator bit(curBox); bit.ok(); ++bit) {
+    const IntVect& iv = bit();
+    a_U(iv,iMPHI) /= a_dV(iv,1);
+    a_U(iv,iMPHI) -= a_U(iv,RHO)*a_dV(iv,1)*g_OmegaZ;
+  }
   #else
-   if (g_stretch_fact != 1.) a_U /= g_stretch_fact;
+  a_U.divide(a_dV,1,iMPHI);
   #endif
+  #endif
+#else
+  if (g_stretch_fact != 1.) a_U /= g_stretch_fact;
+#endif
 
   for (nv = 0; nv < NVAR; nv++){
     UU[nv] = ArrayMap(NX3_TOT, NX2_TOT, NX1_TOT, a_U.dataPtr(nv));
   }
-  #ifdef SKIP_SPLIT_CELLS
-   splitcells = ArrayBoxMap(KBEG, KEND, JBEG, JEND, IBEG, IEND, 
-                            split_tags.dataPtr(0));
-  #endif
-  #if RESISTIVITY != NO
-   if (d.J == NULL) d.J = ARRAY_4D(3,NX3_MAX, NX2_MAX, NX1_MAX, double);
-  #endif
+#ifdef SKIP_SPLIT_CELLS
+  splitcells = ArrayBoxMap(KBEG, KEND, JBEG, JEND, IBEG, IEND, 
+                           split_tags.dataPtr(0));
+#endif
 
-/* -----------------------------------------------------------
-         Allocate static memory areas
-   -----------------------------------------------------------  */
+/* ---------------------------------------------------------
+   2. Allocate static memory areas
+   ---------------------------------------------------------  */
 
-  if (state.flux == NULL){
+  if (sweep.flux == NULL){
 
-    MakeState (&state);
+    MakeState (&sweep);
 
-    nxf = nyf = nzf = 1;
-    D_EXPAND(nxf = NMAX_POINT;  ,
-             nyf = NMAX_POINT;  ,
-             nzf = NMAX_POINT;)
+    d.Vc   = ARRAY_4D(NVAR, NX3_MAX, NX2_MAX, NX1_MAX, double);
+    d.Uc   = ARRAY_4D(NX3_MAX, NX2_MAX, NX1_MAX, NVAR, double);
+    d.flag = ARRAY_3D(NX3_MAX, NX2_MAX, NX1_MAX, unsigned char);
+    #if RESISTIVITY
+    d.J    = ARRAY_4D(3,NX3_MAX, NX2_MAX, NX1_MAX, double);
+    #endif
+    #if THERMAL_CONDUCTION
+    d.Tc   = ARRAY_3D(NX3_MAX, NX2_MAX, NX1_MAX, double);
+    #endif
 
-    d.Vc   = ARRAY_4D(NVAR, nzf, nyf, nxf, double);
-    d.flag = ARRAY_3D(nzf, nyf, nxf, unsigned char);
- 
     flagp = ARRAY_1D(NMAX_POINT, unsigned char);
     flagm = ARRAY_1D(NMAX_POINT, unsigned char);
     u     = ARRAY_2D(NMAX_POINT, NVAR, double);
     
-    UH = ARRAY_4D(nzf, nyf, nxf, NVAR, double);
-    dU = ARRAY_4D(nzf, nyf, nxf, NVAR, double);
+    Uh  = ARRAY_4D(NX3_MAX, NX2_MAX, NX1_MAX, NVAR, double);
+    Vc0 = ARRAY_4D(NX3_MAX, NX2_MAX, NX1_MAX, NVAR, double);
 
-    D_EXPAND(UM[IDIR]  = ARRAY_4D(nzf, nyf, nxf, NVAR, double);
-             UP[IDIR]  = ARRAY_4D(nzf, nyf, nxf, NVAR, double);  ,
+    D_EXPAND(Um[IDIR] = ARRAY_4D(NX3_MAX, NX2_MAX, NX1_MAX, NVAR, double);
+             Up[IDIR] = ARRAY_4D(NX3_MAX, NX2_MAX, NX1_MAX, NVAR, double);  ,
   
-             UM[JDIR]  = ARRAY_4D(nzf, nxf, nyf, NVAR, double);
-             UP[JDIR]  = ARRAY_4D(nzf, nxf, nyf, NVAR, double);  ,
+             Um[JDIR] = ARRAY_4D(NX3_MAX, NX2_MAX, NX1_MAX, NVAR, double);
+             Up[JDIR] = ARRAY_4D(NX3_MAX, NX2_MAX, NX1_MAX, NVAR, double);  ,
 
-             UM[KDIR]  = ARRAY_4D(nyf, nxf, nzf, NVAR, double);
-             UP[KDIR]  = ARRAY_4D(nyf, nxf, nzf, NVAR, double);)
+             Um[KDIR] = ARRAY_4D(NX3_MAX, NX2_MAX, NX1_MAX, NVAR, double);
+             Up[KDIR] = ARRAY_4D(NX3_MAX, NX2_MAX, NX1_MAX, NVAR, double);)
 
-    #if (PARABOLIC_FLUX & EXPLICIT)
-     dcoeff = ARRAY_2D(NMAX_POINT, NVAR, double);
-    #endif
-    #if THERMAL_CONDUCTION == EXPLICIT
-     T = ARRAY_3D(nzf, nyf, nxf, double);
-    #endif
+    rhs = ARRAY_4D(NX3_MAX, NX2_MAX, NX1_MAX, NVAR, double);
   }
 
-  g_intStage = 1;
-  TOT_LOOP(k,j,i) d.flag[k][j][i] = 0;
+  up = stateL->u;   
+  um = stateR->u-1;
+  vp = stateL->v;   
+  vm = stateR->v-1;
 
-  #ifdef SKIP_SPLIT_CELLS
-   DOM_LOOP(k,j,i){
-     if (splitcells[k][j][i] < 0.5){
-       d.flag[k][j][i] |= FLAG_SPLIT_CELL;
-     }
-   }
-  #endif
-  getPrimitiveVars (UU, &d, grid);
-  #if (SHOCK_FLATTENING == MULTID) || (ENTROPY_SWITCH)
-   FlagShock (&d, grid);
-  #endif
-  #if THERMAL_CONDUCTION == EXPLICIT
-   TOT_LOOP(k,j,i) T[k][j][i] = d.Vc[PRS][k][j][i]/d.Vc[RHO][k][j][i];
-  #endif
+  g_intStage = 1;
+  TOT_LOOP(k,j,i) {
+    d.flag[k][j][i] = 0;
+    NVAR_LOOP(nv) rhs[k][j][i][nv] = 0.0;
+  }
+
+// Transpose array to have nv as fastest running index
+
+  TOT_LOOP(k,j,i) NVAR_LOOP(nv) d.Uc[k][j][i][nv] = UU[nv][k][j][i];
+
+#ifdef SKIP_SPLIT_CELLS
+  DOM_LOOP(k,j,i){
+    if (splitcells[k][j][i] < 0.5){
+      d.flag[k][j][i] |= FLAG_SPLIT_CELL;
+    }
+  }
+#endif
+  getPrimitiveVars (d.Uc, &d, grid);
+#if (SHOCK_FLATTENING == MULTID) || (ENTROPY_SWITCH)
+  FlagShock (&d, grid);
+#endif
+
+// Copy solution values at t^n as safe replacement values of
+// corner-coupled-sweeps.
+
+  TOT_LOOP(k,j,i) NVAR_LOOP(nv) {
+    Vc0[k][j][i][nv] = d.Vc[nv][k][j][i];
+  }
 
 /* ----------------------------------------------------
-      1. Normal predictors 
+   3. Normal predictors 
    ---------------------------------------------------- */
 
   for (g_dir = 0; g_dir < DIMENSIONS; g_dir++){
 
-    SetIndexes (&indx, grid);
-    ResetState (&d, &state, grid);
-    #if (RESISTIVITY == EXPLICIT)
-     GetCurrent(&d, g_dir, grid);
+  /* -- Set integration box for predictor step -- */
+
+    RBoxDefine(IBEG, IEND, JBEG, JEND, KBEG, KEND, CENTER, &sweepBox);
+    RBoxSetDirections (&sweepBox, g_dir);
+    SetVectorIndices (g_dir);
+
+    D_EXPAND(                                      ;  ,
+             (*sweepBox.tbeg)--; (*sweepBox.tend)++;  ,
+             (*sweepBox.bbeg)--; (*sweepBox.bend)++;)
+  #if (defined STAGGERED_MHD)
+    D_EXPAND((*sweepBox.nbeg)--; (*sweepBox.nend)++;  ,
+             (*sweepBox.tbeg)--; (*sweepBox.tend)++;  ,
+             (*sweepBox.bbeg)--; (*sweepBox.bend)++;)
+  #else
+    #if (PARABOLIC_FLUX & EXPLICIT)
+    (*sweepBox.nbeg)--; (*sweepBox.nend)++;
     #endif
-    TRANSVERSE_LOOP(indx,in,i,j,k){  
+  #endif
+    ResetState(&d, &sweep, grid);
+
+    nbeg = *sweepBox.nbeg;
+    nend = *sweepBox.nend;
+    ntot = grid->np_tot[g_dir];
+    
+    NVAR_LOOP(nv) sweep.rhs[nbeg-1][nv] = sweep.rhs[nend+1][nv] = 0.0;
+
+    BOX_TRANSVERSE_LOOP(&sweepBox, k,j,i){  
+      in  = sweepBox.n;
       g_i = i; g_j = j; g_k = k;
 
-      state.up = UP[g_dir][*(indx.pt2)][*(indx.pt1)]; state.uL = state.up;
-      state.um = UM[g_dir][*(indx.pt2)][*(indx.pt1)]; state.uR = state.um + 1;
+    /* ---- Get 1-D arrays of primitive quantities ---- */
 
-      for ((*in) = 0; (*in) < indx.ntot; (*in)++) {
-        NVAR_LOOP(nv) state.v[*in][nv] = d.Vc[nv][k][j][i];
-        state.flag[*in] = d.flag[k][j][i];
+      for ((*in) = 0; (*in) < ntot; (*in)++) {
+        NVAR_LOOP(nv) stateC->v[*in][nv] = d.Vc[nv][k][j][i];
+        #ifdef GLM_MHD
+        NVAR_LOOP(nv) sweep.vn[*in][nv] = d.Vc[nv][k][j][i];
+        #endif
+        sweep.flag[*in] = d.flag[k][j][i];
       }
 
-      CheckNaN (state.v, indx.beg-1, indx.end+1, 0);
-      PrimToCons (state.v, u, 0, indx.ntot-1);
+      CheckNaN (stateC->v, nbeg-1, nend+1, 0);
+      PrimToCons (stateC->v, u, 0, ntot-1);
 
 #if !(PARABOLIC_FLUX & EXPLICIT)
-      States  (&state, indx.beg-1, indx.end+1, grid);
-      Riemann (&state, indx.beg-1, indx.end, Dts->cmax, grid);
-      RightHandSide (&state, Dts, indx.beg, indx.end, 0.5*g_dt, grid);
+      States  (&sweep, nbeg-1, nend+1, grid);
 
-      if (g_dir == IDIR){  /* -- initialize UU, UH and dU -- */
-        for (nv = NVAR; nv--; ){
-          state.rhs[indx.beg-1][nv] = 0.0;
-          state.rhs[indx.end+1][nv] = 0.0;
+ /* -- Copy sweeps before Riemann solver changes them (for GLM) -- */
+
+      #ifdef GLM_MHD
+      for (*in = nbeg-1; *in <= nend+1; (*in)++) {
+        NVAR_LOOP(nv){
+          Up[g_dir][k][j][i][nv] = up[*in][nv];
+          Um[g_dir][k][j][i][nv] = um[*in][nv];
         }
-        for ((*in) = indx.beg-1; (*in) <= indx.end+1; (*in)++){
-        for (nv = NVAR; nv--; ){
-          UU[nv][k][j][i] = u[*in][nv];
-          UH[k][j][i][nv] = u[*in][nv] + state.rhs[*in][nv];
-          dU[k][j][i][nv] = state.rhs[*in][nv];
-          state.up[*in][nv]  -= state.rhs[*in][nv];
-          state.um[*in][nv]  -= state.rhs[*in][nv];
-        }}
-      }else{
-        for ((*in) = indx.beg; (*in) <= indx.end; (*in)++){
-        for (nv = NVAR; nv--; ){
-          dU[k][j][i][nv] += state.rhs[*in][nv];
-          UH[k][j][i][nv] += state.rhs[*in][nv];
-          state.up[*in][nv] -= state.rhs[*in][nv];
-          state.um[*in][nv] -= state.rhs[*in][nv];
-        }}
       }
-#else
-      for ((*in) = 0; (*in) < indx.ntot; (*in)++) {
-      for (nv = NVAR; nv--;  ) {
-        state.vp[*in][nv] = state.vm[*in][nv] = state.vh[*in][nv] = state.v[*in][nv];
-      }}
-      PrimToCons(state.vm, state.um, 0, indx.ntot-1);
-      PrimToCons(state.vp, state.up, 0, indx.ntot-1);
-      
-      Riemann (&state, indx.beg-1, indx.end, Dts->cmax, grid);
-
-  /* -----------------------------------------------------------
-          compute rhs using the hyperbolic fluxes only
-     ----------------------------------------------------------- */
-
-      #if (VISCOSITY == EXPLICIT)
-       for ((*in) = 0; (*in) < indx.ntot; (*in)++) for (nv = NVAR; nv--;  )
-         state.par_src[*in][nv] = 0.0;
       #endif
-      RightHandSide (&state, Dts, indx.beg, indx.end, 0.5*g_dt, grid);
-      ParabolicFlux (d.Vc, d.J, T, &state, dcoeff, indx.beg-1, indx.end, grid);
 
-  /* ----------------------------------------------------------
-      compute LR states and subtract normal (hyperbolic) 
-      rhs contribution.
-      NOTE: states are computed from IBEG - 1 (= indx.beg)
-            up to IEND + 1 (= indx.end) since EMF has already
-            been evaluated and stored using 1st order states
-            above.
-     ---------------------------------------------------------- */
+      Riemann (&sweep, nbeg-1, nend, Dts->cmax, grid);
+      RightHandSide (&sweep, Dts, nbeg, nend, 0.5*g_dt, grid);
 
-      States (&state, indx.beg, indx.end, grid);
-      for ((*in) = indx.beg; (*in) <= indx.end; (*in)++) {
-      for (nv = NVAR; nv--; ){
-        state.up[*in][nv] -= state.rhs[*in][nv];
-        state.um[*in][nv] -= state.rhs[*in][nv];
+      for ((*in) = nbeg-1; (*in) <= nend+1; (*in)++){
+        NVAR_LOOP(nv){
+          d.Uc[k][j][i][nv] = u[*in][nv];
+          #ifdef GLM_MHD
+          Up[g_dir][k][j][i][nv] -= sweep.rhs[*in][nv];
+          Um[g_dir][k][j][i][nv] -= sweep.rhs[*in][nv];
+          #else
+          Up[g_dir][k][j][i][nv] = up[*in][nv] - sweep.rhs[*in][nv];
+          Um[g_dir][k][j][i][nv] = um[*in][nv] - sweep.rhs[*in][nv];
+          #endif
+          rhs[k][j][i][nv]       += sweep.rhs[*in][nv];
       }}
+#else
+      StatesFlat (&sweep, 0, ntot-1);            
+      Riemann (&sweep, nbeg-1, nend, Dts->cmax, grid);
+      RightHandSide (&sweep, Dts, nbeg, nend, 0.5*g_dt, grid);
+      for (*in = nbeg; *in <= nend; (*in)++) {
+        NVAR_LOOP(nv) rhs[k][j][i][nv] += sweep.rhs[*in][nv];
+      }
 
-  /* -----------------------------------------------------------
-       re-compute the full rhs using the total (hyp+par) rhs
-     ----------------------------------------------------------- */
+      States  (&sweep, nbeg, nend, grid);
 
-      RightHandSide (&state, Dts, indx.beg, indx.end, 0.5*g_dt, grid);
-      if (g_dir == IDIR){
-        for ((*in) = indx.beg; (*in) <= indx.end; (*in)++) {
-        for (nv = NVAR; nv--; ){
-          dU[k][j][i][nv] = state.rhs[*in][nv];
-          UH[k][j][i][nv] = u[*in][nv] + state.rhs[*in][nv];
-        }}
-      }else{
-        for ((*in) = indx.beg; (*in) <= indx.end; (*in)++) {
-        for (nv = NVAR; nv--; ){
-          dU[k][j][i][nv] += state.rhs[*in][nv];
-          UH[k][j][i][nv] += state.rhs[*in][nv];
-        }}
+      for (*in = nbeg; *in <= nend; (*in)++) {
+        NVAR_LOOP(nv){
+          Up[g_dir][k][j][i][nv] = up[*in][nv] - sweep.rhs[*in][nv];
+          Um[g_dir][k][j][i][nv] = um[*in][nv] - sweep.rhs[*in][nv];
+        }
       }
 #endif
 
+    /*  -- Compute inverse time step -- */
+
+      inv_dl = GetInverse_dl(grid);
+      for (*in = nbeg; *in <= nend; (*in)++) { 
+        Dts->invDt_hyp = MAX(Dts->invDt_hyp, Dts->cmax[*in]*inv_dl[*in]);
+      }
+
     }
   }
 
-/* ------------------------------------------------
-    2. compute time and cell centered state. 
-       Useful for source terms like gravity, 
-       curvilinear terms and Powell's 8wave. 
-   ------------------------------------------------ */
-   
-  g_dir = IDIR;
-  SetIndexes (&indx, grid);
-  TRANSVERSE_LOOP(indx,in,i,j,k){
-    g_i = i; g_j = j; g_k = k;
-    errp = ConsToPrim(UH[k][j], state.v, indx.beg, indx.end, d.flag[k][j]);
-    WARNING(
-      if (errp != 0)  print("! PatchUnsplit: error recovering U^{n+1/2}\n");
-    )
-    for ((*in) = indx.beg; (*in) <= indx.end; (*in)++) {
-      NVAR_LOOP(nv) d.Vc[nv][k][j][i] = state.v[*in][nv];
-    }
-    #if THERMAL_CONDUCTION == EXPLICIT
-     for ((*in) = indx.beg; (*in) <= indx.end; (*in)++){
-       T[k][j][i] = d.Vc[PRS][k][j][i]/d.Vc[RHO][k][j][i];
-     }
-    #endif
+/* ----------------------------------------------------------
+   4. Advance conservative variables by dt/2.
+   ---------------------------------------------------------- */
+
+  RBoxDefine (IBEG, IEND,JBEG, JEND,KBEG, KEND, CENTER, &sweepBox);  
+#if (PARABOLIC_FLUX & EXPLICIT) || (defined STAGGERED_MHD)
+  D_EXPAND(sweepBox.ibeg--; sweepBox.iend++;  ,
+           sweepBox.jbeg--; sweepBox.jend++;  ,
+           sweepBox.kbeg--; sweepBox.kend++;);
+#endif
+
+  BOX_LOOP(&sweepBox, k,j,i){
+    NVAR_LOOP(nv) Uh[k][j][i][nv] = d.Uc[k][j][i][nv] + rhs[k][j][i][nv];
   }
+
+#if (PARABOLIC_FLUX & EXPLICIT)
+  ParabolicUpdate (&d, Uh, &sweepBox, NULL, 0.5*g_dt, Dts, grid);
+  D_EXPAND(ParabolicUpdate (NULL, Up[IDIR], &sweepBox, NULL, 0.5*g_dt, Dts, grid);
+           ParabolicUpdate (NULL, Um[IDIR], &sweepBox, NULL, 0.5*g_dt, Dts, grid);  ,
+           
+           ParabolicUpdate (NULL, Up[JDIR], &sweepBox, NULL, 0.5*g_dt, Dts, grid);
+           ParabolicUpdate (NULL, Um[JDIR], &sweepBox, NULL, 0.5*g_dt, Dts, grid);  ,
+           
+           ParabolicUpdate (NULL, Up[KDIR], &sweepBox, NULL, 0.5*g_dt, Dts, grid);
+           ParabolicUpdate (NULL, Um[KDIR], &sweepBox, NULL, 0.5*g_dt, Dts, grid);)
+#endif
+
+/* ---------------------------------------------------------------
+   5. Convert time-centered conserved array to primitive array 
+   --------------------------------------------------------------- */
+
+  g_dir = IDIR;
+  for (k = sweepBox.kbeg; k <= sweepBox.kend; k++){
+  for (j = sweepBox.jbeg; j <= sweepBox.jend; j++){
+    g_j = j; g_k = k;
+    errp = ConsToPrim(Uh[k][j], stateC->v, sweepBox.ibeg, sweepBox.iend, d.flag[k][j]);
+    for (i = sweepBox.ibeg; i <= sweepBox.iend; i++) {
+      NVAR_LOOP(nv) d.Vc[nv][k][j][i] = stateC->v[i][nv];
+    }
+  }}
 
 /* ----------------------------------------------------
-           2. Final Conservative Update
+   6.  Final Conservative Update
    ---------------------------------------------------- */
 
   int numFlux = numFluxes();
   a_F.resize(UBox,numFlux);
   a_F.setVal(0.0);
 
+  static double *aflux[3];
+  for (i = 0; i < DIMENSIONS; i++) aflux[i] = a_F[i].dataPtr(0);
+
   g_intStage = 2;
   for (g_dir = 0; g_dir < DIMENSIONS; g_dir++){
 
-    SetIndexes (&indx, grid);
+  /* -- Set integration box for corrector step -- */
 
-    nxf = grid[IDIR].np_int + (g_dir == IDIR);
-    nyf = grid[JDIR].np_int + (g_dir == JDIR);
-    nzf = grid[KDIR].np_int + (g_dir == KDIR);
-
-    nxb = grid[IDIR].lbeg - (g_dir == IDIR);
-    nyb = grid[JDIR].lbeg - (g_dir == JDIR);
-    nzb = grid[KDIR].lbeg - (g_dir == KDIR);
-
-    ResetState (&d, &state, grid);
-    #if (RESISTIVITY == EXPLICIT)
-     GetCurrent(&d, g_dir, grid);
-    #endif    
-    TRANSVERSE_LOOP(indx,in,i,j,k){  
-
+    RBoxDefine(IBEG, IEND, JBEG, JEND, KBEG, KEND, CENTER, &sweepBox);
+    RBoxSetDirections (&sweepBox, g_dir);
+    SetVectorIndices (g_dir);
+    ResetState(&d, &sweep, grid);
+     
+    nbeg = *sweepBox.nbeg;
+    nend = *sweepBox.nend;
+     
+    BOX_TRANSVERSE_LOOP(&sweepBox,k,j,i){  
+      in  = sweepBox.n;
       g_i = i;  g_j = j;  g_k = k;
-
-      state.up = UP[g_dir][*(indx.pt2)][*(indx.pt1)]; state.uL = state.up;
-      state.um = UM[g_dir][*(indx.pt2)][*(indx.pt1)]; state.uR = state.um + 1;
 
     /* --------------------------------------------
         Correct normal predictors with transverse 
-        fluxes to obtain corner coupled states. 
+        fluxes to obtain corner coupled sweeps. 
        -------------------------------------------- */
 
-      for ((*in) = indx.beg-1; (*in) <= indx.end+1; (*in)++){
-        for (nv = NVAR; nv--;  ) {
-          state.up[*in][nv] += dU[k][j][i][nv];
-          state.um[*in][nv] += dU[k][j][i][nv];
-          state.vh[*in][nv]  = d.Vc[nv][k][j][i];
+      for ((*in) = nbeg-1; (*in) <= nend+1; (*in)++){
+        NVAR_LOOP(nv){
+          up[*in][nv] = Up[g_dir][k][j][i][nv] + rhs[k][j][i][nv];
+          um[*in][nv] = Um[g_dir][k][j][i][nv] + rhs[k][j][i][nv];
+          stateC->v[*in][nv] = d.Vc[nv][k][j][i];
         }
-        flagp[*in] = flagm[*in] = state.flag[*in] = d.flag[k][j][i];
+        flagp[*in] = flagm[*in] = d.flag[k][j][i];
+        sweep.flag[*in] = d.flag[k][j][i];
       }
 
     /* ------------------------------------------------
-        convert time and cell centered state to 
-        conservative vars and corner-coupled states to 
+        convert time and cell centered sweep to 
+        conservative vars and corner-coupled sweeps to 
         primitive.
       ------------------------------------------------ */
-       
-      errp = ConsToPrim (state.up, state.vp, indx.beg-1, indx.end+1, flagp);
-      errm = ConsToPrim (state.um, state.vm, indx.beg-1, indx.end+1, flagm);
 
-  /* ---- check admissibility of corner coupled states ---- */
+      errp = ConsToPrim (up, vp, nbeg-1, nend+1, flagp);
+      errm = ConsToPrim (um, vm, nbeg-1, nend+1, flagm);
+
+  /* ---- check admissibility of corner coupled sweeps ---- */
 
       if (errm || errp){
-        WARNING(
-          print ("! Corner coupled states not physical: reverting to 1st order (level=%d)\n",
-                m_level);  
-          showPatch(grid);
-        )
-        for ((*in) = indx.beg-1; (*in) <= indx.end+1; (*in)++){
+        WARNING( pout() << "! PatchPluto::advanceStep():"
+                        << " corner coupled sweeps not physical: "
+                        << "reverting to 1st order (level= " <<  m_level
+                        << ")" << endl;)
+
+        for ((*in) = nbeg-1; (*in) <= nend+1; (*in)++){
           if (    (flagp[*in] & FLAG_CONS2PRIM_FAIL)
                || (flagm[*in] & FLAG_CONS2PRIM_FAIL)){
-            for (nv = 0; nv < NVAR; nv++) state.v[*in][nv] = d.Vc[nv][k][j][i];
+            NVAR_LOOP(nv) stateC->v[*in][nv] = Vc0[k][j][i][nv];
 
             for (nv = 0; nv < NVAR; nv++) {
-              state.vm[*in][nv] = state.vp[*in][nv] = state.vh[*in][nv] = state.v[*in][nv];
+              stateL->v[*in][nv] = stateR->v[*in-1][nv] = stateC->v[*in][nv];
             }
           }
         }
@@ -370,91 +394,87 @@ void PatchPluto::advanceStep(FArrayBox&       a_U,
            compute hyperbolic and parabolic fluxes 
        ------------------------------------------------------- */
 
-      Riemann (&state, indx.beg-1, indx.end, Dts->cmax, grid);
-      #if (PARABOLIC_FLUX & EXPLICIT)
-       ParabolicFlux (d.Vc, d.J, T, &state, dcoeff, indx.beg - 1, indx.end, grid);
-       inv_dl  = GetInverse_dl(grid);
-       for ((*in) = indx.beg-1; (*in) <= indx.end; (*in)++) {
-         inv_dtp = 0.0;
-         #if VISCOSITY == EXPLICIT
-          inv_dtp = MAX(inv_dtp, dcoeff[*in][MX1]);
-         #endif
-         #if RESISTIVITY == EXPLICIT
-          EXPAND(inv_dtp = MAX(inv_dtp, dcoeff[*in][BX1]);  ,
-                 inv_dtp = MAX(inv_dtp, dcoeff[*in][BX2]);  ,
-                 inv_dtp = MAX(inv_dtp, dcoeff[*in][BX3]);)
-         #endif
-         #if THERMAL_CONDUCTION == EXPLICIT
-          inv_dtp = MAX(inv_dtp, dcoeff[*in][ENG]);
-         #endif
-         inv_dtp *= inv_dl[*in]*inv_dl[*in];
+      Riemann (&sweep, nbeg-1, nend, Dts->cmax, grid);
+      RightHandSide (&sweep, Dts, nbeg, nend, g_dt, grid);
 
-         Dts->inv_dtp = MAX(Dts->inv_dtp, inv_dtp);
-       }
-      #endif
+    /* -- Store fluxes for regridding operations -- */
 
-      RightHandSide (&state, Dts, indx.beg, indx.end, g_dt, grid);
-      saveFluxes (&state, indx.beg-1, indx.end, grid);
-
-      for ((*in) = indx.beg; (*in) <= indx.end; (*in)++) {
-      for (nv = 0; nv < NVAR; nv++) {
-        UU[nv][k][j][i] += state.rhs[*in][nv];
-      }}   
-        
-// Put fluxes in the FarrayBox a_F to be passed to Chombo
-
-      for ((*in) = indx.beg-1; (*in) <= indx.end; (*in)++) {
+      for ((*in) = nbeg-1; (*in) <= nend; (*in)++){
+        sweep.flux[*in][MXn] += sweep.press[*in];
         #if HAVE_ENERGY && ENTROPY_SWITCH
-         state.flux[*in][ENG] = 0.0;
-         state.flux[*in][ENTR] = 0.0;
+        sweep.flux[*in][ENG] = 0.0;
+        sweep.flux[*in][ENTR] = 0.0;
         #endif
-        for (nv = 0; nv < NVAR; nv++) {
-          indf = nv*nzf*nyf*nxf + (k - nzb)*nyf*nxf 
-                                + (j - nyb)*nxf 
-                                + (i - nxb);
-          a_F[g_dir].dataPtr(0)[indf] = state.flux[*in][nv];
-        }
+      }   
+      StoreAMRFlux (sweep.flux, aflux, 0, 0, NVAR-1, nbeg-1, nend, grid);
+
+      for ((*in) = nbeg; (*in) <= nend; (*in)++) {
+      for (nv = 0; nv < NVAR; nv++) {
+        d.Uc[k][j][i][nv] += sweep.rhs[*in][nv];
+      }}
+
+    /*  -- Compute inverse time step -- */
+
+      inv_dl = GetInverse_dl(grid);
+      for (*in = nbeg; *in <= nend; (*in)++) { 
+        Dts->invDt_hyp = MAX(Dts->invDt_hyp, Dts->cmax[*in]*inv_dl[*in]);
       }
     }
   }
 
+//pout() << "g_stepNumber = " << g_stepNumber << endl;
+
+/* ---------------------------------------------------------------
+   7. Update solution array with parabolic (diffusion) terms.
+   --------------------------------------------------------------- */
+
+  RBoxDefine (IBEG, IEND, JBEG, JEND, KBEG, KEND, CENTER, &sweepBox);
+
+#if (PARABOLIC_FLUX & EXPLICIT)
+  ParabolicUpdate (&d, d.Uc, &sweepBox, aflux, g_dt, Dts, grid);
+#endif
+
+  saveFluxes (aflux, grid);
+
   #ifdef GLM_MHD
-   glm_ch_max_loc = MAX(glm_ch_max_loc, Dts->inv_dta*m_dx);
+   glm_ch_max_loc = MAX(glm_ch_max_loc, Dts->invDt_hyp*m_dx);
 //   glm_ch_max_loc = MAX(glm_ch_max_loc, Dts->inv_dta); /* If subcycling is turned off */
    double dtdx = g_dt/g_coeff_dl_min/m_dx;
 //    double dtdx = g_dt/g_coeff_dl_min; /* If subcycling is turned off */
-   GLM_Source (UU, dtdx, grid);
+   GLM_Source (d.Uc, dtdx, grid);
   #endif
 
-/* ----------------------------------------------
-    Source terms included via operator splitting
-   ---------------------------------------------- */
+/* ------------------------------------------------
+   8. Source terms included via operator splitting
+   ------------------------------------------------ */
 
 #if COOLING != NO
-  ConsToPrim3D(UU, d.Vc, d.flag, rbox);
+  ConsToPrim3D(d.Uc, d.Vc, d.flag, &sweepBox);
   SplitSource (&d, g_dt, Dts, grid);
-  PrimToCons3D(d.Vc, UU, rbox);
+  PrimToCons3D(d.Vc, d.Uc, &sweepBox);
 #endif
 
 #if ENTROPY_SWITCH
-/* -------------------------------------------------------------------
-    At this stage we have U^(n+1) that contains both total energy (E)
-    and entropy (sigma_c) although they have evolved differently.
-    To synchronize them we convert UU to primitive and then again
-    to conservative. This will ensure that in every cell
-    E and sigma_c can be mapped one into another consistently.
-    This step is *essential* when, at then next step,
-    primitive variables will be computed in every zone from entropy
-    rather than selectively from energy and entropy.
-   ------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------
+   9. At this stage we have U^(n+1) that contains both total energy (E)
+      and entropy (sigma_c) although they have evolved differently.
+      To synchronize them we convert UU to primitive and then again
+      to conservative. This will ensure that in every cell
+      E and sigma_c can be mapped one into another consistently.
+      This step is *essential* when, at then next step,
+      primitive variables will be computed in every zone from entropy
+      rather than selectively from energy and entropy.
+   --------------------------------------------------------------------- */
    
-  ConsToPrim3D(UU, d.Vc, d.flag, rbox);
-  PrimToCons3D(d.Vc, UU, rbox);
+  ConsToPrim3D(d.Uc, d.Vc, d.flag, &sweepBox);
+  PrimToCons3D(d.Vc, d.Uc, &sweepBox);
 #endif
 
 /* ---------------------------------------------------------------
     We pass U*dV/m_dx^3 back to Chombo rather than U.
    --------------------------------------------------------------- */
+
+  TOT_LOOP(k,j,i) NVAR_LOOP(nv)  UU[nv][k][j][i] = d.Uc[k][j][i][nv];
 
   #if GEOMETRY != CARTESIAN
    #if CHOMBO_CONS_AM == YES
@@ -473,6 +493,7 @@ void PatchPluto::advanceStep(FArrayBox&       a_U,
    if (g_stretch_fact != 1.) a_U *= g_stretch_fact;
   #endif
 
+
 /* -------------------------------------------------
                Free memory 
    ------------------------------------------------- */
@@ -482,4 +503,35 @@ void PatchPluto::advanceStep(FArrayBox&       a_U,
   #ifdef SKIP_SPLIT_CELLS
    FreeArrayBoxMap (splitcells, KBEG, KEND, JBEG, JEND, IBEG, IEND);
   #endif
+
 }
+
+/* ********************************************************************* */
+void StatesFlat (const Sweep *sweep, int beg, int end)
+/*
+ *  Compute first order sweeps.
+ *********************************************************************** */
+{
+  int i, nv;
+  const State *stateC = &(sweep->stateC);
+  const State *stateL = &(sweep->stateL);
+  const State *stateR = &(sweep->stateR);
+  double **vp = stateL->v;
+  double **vm = stateR->v - 1;
+  double **up = stateL->u;
+  double **um = stateR->u - 1;
+
+  for (i = beg; i <= end; i++) {
+  for (nv = NVAR; nv--;  ) {
+    vp[i][nv] = vm[i][nv] = stateC->v[i][nv];
+  }}
+#ifdef STAGGERED_MHD
+  for (i = beg; i <= end-1; i++) {
+    stateL->v[i][BXn] = stateR->v[i][BXn] = sweep->bn[i];
+  }
+#endif
+   PrimToCons(vm, um, beg, end);
+   PrimToCons(vp, up, beg, end);
+}
+
+

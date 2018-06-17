@@ -52,36 +52,35 @@ void PrimToCons (double **uprim, double **ucons, int ibeg, int iend)
             u[MX3] = rho*v[VX3];)
 
     #if EOS == IDEAL
-     u[ENG] = EXPAND(v[VX1]*v[VX1], + v[VX2]*v[VX2], + v[VX3]*v[VX3]);
-     u[ENG] = 0.5*rho*u[ENG] + v[PRS]/gmm1;
-      
+    u[ENG] = EXPAND(v[VX1]*v[VX1], + v[VX2]*v[VX2], + v[VX3]*v[VX3]);
+    u[ENG] = 0.5*rho*u[ENG] + v[PRS]/gmm1;
     #elif EOS == PVTE_LAW
-     status = GetPV_Temperature(v, &T);
-     if (status != 0){
-       T      = T_CUT_RHOE;
-       v[PRS] = Pressure(v, T);
-     }
-     rhoe = InternalEnergy(v, T);
+    status = GetPV_Temperature(v, &T);
+    if (status != 0){
+      T      = T_CUT_RHOE;
+      v[PRS] = Pressure(v, T);
+    }
+    rhoe = InternalEnergy(v, T);
 
-     u[ENG] = EXPAND(v[VX1]*v[VX1], + v[VX2]*v[VX2], + v[VX3]*v[VX3]);
-     u[ENG] = 0.5*rho*u[ENG] + rhoe;
+    u[ENG] = EXPAND(v[VX1]*v[VX1], + v[VX2]*v[VX2], + v[VX3]*v[VX3]);
+    u[ENG] = 0.5*rho*u[ENG] + rhoe;
 
-     if (u[ENG] != u[ENG]){
-       print("! PrimToCons(): E = NaN, rhoe = %8.3e, T = %8.3e\n",rhoe, T);
-       QUIT_PLUTO(1);
-     }
+    if (u[ENG] != u[ENG]){
+      print("! PrimToCons(): E = NaN, rhoe = %8.3e, T = %8.3e\n",rhoe, T);
+      QUIT_PLUTO(1);
+    }
     #endif
     
-#if DUST == YES
+    #if DUST_FLUID == YES
     u[RHO_D] = v[RHO_D];
     EXPAND(u[MX1_D] = v[RHO_D]*v[VX1_D];  ,
            u[MX2_D] = v[RHO_D]*v[VX2_D];  ,
            u[MX3_D] = v[RHO_D]*v[VX3_D];)
-#endif
+    #endif
 
-#if NSCL > 0 
+    #if NSCL > 0 
     NSCL_LOOP(nv) u[nv] = rho*v[nv];
-#endif    
+    #endif    
   }
 
 }
@@ -147,7 +146,7 @@ int ConsToPrim (double **ucons, double **uprim, int ibeg, int iend,
 
   /* -- Check energy positivity -- */
 
-#if HAVE_ENERGY
+    #if HAVE_ENERGY
     if (u[ENG] < 0.0) {
       WARNING(
         print("! ConsToPrim: E < 0 (%8.2e), ", u[ENG]);
@@ -157,11 +156,11 @@ int ConsToPrim (double **ucons, double **uprim, int ibeg, int iend,
       flag[i] |= FLAG_CONS2PRIM_FAIL;
       ifail    = 1;
     }
-#endif
+    #endif
 
   /* -- Compute pressure from total energy or entropy -- */
 
-#if EOS == IDEAL   
+  #if EOS == IDEAL   
     #if ENTROPY_SWITCH
     use_entropy = (flag[i] & FLAG_ENTROPY);
     use_energy  = !use_entropy;
@@ -197,12 +196,8 @@ int ConsToPrim (double **ucons, double **uprim, int ibeg, int iend,
       u[ENTR] = v[PRS]/pow(rho,gmm1);
       #endif
     }
-
-    #if NSCL > 0                    
-    NSCL_LOOP(nv) v[nv] = u[nv]*tau;
-    #endif    
       
-#elif EOS == PVTE_LAW
+  #elif EOS == PVTE_LAW
 
   /* -- Convert scalars here since EoS may need ion fractions -- */
 
@@ -232,18 +227,12 @@ int ConsToPrim (double **ucons, double **uprim, int ibeg, int iend,
     }
     v[PRS] = Pressure(v, T);
 
-#endif  /* EOS == PVTE_LAW */
+  #endif  /* EOS == PVTE_LAW */
+
+    #if NSCL > 0                    
+    NSCL_LOOP(nv) v[nv] = u[nv]*tau;
+    #endif    
     
- /* -- Dust-- */
-
-#if DUST == YES
-    u[RHO_D] = MAX(u[RHO_D], 1.e-20);
-    v[RHO_D] = u[RHO_D];
-    EXPAND(v[MX1_D] = u[MX1_D]/v[RHO_D];  ,
-           v[MX2_D] = u[MX2_D]/v[RHO_D];  ,
-           v[MX3_D] = u[MX3_D]/v[RHO_D];)
-#endif
-
   }
   return ifail;
 }

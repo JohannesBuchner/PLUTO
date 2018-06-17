@@ -17,7 +17,7 @@
 #include "pluto.h"
 
 /* ********************************************************************* */
-double GaussQuadrature(double (*func)(double), double xb, double xe, 
+double GaussQuadrature(double (*func)(double, void *), void * par, double xb, double xe,
                        int nstep, int order)
 /*!
  * Perform numerical quadrature of the function f(x) between 
@@ -79,7 +79,7 @@ double GaussQuadrature(double (*func)(double), double xb, double xe,
     Isub = 0.0;  /* intgrate sub-interval */
     for (n = 0; n < order; n++){
       x     = 0.5*(xe - xb)*z[n] + (xe + xb)*0.5;
-      Isub += w[n]*func(x);
+      Isub += w[n]*func(x, par);
     }    
     Isub *= 0.5*(xe - xb);
     I    += Isub;

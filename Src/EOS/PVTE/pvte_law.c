@@ -221,7 +221,7 @@ void GetHFracs(double *v, double *f)
    f[DEG_y] = 1.0 - 2.0*v[X_H2]/(2.0*v[X_H2] + v[X_HI] + 1.0e-40);
 
   #else
-   print1 ("! GetHFracs: not defined for this cooling\n");
+   print ("! GetHFracs: not defined for this cooling\n");
    QUIT_PLUTO(1);
   #endif
 }

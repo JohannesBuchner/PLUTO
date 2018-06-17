@@ -6,7 +6,7 @@
   Contains variable names and prototypes for the HD module
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   April, 2, 2015
+  \date   Oct 11, 2016
 */
 /* ///////////////////////////////////////////////////////////////////// */
 
@@ -37,39 +37,54 @@
    ************************************************* */
 
 #if GEOMETRY == CYLINDRICAL 
+  #if COMPONENTS >= 1
+    #define iVR    VX1
+    #define iMR    MX1
+  #endif
 
- #define iVR    VX1
- #define iVZ    VX2
- #define iVPHI  VX3
+  #if COMPONENTS >= 2
+    #define iVZ    VX2
+    #define iMZ    MX2
+  #endif
 
- #define iMR    MX1
- #define iMZ    MX2
- #define iMPHI  MX3
-
+  #if COMPONENTS == 3
+    #define iVPHI  VX3
+    #define iMPHI  MX3
+  #endif
 #endif
 
 #if GEOMETRY == POLAR 
+  #if COMPONENTS >= 1
+    #define iVR    VX1
+    #define iMR    MX1
+  #endif
 
- #define iVR    VX1
- #define iVPHI  VX2
- #define iVZ    VX3
+  #if COMPONENTS >= 2
+    #define iVPHI  VX2
+    #define iMPHI  MX2
+  #endif
 
- #define iMR    MX1
- #define iMPHI  MX2
- #define iMZ    MX3
-
+  #if COMPONENTS == 3
+    #define iVZ    VX3
+    #define iMZ    MX3
+  #endif
 #endif
 
 #if GEOMETRY == SPHERICAL 
+  #if COMPONENTS >= 1
+    #define iVR    VX1
+    #define iMR    MX1
+  #endif
 
- #define iVR    VX1
- #define iVTH   VX2
- #define iVPHI  VX3
+  #if COMPONENTS >= 2
+    #define iVTH   VX2
+    #define iMTH   MX2
+  #endif
 
- #define iMR    MX1
- #define iMTH   MX2
- #define iMPHI  MX3
-
+  #if COMPONENTS == 3
+    #define iVPHI  VX3
+    #define iMPHI  MX3
+  #endif
 #endif
 
 /* *************************************************
@@ -90,22 +105,18 @@ enum KWAVES {
 
 int  ConsToPrim   (double **, double **, int, int, unsigned char *);
 void Eigenvalues (double **, double *, double **, int, int);
-void PrimEigenvectors (double *, double, double, double *, double **, double **);
+void PrimEigenvectors (const State *, int, int);
 void ConsEigenvectors (double *, double *, double, 
                        double **, double **, double *);
 
-void Flux      (double **, double **, double *, double **, double *, int, int);
-void HLL_Speed (double **, double **, double *, double *, 
-                double *, double *, int, int);
-void MaxSignalSpeed (double **, double *, double *, double *, int, int);
+void Flux      (const State *, int, int);
+void HLL_Speed (const State *, const State *, double *, double *, int, int);
+void MaxSignalSpeed (const State *, double *, double *, int, int);
 void PrimToCons   (double **, double **, int, int);
 void PrimRHS    (double *, double *, double, double, double *);
-void PrimSource (const State_1D *, int, int, 
-                 double *, double *, double **, Grid *);
+void PrimSource (const State *, double **, int, int, Grid *);
 
 Riemann_Solver TwoShock_Solver, LF_Solver, Roe_Solver, HLL_Solver, 
                HLLC_Solver, RusanovDW_Solver;
 Riemann_Solver AUSMp_Solver;
-
-
 

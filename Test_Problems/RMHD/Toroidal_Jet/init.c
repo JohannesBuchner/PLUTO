@@ -59,6 +59,20 @@ void Init (double *us, double x1, double x2, double x3)
 
   }
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 
@@ -104,7 +118,7 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
 
   if (side == X2_BEG){
     if (box->vpos == CENTER){
-      r = grid[IDIR].x;
+      r = grid->x[IDIR];
       BOX_LOOP(box,k,j,i){
 
         rho_out = d->Vc[RHO][k][2*JBEG - j - 1][i];            

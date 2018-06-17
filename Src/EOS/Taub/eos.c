@@ -4,20 +4,17 @@
   \brief Taub-Matthews (TM) EOS for relativistic hydro and MHD.
                     
   \author A. Mignone (mignone@ph.unito.it)
-  \date   April 14, 2014
+  \date   Oct 13, 2016
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
 /* ********************************************************************* */
-void SoundSpeed2 (double **v, double *cs2, double *h, int beg, int end,
-                  int pos, Grid *grid)
+void SoundSpeed2 (const State *q, int beg, int end, int pos, Grid *grid)
 /*!
  * Define the square of the sound speed.
  * 
- * \param [in]    v   1D array of primitive quantities
- * \param [out] cs2   1D array containing the square of the sound speed
- * \param [in]    h   1D array of enthalpy values
+ * \param [in]   p    pointer to a state structure
  * \param [in]  beg   initial index of computation 
  * \param [in]  end   final   index of computation
  * \param [in]  pos   an integer specifying the spatial position 
@@ -31,13 +28,13 @@ void SoundSpeed2 (double **v, double *cs2, double *h, int beg, int end,
   double theta;
 
   #if PHYSICS == RHD || PHYSICS == RMHD
-   Enthalpy(v, h, beg, end);
+   Enthalpy(q->v, q->h, beg, end);
    for (i = beg; i <= end; i++) {
-     theta = v[i][PRS]/v[i][RHO];
+     theta = q->v[i][PRS]/q->v[i][RHO];
      #if EOS == IDEAL
-      cs2[i] = g_gamma*theta/h[i];
+     q->a2[i] = g_gamma*theta/q->h[i];
      #elif EOS == TAUB
-      cs2[i] = theta/(3.0*h[i])*(5.0*h[i] - 8.0*theta)/(h[i] - theta);
+     q->a2[i] = theta/(3.0*q->h[i])*(5.0*q->h[i] - 8.0*theta)/(q->h[i] - theta);
      #endif
    }
   #else
@@ -47,7 +44,7 @@ void SoundSpeed2 (double **v, double *cs2, double *h, int beg, int end,
 }
 
 /* ********************************************************************* */
-void Enthalpy (double **v, real *h, int beg, int end)
+void Enthalpy (double **v, double *h, int beg, int end)
 /*!
  * Compute the enthalpy.
  *

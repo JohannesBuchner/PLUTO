@@ -1,13 +1,13 @@
 #include "pluto.h"
 
 /* ************************************************************* */
-void States (const State_1D *state, int beg, int end, Grid *grid)
+void States (const Sweep *sweep, int beg, int end, Grid *grid)
 /* 
  *  PURPOSE
  *    
  *    provide 1st order flat reconstruction inside each 
  *    cell. 
- *    Here vL and vR are left and right states with respect 
+ *    Here vL and vR are left and right sweeps with respect 
  *    to the cell interface, while vm and vp refer to the cell 
  *    center, that is:
  *
@@ -19,32 +19,38 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
  **************************************************************** */
 {
   int nv, i;
+  const State *stateC = &(sweep->stateC);
+  const State *stateL = &(sweep->stateL);
+  const State *stateR = &(sweep->stateR);
 
-  #if TIME_STEPPING != EULER
-   #error FLAT Reconstruction must be used with EULER integration only
-  #endif
+  double **v  = stateC->v;
+  double **vp = stateL->v;
+  double **vm = stateR->v-1;
+  double **up = stateL->u;
+  double **um = stateR->u-1;
+
+#if TIME_STEPPING != EULER
+  #error FLAT Reconstruction must be used with EULER integration only
+#endif
   
   for (i = beg; i <= end; i++) {
-  for (nv = 0; nv < NVAR; nv++) {
-    state->vm[i][nv] = state->vp[i][nv] = state->v[i][nv];
-  }}
-  PrimToCons(state->vm, state->um, beg, end);
-  PrimToCons(state->vp, state->up, beg, end);
-  
+    NVAR_LOOP(nv) vm[i][nv] = vp[i][nv] = v[i][nv];
+  }
+ 
 /*  -------------------------------------------
       Assign face-centered magnetic field
     -------------------------------------------  */
 
   #ifdef STAGGERED_MHD
    for (i = beg; i <= end-1; i++) {
-     state->vR[i][BXn] = state->vL[i][BXn] = state->bn[i];
+     stateL->v[i][BXn] = stateR->v[i][BXn] = sweep->bn[i];
    }
   #endif
 
 /* -------------------------------------------
-    compute states in conservative variables
+    compute sweeps in conservative variables
    ------------------------------------------- */
 
-  PrimToCons (state->vp, state->up, beg, end);
-  PrimToCons (state->vm, state->um, beg, end);
+  PrimToCons (vp, up, beg, end);
+  PrimToCons (vm, um, beg, end);
 }

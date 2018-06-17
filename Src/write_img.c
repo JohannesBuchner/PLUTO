@@ -169,7 +169,7 @@ void GetSlice (double ***Vdbl, Image *image, Grid *grid)
   size_t dsize = sizeof(float);
 
   #if DIMENSIONS == 1
-   print1 ("! PPM output disabled in 1-D\n");
+   print ("! PPM output disabled in 1-D\n");
    return;    
   #endif    
 
@@ -178,9 +178,9 @@ void GetSlice (double ***Vdbl, Image *image, Grid *grid)
     Slice are post-processed later 
    ------------------------------------------------ */
   
-  fl = OpenBinaryFile ("tmp_file.out", SZ_float, "w");
-  WriteBinaryArray ((Convert_dbl2flt(Vdbl,1.0, 0))[0][0], dsize, SZ_float, fl, -1); 
-  CloseBinaryFile (fl, SZ_float);
+  fl = FileOpen ("tmp_file.out", SZ_float, "w");
+  FileWriteData ((Convert_dbl2flt(Vdbl,1.0, 0))[0][0], dsize, SZ_float, fl, -1); 
+  FileClose (fl, SZ_float);
   #ifdef PARALLEL
    MPI_Barrier (MPI_COMM_WORLD);
   #endif
@@ -191,9 +191,9 @@ void GetSlice (double ***Vdbl, Image *image, Grid *grid)
           get global dimensions
    ------------------------------------------------ */
 
-  nx = grid[IDIR].gend + 1 - grid[IDIR].nghost;
-  ny = grid[JDIR].gend + 1 - grid[JDIR].nghost;
-  nz = grid[KDIR].gend + 1 - grid[KDIR].nghost;
+  nx = grid->gend[IDIR] + 1 - grid->nghost[IDIR];
+  ny = grid->gend[JDIR] + 1 - grid->nghost[JDIR];
+  nz = grid->gend[KDIR] + 1 - grid->nghost[KDIR];
 
 /* -----------------------------------------
      Allocate memory: make slices big
@@ -328,9 +328,9 @@ int GET_SLICE_INDEX (int plane, double x, Grid *grid)
   if (plane == X23_PLANE) dir = IDIR;
   if (plane == X13_PLANE) dir = JDIR;
 
-  for (i = 0; i < grid[dir].np_tot_glob; i++){
-    xl = grid[dir].x_glob[i] - 0.5*grid[dir].dx_glob[i];
-    xr = grid[dir].x_glob[i] + 0.5*grid[dir].dx_glob[i];
+  for (i = 0; i < grid->np_tot_glob[dir]; i++){
+    xl = grid->x_glob[dir][i] - 0.5*grid->dx_glob[dir][i];
+    xr = grid->x_glob[dir][i] + 0.5*grid->dx_glob[dir][i];
     if (x >= xl && x <= xr) return MAX(i-IBEG,0);
   }
   return 0; 

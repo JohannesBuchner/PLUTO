@@ -7,7 +7,7 @@
   
   \authors A. Mignone (mignone@ph.unito.it)\n
            T. Matsakos
-  \date    August 27, 2014
+  \date    June 20, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 
@@ -17,12 +17,12 @@
    *********************************************************** */
 
 void ResistiveFlux (Data_Arr, Data_Arr, double **, double **, int, int, Grid *);
-void GetCurrent (const Data *, int, Grid *);
 void Resistive_eta (double *, double, double, double, double *, double *);
-#ifdef STAGGERED_MHD
- void ComputeStaggeredCurrent (const Data *, Grid *);
- void ComputeStaggeredEta (const Data *, Grid *);
- Data_Arr GetStaggeredEta();
-#endif
+void ResistiveRHS (const Data *, Data_Arr, double **,
+                  double **, double, int, int, Grid *);
+
+void ComputeStaggeredCurrent (const Data *, Grid *);
+void ComputeStaggeredEta (const Data *, Grid *);
+Data_Arr GetStaggeredEta();
 
 /* \endcond */

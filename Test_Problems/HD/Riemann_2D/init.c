@@ -66,6 +66,7 @@ void Init (double *us, double x1, double x2, double x3)
    g_gamma = 1.4;
   #elif EOS == ISOTHERMAL
    g_isoSoundSpeed = 1.0;
+ g_isoSoundSpeed = 2.0;
   #endif
 
   if (x > 0.0 && y > 0.0){
@@ -97,7 +98,22 @@ void Init (double *us, double x1, double x2, double x3)
     us[VX1] = g_inputParam[VX_PM];
     us[VX2] = g_inputParam[VY_PM];
   }   
+
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 
