@@ -1,7 +1,7 @@
 #include"pluto.h"
 
 /* ********************************************************************** */
-void Flatten (const State_1D *state, int beg, int end, Grid *grid)
+void Flatten (const Sweep *sweep, int beg, int end, Grid *grid)
 /*
  *
  * Flatten distribution using 
@@ -56,21 +56,22 @@ void Flatten (const State_1D *state, int beg, int end, Grid *grid)
 
 {
   int    i, nv, sj;
+
   double scrh, dp, d2p, min_p, vf, fj;
-  real **v, **vp, **vm;
-  static real *f_t;
+  double **v, **vp, **vm;
+  static double *f_t;
    
-  #if EOS == ISOTHERMAL 
-   int PRS = RHO;
-  #endif
+#if EOS == ISOTHERMAL 
+  int PRS = RHO;
+#endif
    
   if (f_t == NULL){
     f_t   = ARRAY_1D(NMAX_POINT, double);    
   }
 
-  v  = state->v;
-  vp = state->vp;
-  vm = state->vm;
+  v  = sweep->stateC.v;
+  vp = sweep->stateL.v;
+  vm = sweep->stateR.v-1;
 
 /* ---------------------------------------------------------
      the following constraints is necessary for
@@ -88,7 +89,7 @@ void Flatten (const State_1D *state, int beg, int end, Grid *grid)
    -------------------------------------------------------- */
 
   beg = MAX(beg, 3);
-  end = MIN(end, grid[g_dir].np_tot - 4);
+  end = MIN(end, grid->np_tot[g_dir] - 4);
 
   for (i = beg - 1; i <= end + 1; i++) {
     dp    = v[i + 1][PRS] - v[i - 1][PRS];
@@ -114,69 +115,6 @@ void Flatten (const State_1D *state, int beg, int end, Grid *grid)
       vp[i][nv] = vf + vp[i][nv]*scrh;
     }
   }
-
-/*
-  int   beg, end, i, nv, sj;
-  real   scrh1, scrh2, scrh3;
-  real **a, **ap, **am;
-  static real  *f_t, *fj, *dp, *d2p, *min_p;
-   
-  #if EOS == ISOTHERMAL 
-   int PR = DN;
-  #endif
-     
-  if (dp == NULL){
-    f_t   = ARRAY_1D(NMAX_POINT, double);    
-    fj    = ARRAY_1D(NMAX_POINT, double);
-    dp    = ARRAY_1D(NMAX_POINT, double);
-    d2p   = ARRAY_1D(NMAX_POINT, double);
-    min_p = ARRAY_1D(NMAX_POINT, double);
-  }
-
-  a  = state->v;
-  ap = state->vp;
-  am = state->vm;
-
-  beg = grid[g_dir].lbeg - 1;
-  end = grid[g_dir].lend + 1;
-
-  beg = MAX(beg, 3);
-  end = MIN(end, grid[g_dir].np_tot - 3);
-
-  for (i = beg - 2; i <= end + 2; i++) {
-    dp[i]    = a[i + 1][PRS] - a[i - 1][PRS];
-    min_p[i] = MIN(a[i + 1][PRS], a[i - 1][PRS]);
-  }
-  for (i = beg - 1; i <= end + 1; i++) {
-    d2p[i]   = a[i + 2][PRS] - a[i - 2][PRS];
-  }
-
-  for (i = beg - 1; i <= end + 1; i++) {
-    scrh1 = fabs(dp[i]) / min_p[i];
-    scrh2 = a[i + 1][VXn] - a[i - 1][VXn];
-    if (scrh1 < EPS2 || scrh2 > 0.0){
-      f_t[i] = 0.0;
-    }else{ 
-      scrh3  = OME2*(fabs(dp[i]/d2p[i]) - OME1);
-      scrh3  = MIN(1.0, scrh3);
-      f_t[i] = MAX(0.0, scrh3);
-    }
-  }
-
-  for (i = beg; i <= end; i++) {
-    sj = (dp[i] < 0.0 ?  1 : -1);
-    fj[i] = MAX(f_t[i], f_t[i + sj]);
-  }
-
-  for (i = beg; i <= end; i++) {
-  for (nv = 0; nv < NVAR; nv++){
-    scrh1 = a[i][nv]*fj[i];
-    scrh2 = 1.0 - fj[i];
-    am[i][nv] = scrh1 + am[i][nv]*scrh2;
-    ap[i][nv] = scrh1 + ap[i][nv]*scrh2;
-  }}
-*/
-
 }
 #undef   EPS2
 #undef   OME1

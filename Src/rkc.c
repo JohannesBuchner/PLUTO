@@ -55,12 +55,12 @@
 #include "pluto.h"
 
 /* ********************************************************************* */
-void RKC (const Data *d, Time_Step *Dts, Grid *grid)
+void RKC (const Data *d, timeStep *Dts, Grid *grid)
 /*!
  * Solve diffusion equation using Runge-Kutta-Chebyshev (RKC) method
  *
  * \param [in,out]  d    pointer to Data structure
- * \param [in,out]  Dts  pointer to Time_Step structure  
+ * \param [in,out]  Dts  pointer to timeStep structure  
  * \param [in]     grid  pointer to an array of Grid structures
  *
  *********************************************************************** */
@@ -168,7 +168,7 @@ D_EXPAND( sprad = 2./dt_par; ,
   Dts->Nrkc = s_RKC;    
 /* limit dt */
   if(absh > 0.653*s_RKC*s_RKC/sprad){
-    print1 ("! RKC: outside parameter range\n");
+    print ("! RKC: outside parameter range\n");
     QUIT_PLUTO(1);
   }    
 

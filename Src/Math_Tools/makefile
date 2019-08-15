@@ -7,6 +7,7 @@ OBJ     += math_interp.o \
            math_misc.o \
            math_ode.o \
            math_quadrature.o \
+           math_random.o  \
            math_root_finders.o \
            math_table2D.o 
 HEADERS += math_tools.h

@@ -69,25 +69,25 @@ dx0 = 12.8*2/64.0;
     typically one point larger in each direction. 
    ----------------------------------------------- */
     
-  Ubox.jb = Ubox.je = Ubox.kb = Ubox.ke = 0;
-  Gbox.jb = Gbox.je = Gbox.kb = Gbox.ke = 0;
+  Ubox.jbeg = Ubox.jend = Ubox.kbeg = Ubox.kend = 0;
+  Gbox.jbeg = Gbox.jend = Gbox.kbeg = Gbox.kend = 0;
 
-  D_EXPAND(Ubox.ib = UFab.loVect()[IDIR]; Ubox.ie = UFab.hiVect()[IDIR]; ,
-           Ubox.jb = UFab.loVect()[JDIR]; Ubox.je = UFab.hiVect()[JDIR]; ,
-           Ubox.kb = UFab.loVect()[KDIR]; Ubox.ke = UFab.hiVect()[KDIR]; );
+  D_EXPAND(Ubox.ibeg = UFab.loVect()[IDIR]; Ubox.iend = UFab.hiVect()[IDIR]; ,
+           Ubox.jbeg = UFab.loVect()[JDIR]; Ubox.jend = UFab.hiVect()[JDIR]; ,
+           Ubox.kbeg = UFab.loVect()[KDIR]; Ubox.kend = UFab.hiVect()[KDIR]; );
 
-  D_EXPAND(Gbox.ib = gFab.loVect()[IDIR]; Gbox.ie = gFab.hiVect()[IDIR]; ,
-           Gbox.jb = gFab.loVect()[JDIR]; Gbox.je = gFab.hiVect()[JDIR]; ,
-           Gbox.kb = gFab.loVect()[KDIR]; Gbox.ke = gFab.hiVect()[KDIR]; );
+  D_EXPAND(Gbox.ibeg = gFab.loVect()[IDIR]; Gbox.iend = gFab.hiVect()[IDIR]; ,
+           Gbox.jbeg = gFab.loVect()[JDIR]; Gbox.jend = gFab.hiVect()[JDIR]; ,
+           Gbox.kbeg = gFab.loVect()[KDIR]; Gbox.kend = gFab.hiVect()[KDIR]; );
 
   for (nv = 0; nv < NVAR; nv++){
-    UU[nv] = ArrayBoxMap(Ubox.kb, Ubox.ke, 
-                         Ubox.jb, Ubox.je, 
-                         Ubox.ib, Ubox.ie, UFab.dataPtr(nv));
+    UU[nv] = ArrayBoxMap(Ubox.kbeg, Ubox.kend, 
+                         Ubox.jbeg, Ubox.jend, 
+                         Ubox.ibeg, Ubox.iend, UFab.dataPtr(nv));
   }
-  grad = ArrayBoxMap(Gbox.kb, Gbox.ke, 
-                     Gbox.jb, Gbox.je, 
-                     Gbox.ib, Gbox.ie, gFab.dataPtr(0));
+  grad = ArrayBoxMap(Gbox.kbeg, Gbox.kend, 
+                     Gbox.jbeg, Gbox.jend, 
+                     Gbox.ibeg, Gbox.iend, gFab.dataPtr(0));
 
 /* -- check ref criterion -- */
 
@@ -135,12 +135,16 @@ dx0 = 12.8*2/64.0;
     Ok, grad[] has been computed. Now Free memory.
    -------------------------------------------------------------- */
    
-  FreeArrayBoxMap(grad, Gbox.kb, Gbox.ke, Gbox.jb, Gbox.je, Gbox.ib, Gbox.ie);
+  FreeArrayBoxMap(grad, Gbox.kbeg, Gbox.kend,
+                        Gbox.jbeg, Gbox.jend,
+                        Gbox.ibeg, Gbox.iend);
   for (nv = 0; nv < NVAR; nv++){
-    FreeArrayBoxMap(UU[nv], Ubox.kb, Ubox.ke, Ubox.jb, Ubox.je, Ubox.ib, Ubox.ie);
+    FreeArrayBoxMap(UU[nv], Ubox.kbeg, Ubox.kend,
+                            Ubox.jbeg, Ubox.jend,
+                            Ubox.ibeg, Ubox.iend);
   }
   #if CHOMBO_REFINEMENT_VAR == -1
-   FreeArrayBox(q, Ubox.kb, Ubox.jb, Ubox.ib);
+   FreeArrayBox(q, Ubox.kbeg, Ubox.jbeg, Ubox.ibeg);
   #endif
 }
 #undef REF_VAR

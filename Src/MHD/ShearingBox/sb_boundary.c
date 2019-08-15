@@ -16,7 +16,7 @@
 
   \authors A. Mignone (mignone@ph.unito.it)\n
            G. Muscianisi (g.muscianisi@cineca.it)
-  \date Jan 31, 2014
+  \date    Nov 13, 2015
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -66,32 +66,30 @@ t = g_time;
 
   /* ---- loop on cell-centered variables ---- */
 
-    box.ib = 0; box.ie = IBEG-1;
-    box.jb = 0; box.je = NX2_TOT-1;
-    box.kb = 0; box.ke = NX3_TOT-1;
+    box.ibeg = 0; box.iend = IBEG-1;
+    box.jbeg = 0; box.jend = NX2_TOT-1;
+    box.kbeg = 0; box.kend = NX3_TOT-1;
     for (nv = 0; nv < NVAR; nv++){
-
       #ifdef STAGGERED_MHD
-       D_EXPAND(if (nv == BX) continue;  ,
-                if (nv == BY) continue;  ,
-                if (nv == BZ) continue;)
+       D_EXPAND(if (nv == BX1) continue;  ,
+                if (nv == BX2) continue;  ,
+                if (nv == BX3) continue;)
       #endif
-
       SB_SetBoundaryVar(d->Vc[nv], &box, side, t, grid);
-      if (nv == VY) {
+      if (nv == VX2) {
         X1_BEG_LOOP(k,j,i) d->Vc[nv][k][j][i] += sb_vy;
       }
     }  /* -- end loop on cell-centered variables -- */
 
     #ifdef STAGGERED_MHD
-      box.ib =  0; box.ie = IBEG-1;
-      box.jb = -1; box.je = NX2_TOT-1;
-      box.kb =  0; box.ke = NX3_TOT-1;
+      box.ibeg =  0; box.iend = IBEG-1;
+      box.jbeg = -1; box.jend = NX2_TOT-1;
+      box.kbeg =  0; box.kend = NX3_TOT-1;
       SB_SetBoundaryVar(d->Vs[BX2s], &box, side, t, grid);
       #if DIMENSIONS == 3
-       box.ib =  0; box.ie = IBEG-1;
-       box.jb =  0; box.je = NX2_TOT-1;
-       box.kb = -1; box.ke = NX3_TOT-1;
+       box.ibeg =  0; box.iend = IBEG-1;
+       box.jbeg =  0; box.jend = NX2_TOT-1;
+       box.kbeg = -1; box.kend = NX3_TOT-1;
        SB_SetBoundaryVar(d->Vs[BX3s], &box, side, t, grid);
       #endif
     #endif /* STAGGERED_MHD */
@@ -105,32 +103,30 @@ t = g_time;
 
   /* ---- loop on cell-centered variables ---- */
 
-    box.ib = IEND+1; box.ie = NX1_TOT-1;
-    box.jb =      0; box.je = NX2_TOT-1;
-    box.kb =      0; box.ke = NX3_TOT-1;
+    box.ibeg = IEND+1; box.iend = NX1_TOT-1;
+    box.jbeg =      0; box.jend = NX2_TOT-1;
+    box.kbeg =      0; box.kend = NX3_TOT-1;
     for (nv = 0; nv < NVAR; nv++){
-
       #ifdef STAGGERED_MHD
-       D_EXPAND(if (nv == BX) continue;  ,
-                if (nv == BY) continue;  ,
-                if (nv == BZ) continue;)
+       D_EXPAND(if (nv == BX1) continue;  ,
+                if (nv == BX2) continue;  ,
+                if (nv == BX3) continue;)
       #endif
-
       SB_SetBoundaryVar(d->Vc[nv], &box, side, t, grid);
-      if (nv == VY){
+      if (nv == VX2){
         X1_END_LOOP(k,j,i) d->Vc[nv][k][j][i] -= sb_vy;
       }
     }  /* -- end loop on cell-centered variables -- */
 
     #ifdef STAGGERED_MHD
-     box.ib = IEND+1; box.ie = NX1_TOT-1;
-     box.jb =     -1; box.je = NX2_TOT-1;
-     box.kb =      0; box.ke = NX3_TOT-1;
+     box.ibeg = IEND+1; box.iend = NX1_TOT-1;
+     box.jbeg =     -1; box.jend = NX2_TOT-1;
+     box.kbeg =      0; box.kend = NX3_TOT-1;
      SB_SetBoundaryVar(d->Vs[BX2s], &box, side, t, grid);
      #if DIMENSIONS == 3
-      box.ib = IEND+1; box.ie = NX1_TOT-1;
-      box.jb =      0; box.je = NX2_TOT-1;
-      box.kb =     -1; box.ke = NX3_TOT-1;
+      box.ibeg = IEND+1; box.iend = NX1_TOT-1;
+      box.jbeg =      0; box.jend = NX2_TOT-1;
+      box.kbeg =     -1; box.kend = NX3_TOT-1;
       SB_SetBoundaryVar(d->Vs[BX3s], &box, side, t, grid);
      #endif /* DIMENSIONS == 3 */
     #endif /* STAGGERED_MHD */

@@ -47,7 +47,7 @@
   \image html mhd_rotor.08.jpg "Density map (in log scale) at t = 0.15 in Cartesian coordinates using a base grid of 64x64 and 4 levels of refinement (conf. #08)."
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   July 08, 2014
+  \date   May 20, 2017
 
   \b Reference: 
      - "On the divergence-free condition in Godunov-type schemes 
@@ -68,7 +68,11 @@ void Init (double *v, double x1, double x2, double x3)
 {
   double r, r0, r1, Bx, f, omega;
 
-  g_gamma   = 1.4;
+#if HAVE_ENERGY
+  g_gamma = 1.4;
+  v[PRS]  = 1.0;
+#endif
+
   omega = 20.0;
   Bx    = 5.0/sqrt(4.0*CONST_PI);
   r0    = 0.1;
@@ -77,7 +81,6 @@ void Init (double *v, double x1, double x2, double x3)
   #if GEOMETRY == CARTESIAN
    r = sqrt(x1*x1 + x2*x2);
 
-   v[PRS] = 1.0;
    v[BX1] = Bx;
    v[BX2] = 0.0;
 
@@ -104,7 +107,6 @@ void Init (double *v, double x1, double x2, double x3)
    v[BX1] =  Bx*cos(x2);
    v[BX2] = -Bx*sin(x2);
    v[VX1] = 0.0;
-   v[PRS] = 1.0;
 
   f = (r1 - r)/(r1 - r0);
    if (r <= r0) {
@@ -128,6 +130,20 @@ void Init (double *v, double x1, double x2, double x3)
    v[AX1] = v[AX2] = v[AX3] = 0.0;
   #endif
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 
@@ -173,16 +189,21 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
   double  *r, slp;
 
   if (side == X1_BEG){
-    r = grid[IDIR].x;
+    r = grid->x[IDIR];
     if (box->vpos == CENTER) {
       BOX_LOOP(box,k,j,i){
         slp = r[i]/r[IBEG];
         d->Vc[RHO][k][j][i] = d->Vc[RHO][k][j][IBEG];
         d->Vc[VX1][k][j][i] = slp*d->Vc[VX1][k][j][IBEG];
-        d->Vc[VX2][k][j][i] = slp*d->Vc[VX2][k][j][IBEG]; 
+        d->Vc[VX2][k][j][i] = slp*d->Vc[VX2][k][j][IBEG];
+        #if HAVE_ENERGY
         d->Vc[PRS][k][j][i] = d->Vc[PRS][k][j][IBEG];
+        #endif
         d->Vc[BX1][k][j][i] = d->Vc[BX1][k][j][IBEG];
         d->Vc[BX2][k][j][i] = d->Vc[BX2][k][j][IBEG];
+        #ifdef GLM_MHD 
+        d->Vc[PSI_GLM][k][j][i] = 0.0;
+        #endif
       }
     }else if (box->vpos == X2FACE){
       #ifdef STAGGERED_MHD

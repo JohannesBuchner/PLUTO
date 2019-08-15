@@ -22,17 +22,18 @@
   - <tt>g_inputParam[THETA]</tt>:                         Orientation of the field (in degrees);
 
   Configurations:
-  - #01-04 have the same initial condition and are done either with
-    an explicit time stepping or STS, HD and MHD and do not show
-    evidence for any numerical artifact.
-  - #05-06, on the other hand, show that STS suffers from some kind of
-    unstable behavior due to the flux limiter switching from classical
+  - #01-06 are HD (no magnetic field) and are run with RK2 and MH
+    using Explicit, STS and RKL. 
+    Some STS runs are performed at lower CFL since some oscillations appear
+    for CFL = 0.4 (run #02) due to the flux limiter switching from classical
     to saturated regimes. Only small CFL (0.1 or less) or larger values
     of STS_NU (e.g 0.05) mitigate the problem.
-    Future improvement (RKC/RKL ?) should address this issue.
+    RKL time-stepping does not show evidence for any numerical
+    artifact.
+  - #07-09  are MHD and order using similar criteria.
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   Aug 27, 2015 
+  \date   March 06, 2018
 
 */
 /* ///////////////////////////////////////////////////////////////////// */
@@ -85,6 +86,20 @@ void Init (double *us, double x1, double x2, double x3)
   #endif
 
 }   
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 

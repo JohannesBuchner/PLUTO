@@ -1,21 +1,19 @@
 /* ///////////////////////////////////////////////////////////////////// */
 /*! 
- * \file  
- * \brief  Collects different EMF averaging schemes.                     */
+  \file  
+  \brief  Collects different EMF averaging schemes.
+
+  \author A. Mignone
+  \date   March 1, 2017
+*/  
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
-
-#define EX(k,j,i)  (vz[k][j][i]*By[k][j][i] - vy[k][j][i]*Bz[k][j][i])
-#define EY(k,j,i)  (vx[k][j][i]*Bz[k][j][i] - vz[k][j][i]*Bx[k][j][i])
-#define EZ(k,j,i)  (vy[k][j][i]*Bx[k][j][i] - vx[k][j][i]*By[k][j][i])
 
 /* ********************************************************************* */
 void CT_EMF_ArithmeticAverage (const EMF *Z1, const double w)
 /*!
- * \brief Compute arithmetic average of EMF at cell edges.
- * \details
- *
- *  Combine the four electric field values computed at zone faces 
+ *  Compute arithmetic average of EMF at cell edges by combining
+ *  the four electric field values computed at zone faces 
  *  as upwind Godunov fluxes into an edge-centered value.\n
  *  The face-centered EMF should have been stored by previous calls
  *  to CT_StoreEMF() during the one-dimensional sweeps.\n
@@ -32,10 +30,6 @@ void CT_EMF_ArithmeticAverage (const EMF *Z1, const double w)
  * \param [in]      w     weighting factor
  *
  * \return  This function has no return value.
- *
- *
- * \author A. Mignone (mignone@ph.unito.it)
- * \date   Aug 16, 31, 2012
  *********************************************************************** */
 {
   int i, j, k;
@@ -57,8 +51,6 @@ void CT_EMF_ArithmeticAverage (const EMF *Z1, const double w)
 /* ********************************************************************* */
 void CT_EMF_IntegrateToCorner (const Data *d, const EMF *emf, Grid *grid)
 /*!
- * \details
- *
  *  Add derivatives to the 4-point arithmetic average of magnetic fields.
  *  Obtain the electric field at corners. 
  *
@@ -71,44 +63,33 @@ void CT_EMF_IntegrateToCorner (const Data *d, const EMF *emf, Grid *grid)
  * \param [in]      emf   pointer to EMF structure
  * \param [in]      grid  pointer to Grid structure
  *
- *
  * \return  This function has no return value.
- *
- *
- * \author A. Mignone (mignone@ph.unito.it)
- * \date   Aug 16, 31, 2012
  *********************************************************************** */
-#define dEx_dyp(k,j,i) (emf->exj[k][j][i] - EX(k,j,i))
-#define dEx_dzp(k,j,i) (emf->exk[k][j][i] - EX(k,j,i))
+#define DEX_DYP(k,j,i) (emf->exj[k][j][i] - d->Ex1[k][j][i])
+#define DEX_DZP(k,j,i) (emf->exk[k][j][i] - d->Ex1[k][j][i])
 
-#define dEy_dxp(k,j,i) (emf->eyi[k][j][i] - EY(k,j,i))
-#define dEy_dzp(k,j,i) (emf->eyk[k][j][i] - EY(k,j,i))
+#define DEY_DXP(k,j,i) (emf->eyi[k][j][i] - d->Ex2[k][j][i])
+#define DEY_DZP(k,j,i) (emf->eyk[k][j][i] - d->Ex2[k][j][i])
 
-#define dEz_dxp(k,j,i) (emf->ezi[k][j][i] - EZ(k,j,i))
-#define dEz_dyp(k,j,i) (emf->ezj[k][j][i] - EZ(k,j,i))
+#define DEZ_DXP(k,j,i) (emf->ezi[k][j][i] - d->Ex3[k][j][i])
+#define DEZ_DYP(k,j,i) (emf->ezj[k][j][i] - d->Ex3[k][j][i])
 
-#define dEx_dym(k,j,i) (EX(k,j,i) - emf->exj[k][j-1][i])
-#define dEx_dzm(k,j,i) (EX(k,j,i) - emf->exk[k-1][j][i])
+#define DEX_DYM(k,j,i) (d->Ex1[k][j][i] - emf->exj[k][j-1][i])
+#define DEX_DZM(k,j,i) (d->Ex1[k][j][i] - emf->exk[k-1][j][i])
 
-#define dEy_dxm(k,j,i) (EY(k,j,i) - emf->eyi[k][j][i-1])
-#define dEy_dzm(k,j,i) (EY(k,j,i) - emf->eyk[k-1][j][i])
+#define DEY_DXM(k,j,i) (d->Ex2[k][j][i] - emf->eyi[k][j][i-1])
+#define DEY_DZM(k,j,i) (d->Ex2[k][j][i] - emf->eyk[k-1][j][i])
 
-#define dEz_dxm(k,j,i) (EZ(k,j,i) - emf->ezi[k][j][i-1])
-#define dEz_dym(k,j,i) (EZ(k,j,i) - emf->ezj[k][j-1][i])
+#define DEZ_DXM(k,j,i) (d->Ex3[k][j][i] - emf->ezi[k][j][i-1])
+#define DEZ_DYM(k,j,i) (d->Ex3[k][j][i] - emf->ezj[k][j-1][i])
 {
   int    i, j, k;
   int    iu, ju, ku;
   signed char  sx, sy, sz;
-  double ***vx, ***vy, ***vz;
-  double ***Bx, ***By, ***Bz;
 
-  #ifdef CTU
-   if (g_intStage == 1) return; /* -- not needed in predictor step of CTU -- */
-  #endif
-
-  EXPAND(vx = d->Vc[VX1]; Bx = d->Vc[BX1];   ,
-         vy = d->Vc[VX2]; By = d->Vc[BX2];   ,
-         vz = d->Vc[VX3]; Bz = d->Vc[BX3];)
+#ifdef CTU
+  if (g_intStage == 1) return; /* -- not needed in predictor step of CTU -- */
+#endif
 
   for (k = emf->kbeg; k <= emf->kend + KOFFSET; k++){
   for (j = emf->jbeg; j <= emf->jend + 1      ; j++){
@@ -127,19 +108,19 @@ void CT_EMF_IntegrateToCorner (const Data *d, const EMF *emf, Grid *grid)
     ---------------------------------------- */
 
     if (sx == 0) {
-      emf->ez[k][j][i]   += 0.5*(dEz_dyp(k,j,i) + dEz_dyp(k,j,i+1));
-      emf->ez[k][j-1][i] -= 0.5*(dEz_dym(k,j,i) + dEz_dym(k,j,i+1));
-      #if DIMENSIONS == 3
-       emf->ey[k][j][i]   += 0.5*(dEy_dzp(k,j,i) + dEy_dzp(k,j,i+1));
-       emf->ey[k-1][j][i] -= 0.5*(dEy_dzm(k,j,i) + dEy_dzm(k,j,i+1));
-      #endif
+      emf->ez[k][j][i]   += 0.5*(DEZ_DYP(k,j,i) + DEZ_DYP(k,j,i+1));
+      emf->ez[k][j-1][i] -= 0.5*(DEZ_DYM(k,j,i) + DEZ_DYM(k,j,i+1));
+#if DIMENSIONS == 3
+      emf->ey[k][j][i]   += 0.5*(DEY_DZP(k,j,i) + DEY_DZP(k,j,i+1));
+      emf->ey[k-1][j][i] -= 0.5*(DEY_DZM(k,j,i) + DEY_DZM(k,j,i+1));
+#endif
     }else{
-      emf->ez[k][j][i]   += dEz_dyp(k,j,iu);
-      emf->ez[k][j-1][i] -= dEz_dym(k,j,iu);
-      #if DIMENSIONS == 3
-       emf->ey[k][j][i]   += dEy_dzp(k,j,iu);
-       emf->ey[k-1][j][i] -= dEy_dzm(k,j,iu);
-      #endif
+      emf->ez[k][j][i]   += DEZ_DYP(k,j,iu);
+      emf->ez[k][j-1][i] -= DEZ_DYM(k,j,iu);
+#if DIMENSIONS == 3
+      emf->ey[k][j][i]   += DEY_DZP(k,j,iu);
+      emf->ey[k-1][j][i] -= DEY_DZM(k,j,iu);
+#endif
     }
 
  /* ----------------------------------------
@@ -147,64 +128,56 @@ void CT_EMF_IntegrateToCorner (const Data *d, const EMF *emf, Grid *grid)
     ---------------------------------------- */
 
     if (sy == 0) {
-      emf->ez[k][j][i]   += 0.5*(dEz_dxp(k,j,i) + dEz_dxp(k,j+1,i));
-      emf->ez[k][j][i-1] -= 0.5*(dEz_dxm(k,j,i) + dEz_dxm(k,j+1,i));
-      #if DIMENSIONS == 3
-       emf->ex[k][j][i]   += 0.5*(dEx_dzp(k,j,i) + dEx_dzp(k,j+1,i));
-       emf->ex[k-1][j][i] -= 0.5*(dEx_dzm(k,j,i) + dEx_dzm(k,j+1,i));
-      #endif
+      emf->ez[k][j][i]   += 0.5*(DEZ_DXP(k,j,i) + DEZ_DXP(k,j+1,i));
+      emf->ez[k][j][i-1] -= 0.5*(DEZ_DXM(k,j,i) + DEZ_DXM(k,j+1,i));
+#if DIMENSIONS == 3
+      emf->ex[k][j][i]   += 0.5*(DEX_DZP(k,j,i) + DEX_DZP(k,j+1,i));
+      emf->ex[k-1][j][i] -= 0.5*(DEX_DZM(k,j,i) + DEX_DZM(k,j+1,i));
+#endif
     }else{
-      emf->ez[k][j][i]   += dEz_dxp(k,ju,i);
-      emf->ez[k][j][i-1] -= dEz_dxm(k,ju,i);
-      #if DIMENSIONS == 3
-       emf->ex[k][j][i]   += dEx_dzp(k,ju,i);
-       emf->ex[k-1][j][i] -= dEx_dzm(k,ju,i);
-      #endif
+      emf->ez[k][j][i]   += DEZ_DXP(k,ju,i);
+      emf->ez[k][j][i-1] -= DEZ_DXM(k,ju,i);
+#if DIMENSIONS == 3
+      emf->ex[k][j][i]   += DEX_DZP(k,ju,i);
+      emf->ex[k-1][j][i] -= DEX_DZM(k,ju,i);
+#endif
     }
 
  /* ----------------------------------------
       Span Z - Faces:    dEx/dy, dEy/dx
     ---------------------------------------- */
 
-    #if DIMENSIONS == 3
-
+#if DIMENSIONS == 3
     if (sz == 0) {
-      emf->ex[k][j][i]   += 0.5*(dEx_dyp(k,j,i) + dEx_dyp(k+1,j,i));
-      emf->ex[k][j-1][i] -= 0.5*(dEx_dym(k,j,i) + dEx_dym(k+1,j,i));
-      emf->ey[k][j][i]   += 0.5*(dEy_dxp(k,j,i) + dEy_dxp(k+1,j,i));
-      emf->ey[k][j][i-1] -= 0.5*(dEy_dxm(k,j,i) + dEy_dxm(k+1,j,i));
+      emf->ex[k][j][i]   += 0.5*(DEX_DYP(k,j,i) + DEX_DYP(k+1,j,i));
+      emf->ex[k][j-1][i] -= 0.5*(DEX_DYM(k,j,i) + DEX_DYM(k+1,j,i));
+      emf->ey[k][j][i]   += 0.5*(DEY_DXP(k,j,i) + DEY_DXP(k+1,j,i));
+      emf->ey[k][j][i-1] -= 0.5*(DEY_DXM(k,j,i) + DEY_DXM(k+1,j,i));
     }else{
-      emf->ex[k][j][i]   += dEx_dyp(ku,j,i);
-      emf->ex[k][j-1][i] -= dEx_dym(ku,j,i);
-      emf->ey[k][j][i]   += dEy_dxp(ku,j,i);
-      emf->ey[k][j][i-1] -= dEy_dxm(ku,j,i);
+      emf->ex[k][j][i]   += DEX_DYP(ku,j,i);
+      emf->ex[k][j-1][i] -= DEX_DYM(ku,j,i);
+      emf->ey[k][j][i]   += DEY_DXP(ku,j,i);
+      emf->ey[k][j][i-1] -= DEY_DXM(ku,j,i);
     }
-
-    #endif
+#endif
   }}}
 }
-#undef EX
-#undef EY
-#undef EZ
-#undef dEx_dyp
-#undef dEx_dzp
-#undef dEy_dxp
-#undef dEy_dzp
-#undef dEz_dxp
-#undef dEz_dyp
-#undef dEx_dym
-#undef dEx_dzm
-#undef dEy_dxm
-#undef dEy_dzm
-#undef dEz_dxm
-#undef dEz_dym
+#undef DEX_DYP
+#undef DEX_DZP
+#undef DEY_DXP
+#undef DEY_DZP
+#undef DEZ_DXP
+#undef DEZ_DYP
+#undef DEX_DYM
+#undef DEX_DZM
+#undef DEY_DXM
+#undef DEY_DZM
+#undef DEZ_DXM
+#undef DEZ_DYM
 
 /* ********************************************************************* */
 void CT_EMF_HLL_Solver (const Data *d, const EMF *emf, Grid *grid)
 /*!
- * \brief   Solve 2D Riemann problem for induction equation.
- * \details
- *
  *  Solve 2-D Riemann problem using the 2D HLL Riemann flux 
  *  formula of Londrillo & Del Zanna (2004), JCP, eq. 56.
  *  Here N, W, E, S refer to the following configuration:
@@ -223,9 +196,6 @@ void CT_EMF_HLL_Solver (const Data *d, const EMF *emf, Grid *grid)
  * \param [in]      d     pointer to PLUTO Data structure
  * \param [in]      grid  pointer to Grid structure;
  *
- * \return  This function has no return value.
- * \author A. Mignone (mignone@ph.unito.it)
- * \date   Aug 16, 2012
  *********************************************************************** */
 
 /* -- 2D interpolation macro for integrating the velocity 
@@ -282,8 +252,8 @@ void CT_EMF_HLL_Solver (const Data *d, const EMF *emf, Grid *grid)
   dby_dx = emf->dby_dx;                       dby_dz = emf->dby_dz;
   dbz_dx = emf->dbz_dx; dbz_dy = emf->dbz_dy;                      
 
-  x  = grid[IDIR].x;  y  = grid[JDIR].x;  z  = grid[KDIR].x;
-  xr = grid[IDIR].xr; yr = grid[JDIR].xr; zr = grid[KDIR].xr;
+  x  = grid->x[IDIR];  y  = grid->x[JDIR];  z  = grid->x[KDIR];
+  xr = grid->xr[IDIR]; yr = grid->xr[JDIR]; zr = grid->xr[KDIR];
 
   for (k = emf->kbeg; k <= emf->kend; k++){  kp = k + 1;
   for (j = emf->jbeg; j <= emf->jend; j++){  jp = j + 1;
@@ -387,80 +357,3 @@ void CT_EMF_HLL_Solver (const Data *d, const EMF *emf, Grid *grid)
 #undef dP
 #undef dM
 
-/* ********************************************************************* */
-void CT_EMF_CMUSCL_Average (const Data *d, const EMF *emf, Grid *grid)
-/*!
- * \brief   --
- * \details
- *
- *   Used in the predictor scheme of CTU scheme in conjunction 
- *   with UCT_HLL average. 
- *   No riemann solver actually used, but only a simple
- *   pointwise average.
- *   
- * \b References:
- *   - "A High order Godunov scheme with constrained transport and 
- *      adaptie mesh refinement for astrophysical magnetohydrodynamics"\n
- *      Fromang, Hennebelle and Teyssier, A&A (2006) 457, 371
- *
- * \return  This function has no return value.
- * \author A. Mignone (mignone@ph.unito.it)
- * \date   Aug 16, 2012
- *********************************************************************** */
-{
-  int i,j,k;
-  int ip, jp, kp;
-  double bx2, by2, bz2;
-  double vx4, vy4, vz4;
-  double ***vx, ***vy, ***vz;
-  double ***bx, ***by, ***bz;
-
-  D_EXPAND(vx = d->Vc[VX1]; bx = d->Vs[BX1s];  ,
-           vy = d->Vc[VX2]; by = d->Vs[BX2s];  ,
-           vz = d->Vc[VX3]; bz = d->Vs[BX3s];)
-
-  for (k = emf->kbeg; k <= emf->kend; k++){  kp = k + 1;
-  for (j = emf->jbeg; j <= emf->jend; j++){  jp = j + 1;
-  for (i = emf->ibeg; i <= emf->iend; i++){  ip = i + 1;
-
-  /* ------------------------------------------- 
-                 EMF: Z component
-     ------------------------------------------- */
-
-    vx4 = 0.25*(vx[k][j][i] + vx[k][j][ip] + vx[k][jp][i] + vx[k][jp][ip]); 
-    vy4 = 0.25*(vy[k][j][i] + vy[k][j][ip] + vy[k][jp][i] + vy[k][jp][ip]); 
-
-    bx2 = 0.5*(bx[k][j][i] + bx[k][jp][i]);
-    by2 = 0.5*(by[k][j][i] + by[k][j][ip]);
-
-    emf->ez[k][j][i] = vy4*bx2 - vx4*by2;
-
-  /* ------------------------------------------- 
-                 EMF: X component
-     ------------------------------------------- */
-
-    #if DIMENSIONS == 3
-     vy4 = 0.25*(vy[k][j][i] + vy[k][jp][i] + vy[kp][j][i] + vy[kp][jp][i]); 
-     vz4 = 0.25*(vz[k][j][i] + vz[k][jp][i] + vz[kp][j][i] + vz[kp][jp][i]); 
-
-     by2 = 0.5*(by[k][j][i] + by[kp][j][i]);
-     bz2 = 0.5*(bz[k][j][i] + bz[k][jp][i]);
-
-     emf->ex[k][j][i] = vz4*by2 - vy4*bz2;
-
-  /* ------------------------------------------- 
-                 EMF: Y component
-     ------------------------------------------- */
-
-     vz4 = 0.25*(vz[k][j][i] + vz[kp][j][i] + vz[k][j][ip] + vz[kp][j][ip]); 
-     vx4 = 0.25*(vx[k][j][i] + vx[kp][j][i] + vx[k][j][ip] + vx[kp][j][ip]); 
-
-     bz2 = 0.5*(bz[k][j][i] + bz[k][j][ip]);
-     bx2 = 0.5*(bx[k][j][i] + bx[kp][j][i]);
-
-     emf->ey[k][j][i] = vx4*bz2 - vz4*bx2;
-
-    #endif
-  }}}
-
-}

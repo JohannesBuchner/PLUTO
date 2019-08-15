@@ -6,7 +6,7 @@
   Contains variable names and prototypes for the RHD module
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   April, 2, 2015
+  \date   Oct 12, 2016
 */
 /* ///////////////////////////////////////////////////////////////////// */
 
@@ -94,27 +94,26 @@ typedef struct MAP_PARAM{
  double prs;     /**< Thermal pressure   (output). */
 } Map_param;
 
-/* ---- Function prototyping ---- */
+/* -----------------------------------------------------
+                 Function prototype
+   ----------------------------------------------------- */
 
 int  ConsToPrim   (double **, double **, int, int, unsigned char *);
-void PrimEigenvectors(double *, double, double, double *, double **, double **);
+void ConvertTo4vel (double **, int, int);
+void ConvertTo3vel (double **, int, int);
 
 int EnergySolve  (Map_param *);
 int EntropySolve (Map_param *);
 int PressureFix  (Map_param *);
 
-void Flux      (double **, double **, double *, double **, double *, int, int);
-void HLL_Speed (double **, double **, double *, double *,
-                double *, double *, int, int);
-void MaxSignalSpeed (double **, double *, double *, double *, int, int);
+void Flux      (const State *, int, int);
+void HLL_Speed (const State *, const State *, double *, double *, int, int);
+void MaxSignalSpeed (const State *, double *, double *, int, int);
+void PrimEigenvectors(const State *, int, int);
 void PrimToCons   (double **, double **, int, int);
 void PrimRHS    (double *, double *, double, double, double *);
-void PrimSource (const State_1D *, int, int, 
-                 double *, double *, double **, Grid *);
+void PrimSource (const State *, double **, int, int, Grid *);
 void VelocityLimiter(double *, double *, double *);
-void ConvertTo4vel (double **, int, int);
-void ConvertTo3vel (double **, int, int);
-
 
 Riemann_Solver TwoShock_Solver, LF_Solver, HLL_Solver, HLLC_Solver;
 

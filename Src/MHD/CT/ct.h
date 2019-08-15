@@ -8,10 +8,9 @@
   condition.
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   Aug 27, 2014
+  \date   Feb 21, 2018
 */
 /* ///////////////////////////////////////////////////////////////////// */
-
 #define STAGGERED_MHD
 
 /* ---- set labels for CT_EMF_AVERAGE ---- */
@@ -34,9 +33,37 @@
 #define BYs BX2s
 #define BZs BX3s
 
-
 #define FACE_EMF   11
 #define EDGE_EMF   12
+
+/* *********************************************************************
+   Default values
+   ********************************************************************* */
+
+#ifndef CT_EMF_AVERAGE
+ #define  CT_EMF_AVERAGE            UCT_HLL
+#endif
+
+#ifndef  CT_EN_CORRECTION
+ #define  CT_EN_CORRECTION          NO
+#endif
+
+/* *********************************************************************
+    The following switch can be used to select where, in the CT
+    formalism, current should be computed.
+    When GET_CURRENT_AT_EDGES == YES, current will be computed
+    at edges (like the emf). Otherwise at cell-interfaces as it
+    is usually done for cell-centered methods.
+    For Hall MHD, we see better stability when it is set to NO.
+   ********************************************************************* */
+
+#ifndef GET_CURRENT_AT_EDGES
+  #if HALL_MHD
+  #define GET_CURRENT_AT_EDGES  NO
+  #else
+  #define GET_CURRENT_AT_EDGES  YES
+  #endif
+#endif
 
 /*       Now define more convenient and user-friendly 
          pointer labels for geometry setting      */
@@ -59,90 +86,30 @@
  #define iBPHIs  BX3s
 #endif
 
-  
-/* ********************************************************************* */
-/*! The EMF structure is used to pull together all the information 
-    necessary to build / use the electromotive force used to update
-    the staggered components of magnetic field.
-   ********************************************************************* */
-typedef struct ElectroMotiveForce{
-
-/*! \name Face-centered electric field components.
-    Three-dimensional arrays storing the emf components computed
-    at cell faces during the dimensional sweeps.     
-*/
-/**@{ */
-  double ***exj; /**< Ex available at y-faces (j+1/2); */
-  double ***exk; /**< Ex available at z-faces (k+1/2); */
-  double ***eyi; /**< Ey available at x-faces (i+1/2); */
-  double ***eyk; /**< Ey available at z-faces (k+1/2); */
-  double ***ezi; /**< Ez available at x-faces (i+1/2); */
-  double ***ezj; /**< Ez available at y-faces (j+1/2); */
-/**@} */
-
-  signed char ***svx, ***svy, ***svz;
-
-/*! \name Range of existence */
-/**@{ */
-  int  ibeg, jbeg, kbeg;
-  int  iend, jend, kend;
-/**@} */
-
-/*! \name Signal velocities  */
-/**@{ */
-  double ***SxL;
-  double ***SxR;
-  double ***SyL;
-  double ***SyR;
-  double ***SzL;
-  double ***SzR;
-/**@} */
-
-/*! \name Edge-centered fields   */
-/**@{ */
-  double ***ex;
-  double ***ey;
-  double ***ez;
-/**@} */
-
-/*! \name Staggered magnetic field and velocity slopes */
-/**@{ */
-  double ***dbx_dy, ***dbx_dz;  
-  double ***dby_dx, ***dby_dz;
-  double ***dbz_dx, ***dbz_dy;
-
-  double ***dvx_dx, ***dvy_dx, ***dvz_dx;
-  double ***dvx_dy, ***dvy_dy, ***dvz_dy;
-  double ***dvx_dz, ***dvy_dz, ***dvz_dz;
-/**@} */
-
-} EMF;
-
 /* ***********************************************************
     \cond REPEAT_FUNCTION_DOCUMENTATION_IN_HEADER_FILES
     Function prototyping
    *********************************************************** */
-   
+
+void CT_Allocate (EMF *);   
 void CT_EMF_ArithmeticAverage (const EMF *, const double);
 void CT_EMF_IntegrateToCorner (const Data *, const EMF *, Grid *);
 void CT_AverageMagneticField (double ****bf, double ***UU[], Grid *);
 void CT_AverageNormalMagField (const Data *, int, Grid *);
-void CT_AverageTransverseMagFiled (const Data *, int, Grid *);
-void CT_Update(const Data *, Data_Arr, double, Grid *);
+void CT_AverageTransverseMagField (const Data *, int, Grid *);
 void CT_CheckDivB (double ***b[], Grid *);
+void CT_ComputeCenterEMF(const Data *);
+void CT_ComputeEMF (const Data *, Grid *);
+void CT_EMF_HLL_Solver (const Data *, const EMF *, Grid *);
 void CT_GetStagSlopes (const Data_Arr, EMF *, Grid *);
-void CT_StoreEMF (const State_1D *, int, int, Grid *);
+void CT_GetEMF (const Data *, Grid *);
+void CT_ResistiveEMF (const Data *, int, Grid *);
 
-EMF *CT_GetEMF (const Data *, Grid *);
-void CT_AddResistiveEMF (const Data *d, Grid *grid);
 void FillMagneticField (const Data *, int, Grid *); 
 
-void CT_StoreVelSlopes (EMF *, const State_1D *, int, int);
-void CT_EMF_HLL_Solver (const Data *, const EMF *, Grid *);
-void CT_EMF_CMUSCL_Average (const Data *, const EMF *, Grid *);
-
-void EMF_BOUNDARY (EMF *, Grid *);
-void EMF_USERDEF_BOUNDARY (EMF *, int, int, Grid *);
+void CT_StoreUpwindEMF    (const Sweep *, EMF *, int, int, Grid *);
+void CT_StoreVelSlopes (EMF *, const Sweep *, int, int);
+void CT_Update(const Data *, Data_Arr, double, Grid *);
 
 /* \endcond */
  

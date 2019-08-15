@@ -119,7 +119,7 @@
   \image html mhd_jet.01.jpg "Density map at the end of the computation for configuration #01"
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   Sept 12, 2014
+  \date   March 02, 2017
 
   \b References
      - "Simulating radiative astrophysical flows with the PLUTO code:
@@ -163,12 +163,14 @@ void Init (double *v, double x1, double x2, double x3)
   v[PRS] = pa = Ta*v[RHO]/(KELVIN*mua);
 #endif
 
+#if PHYSICS == MHD
   EXPAND(v[BX1] = 0.0;                                ,   
          v[BX2] = sqrt(2.0*g_inputParam[SIGMA_Z]*pa); ,
          v[BX3] = 0.0;)
 
   v[AX1] = v[AX2] = 0.0;
   v[AX3] = 0.5*x1*v[BX2];
+#endif
 
   v[TRC] = 0.0;
 
@@ -183,6 +185,20 @@ void Init (double *v, double x1, double x2, double x3)
 
   first_call = 0;
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 
@@ -211,9 +227,9 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
   double r, vjet[256], vout[NVAR], q;
   double t, omega; /* pulsed jet frequency */
 
-  x1  = grid[IDIR].xgc;
-  x2  = grid[JDIR].xgc;
-  x3  = grid[KDIR].xgc;
+  x1  = grid->xgc[IDIR];
+  x2  = grid->xgc[JDIR];
+  x3  = grid->xgc[KDIR];
 
   if (side == 0) {    /* -- check solution inside domain -- */
     DOM_LOOP(k,j,i){}
@@ -221,7 +237,7 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
 
   if (side == X2_BEG){  /* -- X2_BEG boundary -- */
     if (box->vpos == CENTER){    /* -- cell-centered boundary conditions -- */
-      BOX_LOOP(box,k,j,i){ 
+      BOX_LOOP(box,k,j,i){
         GetJetValues (x1[i], vjet);
 
       /* -- add pulsed perturbation -- */
@@ -235,11 +251,12 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
       /* -- copy and reflect ambient medium values -- */
 
         VAR_LOOP(nv) vout[nv] = d->Vc[nv][k][2*JBEG - j - 1][i];
-        vout[VX2] *= -1.0;      
+        vout[VX2] *= -1.0;
+        #if PHYSICS == MHD
         EXPAND(vout[BX1] *= -1.0; ,  
                                 ; , 
                vout[BX3] *= -1.0;)
-
+        #endif
         VAR_LOOP(nv){
           d->Vc[nv][k][j][i] = vout[nv]-(vout[nv]-vjet[nv])*Profile(x1[i], nv);
         }
@@ -247,11 +264,11 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
 
     }else if (box->vpos == X1FACE){  /* -- staggered fields -- */
       #ifdef STAGGERED_MHD
-       x1 = grid[IDIR].A;
+       x1 = grid->xr[IDIR];
        BOX_LOOP(box,k,j,i){
          vout[BX1] = -d->Vs[BX1s][k][2*JBEG - j - 1][i];
          d->Vs[BX1s][k][j][i] =    vout[BX1] 
-                                 - (vout[BX1] - vjet[BX1])*Profile(x1[i], BX1);
+                                - (vout[BX1] - vjet[BX1])*Profile(fabs(x1[i]), BX1);
        }
       #endif
     }else if (box->vpos == X3FACE){
@@ -283,11 +300,13 @@ void GetJetValues (double R, double *vj)
   Bz = sqrt(2.0*g_inputParam[SIGMA_Z]*pa);
   Bm = sqrt(2.0*g_inputParam[SIGMA_PHI]*pa/(a*a*(0.5 - 2.0*log(a))));
 
+#if PHYSICS == MHD
   EXPAND( vj[BX1] =  0.0;                      ,
           vj[BX2] =  Bz;                       ,
           vj[BX3] = -Bm*(x < 1.0 ? x:1.0/x);)
   vj[AX1] = vj[AX2] = 0.0;
   vj[AX3] = 0.5*R*Bz;
+#endif
 
   EXPAND( vj[VX1] = 0.0;                     ,
           vj[VX2] = g_inputParam[JET_VEL];   ,
@@ -323,8 +342,8 @@ double Profile (double R, double nv)
 {
   double R4 = R*R*R*R, R8 = R4*R4;
 
-  #if PHYSICS == MHD && COMPONENTS == 3    /* Start with a smoother profile */
-   if (g_time < 0.1)  return 1.0/cosh(R4); /* with toroidal magnetic fields */
-  #endif
+#if PHYSICS == MHD && COMPONENTS == 3    /* Start with a smoother profile */
+  if (g_time < 0.1)  return 1.0/cosh(R4); /* with toroidal magnetic fields */
+#endif
   return 1.0/cosh(R8);
 }

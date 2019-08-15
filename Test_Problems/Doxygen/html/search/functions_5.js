@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['tc_5fkappa',['TC_kappa',['../_shearing___box_2tc__kappa_8c.html#a5c19f8bcfbe2e52441affa6ead23b70f',1,'tc_kappa.c']]]
+  ['main',['main',['../main_8random_8c.html#a0ddf1224851353fc92bfbff6f499fa97',1,'main.random.c']]]
 ];

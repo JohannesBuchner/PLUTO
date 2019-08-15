@@ -7,16 +7,17 @@
   variable declarations used by the code.
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   July 05, 2015
+  \date   Feb 21, 2018
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #ifndef PLUTO_H
 #define PLUTO_H
 
-#define PLUTO_VERSION  "4.2"
+#define PLUTO_VERSION  "4.3"
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
@@ -25,8 +26,8 @@
 #define YES        1
 #define NO         0
 #define DEFAULT   -1
-#define TRUE      YES
-#define FALSE     NO
+#define TRUE       YES
+#define FALSE      NO
 
 /* ---- Geometry Labels ( > 0) ----  */
 
@@ -40,7 +41,7 @@
 #define LOGARITHMIC_INC_GRID     3
 #define LOGARITHMIC_DEC_GRID     4
 
-/* ---- Equation of state (EoS) labels  ----  */
+/* ---- Equation of sweep (EoS) labels  ----  */
 
 #define IDEAL         1
 #define PVTE_LAW      2
@@ -61,20 +62,20 @@
 #define CHARACTERISTIC_TRACING     3
 #define RK2                        5
 #define RK3                        6
-#define RK_MIDPOINT                7
 #define SSP_RK4                    8
+#define EXP_MIDPOINT               9  /* -- Used for dust time stepping -- */
+#define SEMI_IMPLICIT             10  /* -- Used for dust time stepping -- */
 
 #define EXPLICIT             1 /* -- just a number different from 0 !!!  -- */
 #define SUPER_TIME_STEPPING  2 /* -- just a number different from EXPLICIT -- */ 
 #define RK_CHEBYSHEV         4  
+#define RK_LEGENDRE          8
 
-/* ---- Operator step labels ---- */
+#define IMEX        2   /* Any number different from EXPLICIT (=1) */
+#define OP_SPLIT    4   /* Any number different from EXPLICIT (=1) */
+#define NEW_SPLIT   5   /* Any number different from EXPLICIT (=1) */
 
-#define HYPERBOLIC_STEP  1  
-#define PARABOLIC_STEP   2
-#define SOURCE_STEP      3
-
-/* ----   Output labels  ---- */
+/* ----   Output labels ---- */
 
 #define DBL_OUTPUT      1
 #define FLT_OUTPUT      2
@@ -84,16 +85,21 @@
 #define TAB_OUTPUT      6
 #define PPM_OUTPUT      7
 #define PNG_OUTPUT      8
+#ifdef PARTICLES
+  #define PARTICLES_DBL_OUTPUT  9
+  #define PARTICLES_FLT_OUTPUT  10
+  #define PARTICLES_VTK_OUTPUT  11
+  #define PARTICLES_TAB_OUTPUT  12
+  #define PARTICLES_HDF5_OUTPUT  13
+#endif
+
 
 #define VTK_VECTOR  5  /* -- any number but NOT 1  -- */
 
-/*! The maximum number of output file formats is fixed to 11 so that the 
-    size of runtime structure (defined below) is 64 bytes. 
-    This should prevent, for some compilers, attempts to change the 
-    alignment of the structure and therefore troubleshooting when restarting 
-    from files written on different architectures.                    */
-#define MAX_OUTPUT_TYPES 11 
-#define MAX_OUTPUT_VARS  128
+#define MAX_OUTPUT_TYPES 16    /* The max number of allowed data formats
+                                  including fluid and particles */     
+#define MAX_OUTPUT_VARS  64    /* The maximum nuber of variables that can be
+                                  dumped to disk for a single format. */
 
 /* ----  Cooling labels ----  */
 
@@ -102,28 +108,35 @@
 #define SNEq         5
 #define TABULATED    6
 #define H2_COOL      7
+#define KROME	     8
+
+/*----- Particle Labels ----- */
+
+#define LAGRANGIAN 	    1
+#define COSMIC_RAYS     3
+#define DUST            4
 
 /* ---- Physics modules labels ----  */
 
-#define ADVECTION  1
-#define HD         2
-#define RHD        3
-#define MHD        4
-#define RMHD       5
+#define ADVECTION     1
+#define HD            2
+#define RHD           3
+#define MHD           4
+#define RMHD          5
+#define CR_TRANSPORT  6
 
-    /*  ----  SET LABELS FOR DIV.B REMOVAL  ----  
-        If you move them to the MHD header, 
-        definitions.h (which is included before)
-        cannot correctly use them                */
+/*  ----  SET LABELS FOR DIV.B Control  ----  
+          If you move them to the MHD header, 
+          definitions.h (which is included before)
+          cannot correctly use them                */
         
-#define NONE                   0
 #define EIGHT_WAVES            1
 #define DIV_CLEANING           2
 #define CONSTRAINED_TRANSPORT  3
 
-   /*  ----  SET LABELS FOR BODY_FORCE  ----
-      Please do not change them since they are
-      used in bitwise operations                */
+/*  ----  SET LABELS FOR BODY_FORCE  ----
+    Please do not change them since they are
+    used in bitwise operations                */
    
 #define VECTOR     4   /* corresponds to  100 in binary  */
 #define POTENTIAL  8   /* corresponds to 1000 in binary  */
@@ -195,10 +208,13 @@
 
 /* -- location of a variable inside the cell -- */
 
-#define CENTER  0
-#define X1FACE  1
-#define X2FACE  2
-#define X3FACE  3
+#define CENTER  0  /* -- Means (i, j, k)         -- */
+#define X1FACE  1  /* -- Means (i+1/2, j, k)     -- */
+#define X2FACE  2  /* -- Means (i, j+1/2, k)     -- */
+#define X3FACE  3  /* -- Means (i, j, k+1/2)     -- */
+#define X1EDGE  4  /* -- Means (i, j+1/2, k+1/2) -- */
+#define X2EDGE  5  /* -- Means (i+1/2, j, k+1/2) -- */
+#define X3EDGE  6  /* -- Means (i+1/2, j+1/2, k) -- */ 
 
 #define CELL_CENTER    50  /* really needed ? */
 #define FACE_CENTER    51
@@ -251,6 +267,7 @@
 #define CONST_amu     1.66053886e-24     /**<  Atomic mass unit.          */
 #define CONST_au      1.49597892e13      /**<  Astronomical unit.         */
 #define CONST_c       2.99792458e10      /**<  Speed of Light.            */
+#define CONST_e       4.80320425e-10     /**<  Elementary (proton) charge */
 #define CONST_eV      1.602176463158e-12 /**<  Electron Volt in erg.      */
 #define CONST_G       6.6726e-8          /**<  Gravitational Constant.    */
 #define CONST_h       6.62606876e-27     /**<  Planck Constant.           */
@@ -266,6 +283,8 @@
 #define CONST_pc      3.0856775807e18    /**<  Parsec.                    */
 #define CONST_PI      3.14159265358979   /**<  \f$ \pi \f$.               */
 #define CONST_Rearth  6.378136e8         /**<  Earth Radius.              */
+#define CONST_Rgas    8.3144598e7        /**<  Perfect gas constant       */
+
 #define CONST_Rsun    6.96e10            /**<  Solar Radius.              */
 #define CONST_sigma   5.67051e-5         /**<  Stephan Boltmann constant. */
 #define CONST_sigmaT  6.6524e-25         /**<  Thomson Cross section.    */
@@ -282,6 +301,14 @@
     This section of the code is for general-purpose macros although
     other may exists elsewhere. 
    ******************************************************************* */
+
+#ifndef AMBIPOLAR_DIFFUSION
+ #define AMBIPOLAR_DIFFUSION NO
+#endif
+
+#ifndef ASSIGN_VECTOR_POTENTIAL 
+ #define ASSIGN_VECTOR_POTENTIAL   NO
+#endif
 
 #ifndef BACKGROUND_FIELD
  #define BACKGROUND_FIELD NO
@@ -327,8 +354,8 @@
  #endif
 #endif
 
-#ifndef DUST
- #define DUST   NO
+#ifndef DUST_FLUID
+ #define DUST_FLUID   NO
 #endif
 
 #ifndef ENTROPY_SWITCH
@@ -339,14 +366,28 @@
  #define EOS  -1
 #endif
 
-#ifndef INCLUDE_PARTICLES
- #define INCLUDE_PARTICLES NO
+#ifndef HALL_MHD
+ #define HALL_MHD          NO
+#endif
+
+#ifndef INITIAL_SMOOTHING        
+ #define INITIAL_SMOOTHING  NO  /**< Assign initial conditions by averaging
+                                     multiple values inside the cell */
+                     
+#endif
+
+#ifndef INTERNAL_BOUNDARY
+ #define INTERNAL_BOUNDARY   NO
+#endif
+
+#ifndef LIMITER
+ #define LIMITER         DEFAULT
 #endif
 
 #ifndef RECONSTRUCT_4VEL
-  #define RECONSTRUCT_4VEL   NO  /**< When set to YES, reconstruct 4-velocity
-                                      rather than 3-velocity (only for RHD and
-                                      RMHD physics modules)  */
+ #define RECONSTRUCT_4VEL   NO  /**< When set to YES, reconstruct 4-velocity
+                                     rather than 3-velocity (only for RHD and
+                                     RMHD physics modules)  */
 #endif  
 
 #ifndef RESISTIVITY 
@@ -357,8 +398,12 @@
  #define ROTATING_FRAME NO
 #endif
 
+#ifndef SHOCK_FLATTENING
+  #define SHOCK_FLATTENING     NO
+#endif
+
 #ifndef THERMAL_CONDUCTION
- #define THERMAL_CONDUCTION NO
+ #define THERMAL_CONDUCTION    NO
 #endif
 
 #ifndef UNIT_DENSITY
@@ -370,7 +415,11 @@
 #endif
 
 #ifndef UNIT_VELOCITY
- #define UNIT_VELOCITY (1.e5)  /**< Unit velocity in cm/sec. */
+ #if PHYSICS == RHD || PHYSICS == RMHD
+  #define UNIT_VELOCITY (CONST_c)
+ #else
+  #define UNIT_VELOCITY (1.e5)  /**< Unit velocity in cm/sec. */
+ #endif
 #endif
 
 #ifndef UPDATE_VECTOR_POTENTIAL
@@ -381,14 +430,18 @@
  #define VISCOSITY NO
 #endif
 
+#ifndef WARNING_MESSAGES
+ #define WARNING_MESSAGES    YES
+#endif
+
 /* -------------------------------------------------------------------
     Set HAVE_ENERGY to YES if an energy equation exists
    -------------------------------------------------------------------- */
 
 #if (EOS == IDEAL) || (EOS == PVTE_LAW) || (EOS == TAUB)  
-  #define HAVE_ENERGY       YES
+ #define HAVE_ENERGY       YES
 #else
-  #define HAVE_ENERGY      NO
+ #define HAVE_ENERGY       NO
 #endif
 
 /*! Define the conversion constant between dimensionless 
@@ -404,7 +457,9 @@
       to check orthogonality and the correctness through 
       the relation the A = L*\Lambda*R  -- */
 
-#define CHECK_EIGENVECTORS     NO
+#ifndef CHECK_EIGENVECTORS
+ #define CHECK_EIGENVECTORS     NO
+#endif
 
 /* -- CHECK_CONSERVATIVE_VAR: used in RHD/mappers.c to 
       check that conservative vars are physical -- */
@@ -426,28 +481,25 @@
  #endif
 #endif
 
-/* ------------------------------------------------------------
-    the GET_MAX_DT switch determines how the time step is
-    computed. For pure advection, setting it to YES will force
-    PLUTO to compute dt in the old way, i.e., by taking the
-    maximum.
-    When set to NO, the time step is computed only during the
-    predictor step and, for UNSPLIT RK schemes, it will be
-    calculated as the average over dimensions resulting in 
-    slightly larger time increments.
-   ------------------------------------------------------------ */
+/* -- Select Primitive / Conservative form of Hancock scheme -- */
 
-#if ((TIME_STEPPING == RK2) || (TIME_STEPPING == RK3)) \
-      && DIMENSIONAL_SPLITTING == NO
- #define GET_MAX_DT    NO
-#else
- #define GET_MAX_DT    YES
+#if TIME_STEPPING == HANCOCK 
+ #ifndef PRIMITIVE_HANCOCK
+  #if (PHYSICS == MHD) && (defined PARTICLES) && (PARTICLES_TYPE == COSMIC_RAYS)
+   #define PRIMITIVE_HANCOCK   NO
+  #elif PHYSICS == RMHD
+   #define PRIMITIVE_HANCOCK   NO
+  #else
+   #define PRIMITIVE_HANCOCK   YES
+  #endif   
+ #endif   
 #endif
 
 /* *********************************************************************
-    Diffusion operators: PARABOLIC_FLUX is the bitwise OR
-    combination of all operators, each being either one of 
-    NO, EXPLICIT (1st bit), STS (2nd bit). 
+    Diffusion operators (HD and MHD only):
+    PARABOLIC_FLUX is the bitwise OR combination of all operators, each
+    being either one of NO, EXPLICIT (1st bit), STS (2nd bit),
+    RKL (3rd bit). 
     It can take the following values
 
       00   --> no diffusion operator is being used
@@ -459,7 +511,11 @@
       11   --> mixed: there is at least one explicit and sts operator
    ********************************************************************* */
 
-#define PARABOLIC_FLUX (RESISTIVITY|THERMAL_CONDUCTION|VISCOSITY)
+#if PHYSICS == HD || PHYSICS == MHD
+ #define PARABOLIC_FLUX (RESISTIVITY|THERMAL_CONDUCTION|VISCOSITY)
+#else 
+ #define PARABOLIC_FLUX NO
+#endif
 
 /* ********************************************************
     Include more header files
@@ -482,7 +538,7 @@
    ***************************************************** */
 
 typedef double real;
-typedef void Riemann_Solver (const State_1D *, int, int, double *, Grid *);
+typedef void Riemann_Solver (const Sweep *, int, int, double *, Grid *);
 typedef void Limiter        (double *, double *, double *, int, int, Grid *);
 typedef double Reconstruct  (double *, double, int);
 typedef double ****Data_Arr;
@@ -493,21 +549,104 @@ typedef double ****Data_Arr;
 
 #include "mod_defs.h"  /* Include physics header file (search path is set
                           in the makefile) */
-#ifdef SHEARINGBOX
- #include "MHD/ShearingBox/shearingbox.h"
-#endif
 
-#if COOLING != NO
-  #include "cooling.h"
+#if COOLING != NO      /* Cooling should be included as soon as possible */
+  #include "cooling.h" /* since it may change the number of variables    */
   #define RHOE   PRS
 #endif
 
-#if DUST == YES
+/* ********************************************************************* */
+/*! Set the number of scalars including:
+
+    - \c NTRACER (user-supplied)
+    - \c NIONS chemical fractions (added by cooling modules)
+    - Entropy 
+
+    In total, there are <tt>NSCL = NIONS+NTRACER+(ENTROPY</tt> passive
+    scalar to be advected.
+  ********************************************************************** */
+
+#ifndef NIONS
+  #define NIONS 0
+#endif
+
+#define NSCL        (NTRACER + NIONS + (ENTROPY_SWITCH != 0))
+
+#ifndef NDUST_FLUID
+  #define NDUST_FLUID  0
+#endif
+#define NDUST_FLUID_BEG   (NFLX + NSCL)
+#define NDUST_FLUID_END   (NDUST_FLUID_BEG + NDUST_FLUID - 1)
+
+/* -- Additional variable names -- */
+
+#define TRC   (NFLX + NIONS)
+#if ENTROPY_SWITCH
+ #define ENTR  (TRC + NTRACER)
+#else
+ #if HAVE_ENERGY
+  #define ENTR (ENG)
+ #endif
+#endif
+
+/* ********************************************************************* */
+/*! The total number of variables that are evolved in time.
+    This includes:
+
+    - \c NFLX: number of equations defining the system of conservation laws.
+      For example, for the HD module, it consists of density, momentum and energy.
+                It is defined in the physics module header file mod_defs.h.
+    - \c NIONS: number of chemical species; defined in the cooling modules 
+                cooling.h, if present.
+    - \c NTRACER: number of user-defined tracers; defined in the problem
+                  directory header file definitions.h
+    \verbatim  
+           NFLX    NIONS    NTRACER    ENTR    NDUST_FLUID
+                   <---------------------->
+                              NSCL
+           <--------------------------------------->
+                    NVAR
+    \endverbatim
+   ********************************************************************* */
+
+#define NVAR (NFLX + NSCL + NDUST_FLUID)
+
+/* -- Loop Macros -- */
+
+#define NFLX_LOOP(n)     for ((n) = NFLX;   (n)--;  )
+#define NIONS_LOOP(n)    for ((n) = NFLX;   (n) < (NFLX+NIONS); (n)++)
+#define NTRACER_LOOP(n)  for ((n) = TRC;    (n) < (TRC+NTRACER); (n)++)
+#define NSCL_LOOP(n)     for ((n) = NFLX;   (n) < (NFLX+NSCL); (n)++)
+#define NDUST_FLUID_LOOP(n)    for ((n) = NDUST_FLUID_BEG;  (n) <= NDUST_FLUID_END; (n)++)
+#define NVAR_LOOP(n)     for ((n) = NVAR;   (n)--;       )
+
+/* ********************************************************
+    Keep on adding module header files 
+   ******************************************************** */
+
+
+#if DUST_FLUID == YES
   #include "Dust/dust.h"            /* Dust header file */
 #endif
 
 #ifdef FARGO
  #include "Fargo/fargo.h"           /* FARGO header file */
+#endif
+
+#if FORCED_TURB == YES
+  #include "Forced_Turb/forced_turb.h" /* Forced Turb Header file */
+#endif
+
+#ifdef HALL_MHD
+ #include "MHD/Hall_MHD/hall_mhd.h"  /* Hall-MHD module header */
+#endif
+
+#ifdef PARTICLES                   /* Particle Header File */
+ #include "Particles/particles.h"
+#endif
+
+#ifdef SHEARINGBOX
+ #include "MHD/ShearingBox/shearingbox.h"   /* Shearing box header file */
 #endif
 
 #if THERMAL_CONDUCTION != NO 
@@ -551,74 +690,12 @@ typedef double ****Data_Arr;
 #define FRAC_He     (He_MASS_FRAC/CONST_AHe*CONST_AH/H_MASS_FRAC)
 #define FRAC_Z      (Z_MASS_FRAC /CONST_AZ *CONST_AH/H_MASS_FRAC)
 
-
-#ifndef NIONS
-  #define NIONS 0
-#endif
-
-/* ********************************************************************* */
-/*! The number of scalars (passive tracers).
-    This includes
-    - \c NTRACER (user-supplied)
-    - \c NIONS chemical fractions (added by cooling modules)
-    - Entropy 
-    In total, there are <tt>NSCL = NIONS+NTRACER+(ENTROPY</tt> passive
-    scalar to be advected.
-  ********************************************************************** */
-#define NSCL        (NTRACER + NIONS + (ENTROPY_SWITCH != 0))
-
-#ifndef NDUST
-  #define NDUST  0
-#endif
-#define NDUST_BEG   (NFLX + NSCL)
-#define NDUST_END   (NDUST_BEG + NDUST - 1)
-
-/* -- Additional variable names -- */
-#define TRC   (NFLX + NIONS)
-#if ENTROPY_SWITCH
- #define ENTR  (TRC + NTRACER)
-#else
- #if HAVE_ENERGY
-  #define ENTR (ENG)
- #endif
-#endif
-
-/* ********************************************************************* */
-/*! The total number of variables that are evolved in time.
-    This includes:
-    - \c NFLX: number of equations defining the system of conservation laws.
-      For example, for the HD module, it consists of density, momentum and energy.
-                It is defined in the physics module header file mod_defs.h.
-    - \c NIONS: number of chemical species; defined in the cooling modules 
-                cooling.h, if present.
-    - \c NTRACER: number of user-defined tracers; defined in the problem
-                  directory header file definitions.h
-    \verbatim  
-           NFLX    NIONS    NTRACER    ENTR    NDUST
-                   <---------------------->
-                              NSCL
-           <--------------------------------------->
-                    NVAR
-    \endverbatim
-   ********************************************************************* */
-
-#define NVAR (NFLX + NSCL + NDUST)
-
-/* -- Loop Macros -- */
-
-#define NFLX_LOOP(n)     for ((n) = NFLX;   (n)--;  )
-#define NIONS_LOOP(n)    for ((n) = NFLX;   (n) < (NFLX+NIONS); (n)++)
-#define NTRACER_LOOP(n)  for ((n) = TRC;    (n) < (TRC+NTRACER); (n)++)
-#define NSCL_LOOP(n)     for ((n) = NFLX;   (n) < (NFLX+NSCL); (n)++)
-#define NDUST_LOOP(n)    for ((n) = NDUST_BEG;  (n) <= NDUST_END; (n)++)
-#define NVAR_LOOP(n)     for ((n) = NVAR;   (n)--;       )
-
 /* -- IF_XXXX() Macros for simpler coding -- */
   
-#if DUST == YES
- #define IF_DUST(a)  a
+#if DUST_FLUID == YES
+ #define IF_DUST_FLUID(a)  a
 #else 
- #define IF_DUST(a)  
+ #define IF_DUST_FLUID(a)  
 #endif
 
 #if HAVE_ENERGY
@@ -671,27 +748,29 @@ extern long int NMAX_POINT;
 extern int VXn, VXt, VXb;
 extern int MXn, MXt, MXb;
 extern int BXn, BXt, BXb;
-#if DUST == YES
+extern int EXn, EXt, EXb;
+#if DUST_FLUID == YES
   extern int VXn_D, VXt_D, VXb_D;
   extern int MXn_D, MXt_D, MXb_D;
 #endif
 
-
 extern int g_i, g_j, g_k;
 
-extern int g_dir;
-extern int g_maxRiemannIter;
-extern int g_maxRootIter;
-extern long int g_usedMemory;
-extern long int g_stepNumber;
+extern int      g_dir;
 extern int      g_intStage;
-extern int      g_operatorStep;
+extern int      g_maxIMEXIter;
+extern int      g_maxRiemannIter;
+extern int      g_maxRootIter;
+extern int      g_nprocs;
+extern long int g_stepNumber;
+extern long int g_usedMemory;
 
 extern double g_maxCoolingRate, g_minCoolingTemp;
 
 extern double g_smallDensity, g_smallPressure;
 
 extern double g_time, g_dt;
+extern int    g_hydroStep;
 extern double g_maxMach;
 #if ROTATING_FRAME
  extern double g_OmegaZ;
@@ -714,6 +793,11 @@ extern double g_inputParam[32];
  #if GEOMETRY == CARTESIAN
   extern double g_stretch_fact;
  #endif
+#endif
+
+#if DEBUG == TRUE
+  extern int d_indent;
+  extern int d_condition;
 #endif
 
 /* ---- Maximum grid size for allocating static arrays ---- */

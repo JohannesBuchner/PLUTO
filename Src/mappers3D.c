@@ -53,30 +53,18 @@ void ConsToPrim3D (Data_Arr U, Data_Arr V, unsigned char ***flag, RBox *box)
     proper call to ConsToPrim()
    ----------------------------------------------- */
 
-  ibeg = (box->ib <= box->ie) ? (iend=box->ie, box->ib):(iend=box->ib, box->ie);
-  jbeg = (box->jb <= box->je) ? (jend=box->je, box->jb):(jend=box->jb, box->je);
-  kbeg = (box->kb <= box->ke) ? (kend=box->ke, box->kb):(kend=box->kb, box->ke);
+  ibeg = (box->ibeg <= box->iend) ? (iend=box->iend, box->ibeg):(iend=box->ibeg, box->iend);
+  jbeg = (box->jbeg <= box->jend) ? (jend=box->jend, box->jbeg):(jend=box->jbeg, box->jend);
+  kbeg = (box->kbeg <= box->kend) ? (kend=box->kend, box->kbeg):(kend=box->kbeg, box->kend);
 
   for (k = kbeg; k <= kend; k++){ g_k = k;
   for (j = jbeg; j <= jend; j++){ g_j = j;
-
-#ifdef CHOMBO
-    for (i = ibeg; i <= iend; i++) NVAR_LOOP(nv) u[i][nv] = U[nv][k][j][i];
-    #if COOLING == MINEq || COOLING == H2_COOL
-    if (g_intStage == 1) for (i = ibeg; i <= iend; i++) NormalizeIons(u[i]);
-    #endif
-    err = ConsToPrim (u, v, ibeg, iend, flag[k][j]);
-
-  /* -------------------------------------------------------------
-      Ensure any change to 1D conservative arrays is not lost.
-      Note: Conversion must be done even when err = 0 in case
-            ENTROPY_SWITCH is employed.
-     ------------------------------------------------------------- */
-
-    for (i = ibeg; i <= iend; i++) NVAR_LOOP(nv) U[nv][k][j][i] = u[i][nv];
-#else
+#if (defined CHOMBO) && (COOLING == MINEq || COOLING == H2_COOL)
+    if (g_intStage == 1) {
+      for (i = ibeg; i <= iend; i++)  NormalizeIons(U[k][j][i]);
+    }  
+#endif  
     err = ConsToPrim (U[k][j], v, ibeg, iend, flag[k][j]);
-#endif
     for (i = ibeg; i <= iend; i++) NVAR_LOOP(nv) V[nv][k][j][i] = v[i][nv];
   }}
   g_dir = current_dir;
@@ -117,19 +105,14 @@ void PrimToCons3D (Data_Arr V, Data_Arr U, RBox *box)
     proper call to ConsToPrim()
    ----------------------------------------------- */
 
-  ibeg = (box->ib <= box->ie) ? (iend=box->ie, box->ib):(iend=box->ib, box->ie);
-  jbeg = (box->jb <= box->je) ? (jend=box->je, box->jb):(jend=box->jb, box->je);
-  kbeg = (box->kb <= box->ke) ? (kend=box->ke, box->kb):(kend=box->kb, box->ke);
+  ibeg = (box->ibeg <= box->iend) ? (iend=box->iend, box->ibeg):(iend=box->ibeg, box->iend);
+  jbeg = (box->jbeg <= box->jend) ? (jend=box->jend, box->jbeg):(jend=box->jbeg, box->jend);
+  kbeg = (box->kbeg <= box->kend) ? (kend=box->kend, box->kbeg):(kend=box->kbeg, box->kend);
 
   for (k = kbeg; k <= kend; k++){ g_k = k;
   for (j = jbeg; j <= jend; j++){ g_j = j;
-    for (i = ibeg; i <= iend; i++) VAR_LOOP(nv) v[i][nv] = V[nv][k][j][i];
-#ifdef CHOMBO
-    PrimToCons(v, u, ibeg, iend);
-    for (i = ibeg; i <= iend; i++) VAR_LOOP(nv) U[nv][k][j][i] = u[i][nv];
-#else      
+    for (i = ibeg; i <= iend; i++) NVAR_LOOP(nv) v[i][nv] = V[nv][k][j][i];
     PrimToCons (v, U[k][j], ibeg, iend);
-#endif
   }}
   g_dir = current_dir; /* restore current direction */
 

@@ -15,7 +15,7 @@
   \date   June 25, 2015
 
   \b References
-     - "Equation of state in relativistic magnetohydrodynamics: variable versus
+     - "Equation of sweep in relativistic magnetohydrodynamics: variable versus
         constant adiabatic index"\n
         Mignone \& Mc Kinney, MNRAS (2007) 378, 1118. 
 

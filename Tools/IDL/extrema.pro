@@ -1,28 +1,31 @@
 ;+
 ;
-; NAME:      extrema
+; NAME:      EXTREMA
 ;
 ; AUTHOR:    Andrea Mignone
 ;
-; DATE:      April 21, 2004
+; SYNTAX:    indx = EXTREMA(f)
 ;
-; PURPOSE:   Find maxima/minima in a function f. 
-;            f is a 1-D vector.
+; PURPOSE:   Find maxima in a 1D array f[].
+;            On output, indx is an integer array whose elements are the
+;            indices of the extrema of f.
+;            If no maximum is found, return -1.
 ;
-; SYNOPSIS:  Result = extrema(f). On output
-;            result is an integer array whose
-;            elements are the indexes k of the
-;            extrema of f.  
+; ARGUMENTS:
+;
+;   f        a 1D array
 ;
 ; KEYWORD:   none
 ;
+; LAST MODIFIED:   Dec 21, 2016 by A. Mignone 
 ;
 ;-
-FUNCTION extrema, f
+FUNCTION EXTREMA, f
 
+  f   = REFORM(f)
   sf  = SIZE(f)
   n   = sf(1)
-  eps = 1.e-6
+  eps = 0.e-8
 
   imax = INTARR(n)
   fmax = FLTARR(n)
@@ -36,14 +39,15 @@ FUNCTION extrema, f
           i0   = (k - 1 + i)/2
           imax[nmax] = i0
           fmax[nmax] = f[i0]
+;          print, "max found at", imax[nmax], fmax[nmax]
           nmax = nmax + 1
-          ;print, "max found at", imax[nmax], fmax[nmax]
           BREAK
         ENDIF
       ENDFOR
     ENDIF
   ENDFOR
-
+  
+  IF (nmax EQ 0) THEN RETURN,-1
   RETURN, imax[0:nmax-1]
 ;
 ;  Sort maxima

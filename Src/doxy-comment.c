@@ -36,7 +36,7 @@ void MyFunctionTemplate (int var)
 /*!
  * Start commenting the function here.
  *
- * \param [in]      state pointer to State_1D structure
+ * \param [in]      sweep pointer to Sweep structure
  * \param [in]      beg   initial index of computation 
  * \param [in]      end   final   index of computation
  * \param [in,out]  d     pointer to PLUTO Data structure

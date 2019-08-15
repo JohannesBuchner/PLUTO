@@ -8,14 +8,15 @@
 
   \authors A. Mignone (mignone@ph.unito.it)\n
            G. Muscianisi (g.muscianisi@cineca.it)
-  \date    Oct 6, 2014
+  \date    Sept 30, 2016
   \todo   
 */
 /* ///////////////////////////////////////////////////////////////////// */
 
+/**<  Set the order of interpolation during the linear transport step.
+      Either 2 or 3. Default is 3. */
 #ifndef FARGO_ORDER
- #define FARGO_ORDER          3    /**<  Set the order of interpolation during 
-      the linear transport step. Either 2 or 3. Default is 3. */
+ #define FARGO_ORDER    3  
 #endif
         
 /*! Set how often (in number of steps) the total azimuthal 
@@ -35,6 +36,10 @@
  #endif
 #endif
                                  
+/*! Used to write total/residual velocity */
+#ifndef FARGO_OUTPUT_VTOT
+  #define FARGO_OUTPUT_VTOT    YES
+#endif
 
 /* ----------------------------------------------------------------
     Note: when both FARGO and SHEARINGBOX modules are used, *ALL* 
@@ -84,8 +89,12 @@ void     FARGO_AddVelocity(const Data *, Grid *);
 void     FARGO_CHECK (Data_Arr V, Data_Arr U);
 void     FARGO_ComputeVelocity(const Data *, Grid *);
 double **FARGO_GetVelocity(void);
-int      FARGO_HasTotalVelocity ();
 void     FARGO_SubtractVelocity(const Data *, Grid *);
 void     FARGO_ShiftSolution(Data_Arr, Data_Arr, Grid *);
+#ifdef PARTICLES
+void     FARGO_ShiftParticles(Data *, Grid *, double);
+#endif
 double   FARGO_SetVelocity(double, double);
 void     FARGO_Source(Data_Arr, double, Grid *);
+int      FARGO_TotalVelocityIsSet(void);
+

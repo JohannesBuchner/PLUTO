@@ -1,7 +1,7 @@
 #include "pluto.h"
 
 /* ************************************************************* */
-void States (const State_1D *state, int beg, int end, Grid *grid)
+void States (const Sweep *sweep, int beg, int end, Grid *grid)
 /* 
  *  PURPOSE
  *    

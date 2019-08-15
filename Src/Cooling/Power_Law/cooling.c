@@ -35,7 +35,7 @@
   \verbatim
                    a_br * (gamma - 1) * L_0 * rho_0
         cost = -------------------------------------------
-                sqrt(kB * mu * mH) * kB * mu * mH * V_0^2
+                sqrt(kB * mu * mH) * mu * mH * V_0^2
   \endverbatim
    where a_{br} = 2.e-27 (in c.g.s), kB is the Boltmann constant
   
@@ -47,12 +47,12 @@
 #include "pluto.h"
 
 /* ********************************************************************* */
-void PowerLawCooling (Data_Arr VV, double dt, Time_Step *Dts, Grid *grid)
+void PowerLawCooling (Data_Arr VV, double dt, timeStep *Dts, Grid *grid)
 /*!
  * \param [in,out]  VV    a pointer to the PLUTO 3D data array containing
  *                        pimitive variables.
  * \param [in]      dt    the current integration time step
- * \param [in]      Dts   a pointer to the Time_Step structure
+ * \param [in]      Dts   a pointer to the timeStep structure
  * \param [in]      grid  pointer to an array of Grid structures
  *
  *********************************************************************** */
@@ -97,6 +97,5 @@ void PowerLawCooling (Data_Arr VV, double dt, Time_Step *Dts, Grid *grid)
 
     Dts->dt_cool = MIN(Dts->dt_cool, dt*g_maxCoolingRate/dE);
   }
-
 }
 

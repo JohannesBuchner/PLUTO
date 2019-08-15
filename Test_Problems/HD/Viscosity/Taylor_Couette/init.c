@@ -26,7 +26,7 @@
 
   \author P. Tzeferacos (petros.tzeferacos@ph.unito.it)\n
           A. Mignone (mignone@ph.unito.it)
-  \date   June 4, 2010
+  \date   March 3, 2017
 
   \b References
      - "Stability of a viscous liquid contained between two rotating cylinders",
@@ -61,6 +61,20 @@ void Init (double *v, double x1, double x2, double x3)
   v[VX3] = A*x1 + B/x1 + 0.01*(A*x1 + B/x1)*CPER;
   v[TRC] = 1.0;
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 
@@ -82,9 +96,9 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
   int     i, j, k, nv;
   double  *x1, *x2, *x3;
 
-  x1 = grid[IDIR].x;
-  x2 = grid[JDIR].x;
-  x3 = grid[KDIR].x;
+  x1 = grid->x[IDIR];
+  x2 = grid->x[JDIR];
+  x3 = grid->x[KDIR];
 
   if (side == 0) {    /* -- check solution inside domain -- */
     DOM_LOOP(k,j,i){};

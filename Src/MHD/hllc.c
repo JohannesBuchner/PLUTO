@@ -10,8 +10,8 @@
   Our formulation differs from Li's original solver in the way
   transverse momenta are computed.
   
-  On input, this function takes left and right primitive state vectors 
-  \c state->vL and \c state->vR at zone edge \c i+1/2;
+  On input, this function takes left and right primitive state
+  vectors \c stateL->v and \c state->v at zone edge \c i+1/2;
   On output, return flux and pressure vectors at the same interface 
   \c i+1/2 (note that the \c i refers to \c i+1/2).
   
@@ -19,23 +19,23 @@
   for  explicit time step computation.
    
   \b Reference:
-    - "An HLLC RIemann Solver for MHD", S. Li, JCP (200) 203, 344
+    - "An HLLC RIemann Solver for MHD", S. Li, JCP (2000) 203, 344
        
   \authors A. Mignone (mignone@ph.unito.it)
-  \date    Dec 10, 2013
+  \date    May 9, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include"pluto.h"
 
 #if HAVE_ENERGY
 /* ********************************************************************* */
-void HLLC_Solver (const State_1D *state, int beg, int end, 
+void HLLC_Solver (const Sweep *sweep, int beg, int end, 
                   double *cmax, Grid *grid)
 /*!
  * Solve Riemann problem for the adiabatic MHD equations using a slightly 
- * modified version of the two-state HLLC Riemann solver of Li (2005).
+ * modified version of the two-states HLLC Riemann solver of Li (2005).
  * 
- * \param[in,out] state   pointer to State_1D structure
+ * \param[in,out] sweep   pointer to Sweep structure
  * \param[in]     beg     initial grid index
  * \param[out]    end     final grid index
  * \param[out]    cmax    1D array of maximum characteristic speeds
@@ -44,6 +44,10 @@ void HLLC_Solver (const State_1D *state, int beg, int end,
  *********************************************************************** */
 {
   int   nv, i;
+
+  const State   *stateL = &(sweep->stateL);
+  const State   *stateR = &(sweep->stateR);
+
   double  scrh;
   double  pl, pr;
   double  vBl, usl[NFLX];
@@ -52,85 +56,76 @@ void HLLC_Solver (const State_1D *state, int beg, int end,
   double  Bxs, Bys, Bzs, ps, vBs;
   double  vxl, vxr, vxs, vys, vzs;
   double  Fhll[NFLX], alpha_l, alpha_r;
-  double  **bgf, *vL, *vR, *uL, *uR, *SL, *SR;
-  static double **fL, **fR, **Uhll;
-  static double **VL, **VR, **UL, **UR;
-  static double *pL, *pR, *a2L, *a2R;
+  double  *vL, *vR, *uL, *uR, *SL, *SR;
+  double **fL = stateL->flux, **fR = stateR->flux;
+  double  *pL = stateL->prs,   *pR = stateR->prs;
+  static double **Uhll;
 
-  if (fL == NULL){
-    fL = ARRAY_2D(NMAX_POINT, NFLX, double);
-    fR = ARRAY_2D(NMAX_POINT, NFLX, double);
+/* ------------------------------------------------
+   0. Allocate memory / initialize arrays
+   ------------------------------------------------ */
+
+  if (Uhll == NULL){
     Uhll = ARRAY_2D(NMAX_POINT, NFLX, double);
-    pL  = ARRAY_1D(NMAX_POINT, double);
-    pR  = ARRAY_1D(NMAX_POINT, double);
-    a2L = ARRAY_1D(NMAX_POINT, double);
-    a2R = ARRAY_1D(NMAX_POINT, double);
-    #ifdef GLM_MHD
-     VL = ARRAY_2D(NMAX_POINT, NVAR, double);
-     VR = ARRAY_2D(NMAX_POINT, NVAR, double);
-     UL = ARRAY_2D(NMAX_POINT, NVAR, double);
-     UR = ARRAY_2D(NMAX_POINT, NVAR, double);
-    #endif
   }
   
-  #if BACKGROUND_FIELD == YES
-   print ("! Background field splitting not allowed with HLLC solver\n");
-   QUIT_PLUTO(1);
-  #endif
+#if BACKGROUND_FIELD == YES
+  print ("! Background field splitting not allowed with HLLC solver\n");
+  QUIT_PLUTO(1);
+#endif
   
-  #ifdef GLM_MHD
-   GLM_Solve (state, VL, VR, beg, end, grid);
-   PrimToCons (VL, UL, beg, end);
-   PrimToCons (VR, UR, beg, end);
-  #else
-   VL = state->vL; UL = state->uL;
-   VR = state->vR; UR = state->uR;
-  #endif
+/* ------------------------------------------------
+   1. Solve 2x2 Riemann problem with GLM cleaning
+   ------------------------------------------------ */
+
+#ifdef GLM_MHD
+  GLM_Solve (sweep, beg, end, grid);
+#endif
 
 /* ----------------------------------------------------
-     compute sound speed & fluxes at zone interfaces
+   2. Compute sound speed & fluxes at zone interfaces
    ---------------------------------------------------- */
 
-  SoundSpeed2 (VL, a2L, NULL, beg, end, FACE_CENTER, grid);
-  SoundSpeed2 (VR, a2R, NULL, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (stateL, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (stateR, beg, end, FACE_CENTER, grid);
 
-  Flux (UL, VL, a2L, bgf, fL, pL, beg, end);
-  Flux (UR, VR, a2R, bgf, fR, pR, beg, end);
+  Flux (stateL, beg, end);
+  Flux (stateR, beg, end);
 
- /* ----------------------------------------
-       get max and min signal velocities
-     ---------------------------------------- */
+/* ----------------------------------------
+   3. Get max and min signal velocities
+   ---------------------------------------- */
              
-  SL = state->SL; SR = state->SR;
-  HLL_Speed (VL, VR, a2L, a2R, bgf, SL, SR, beg, end);
+  SL = sweep->SL; SR = sweep->SR;
+  HLL_Speed (stateL, stateR, SL, SR, beg, end);
 
   for (i = beg; i <= end; i++) {
     
     scrh  = MAX(fabs(SL[i]), fabs(SR[i]));
     cmax[i] = scrh;
 
-/* --------------------------------------------
-              compute fluxes 
-   -------------------------------------------- */
+/* ----------------------------------------
+   4. Compute HLLC flux
+   ---------------------------------------- */	     
 
     if (SL[i] >= 0.0){
     
       for (nv = 0; nv < NFLX; nv++) {
-        state->flux[i][nv] = fL[i][nv];
+        sweep->flux[i][nv] = fL[i][nv];
       }
-      state->press[i] = pL[i];
+      sweep->press[i] = pL[i];
 
     }else if (SR[i] <= 0.0){
 
       for (nv = 0; nv < NFLX; nv++) {
-        state->flux[i][nv] = fR[i][nv];
+        sweep->flux[i][nv] = fR[i][nv];
       }
-      state->press[i] = pR[i];
+      sweep->press[i] = pR[i];
 
     }else{
 
-      vL = VL[i]; uL = UL[i];
-      vR = VR[i]; uR = UR[i];
+      vL = stateL->v[i]; uL = stateL->u[i];
+      vR = stateR->v[i]; uR = stateR->u[i];
 
   /* ----  define hll states  ----  */
 
@@ -148,13 +143,13 @@ void HLLC_Solver (const State_1D *state, int beg, int end,
       Fhll[MXn] += (SR[i]*pL[i] - SL[i]*pR[i])*scrh;
 
 #if SHOCK_FLATTENING == MULTID   
-      if ((state->flag[i] & FLAG_HLL) || (state->flag[i+1] & FLAG_HLL)){
+      if ((sweep->flag[i] & FLAG_HLL) || (sweep->flag[i+1] & FLAG_HLL)){
         for (nv = NFLX; nv--; ){
-          state->flux[i][nv]  = SL[i]*SR[i]*(uR[nv] - uL[nv])
+          sweep->flux[i][nv]  = SL[i]*SR[i]*(uR[nv] - uL[nv])
                              +  SR[i]*fL[i][nv] - SL[i]*fR[i][nv];
-          state->flux[i][nv] *= scrh;
+          sweep->flux[i][nv] *= scrh;
         }
-        state->press[i] = (SR[i]*pL[i] - SL[i]*pR[i])*scrh;
+        sweep->press[i] = (SR[i]*pL[i] - SL[i]*pR[i])*scrh;
         continue;
       }
 #endif
@@ -218,36 +213,36 @@ void HLLC_Solver (const State_1D *state, int beg, int end,
              usl[BXb] = usr[BXb] = Bzs;)
 
       #ifdef GLM_MHD
-       usl[PSI_GLM] = usr[PSI_GLM] = vL[PSI_GLM];
+      usl[PSI_GLM] = usr[PSI_GLM] = vL[PSI_GLM];
       #endif
 
       if (vxs >= 0.0){
         for (nv = 0; nv < NFLX; nv++) {
-          state->flux[i][nv] = fL[i][nv] + SL[i]*(usl[nv] - uL[nv]);
+          sweep->flux[i][nv] = fL[i][nv] + SL[i]*(usl[nv] - uL[nv]);
         }
-        state->press[i] = pL[i];
+        sweep->press[i] = pL[i];
       } else {
         for (nv = 0; nv < NFLX; nv++) {
-          state->flux[i][nv] = fR[i][nv] + SR[i]*(usr[nv] - uR[nv]);
+          sweep->flux[i][nv] = fR[i][nv] + SR[i]*(usr[nv] - uR[nv]);
         }
-        state->press[i] = pR[i];
+        sweep->press[i] = pR[i];
       }
     }
   }
 
-/* -----------------------------------------------------
-               initialize source term
-   ----------------------------------------------------- */
+/* -----------------------------------------------
+   5. Compute source terms (if any)
+   ----------------------------------------------- */
 
   #if DIVB_CONTROL == EIGHT_WAVES
-   HLL_DivBSource (state, Uhll, beg + 1, end, grid);
+   HLL_DivBSource (sweep, Uhll, beg + 1, end, grid);
   #endif
 }
 
 #elif EOS == ISOTHERMAL 
 
 /* ******************************************************************** */
-void HLLC_Solver (const State_1D *state, int beg, int end, 
+void HLLC_Solver (const Sweep *sweep, int beg, int end, 
                   double *cmax, Grid *grid)
 /*
  *
@@ -255,8 +250,8 @@ void HLLC_Solver (const State_1D *state, int beg, int end,
  *
  *********************************************************************** */
 {
-  print1 ("! HLLC solver not implemented for Isothermal EOS\n");
-  print1 ("! Use hll or hlld instead.\n");
+  print ("! HLLC solver not implemented for Isothermal EOS\n");
+  print ("! Use hll or hlld instead.\n");
   QUIT_PLUTO(1);
 }
 

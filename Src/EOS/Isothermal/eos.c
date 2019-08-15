@@ -4,20 +4,17 @@
   \brief Implementation of the isothermal EOS.
                     
   \author A. Mignone (mignone@ph.unito.it)
-  \date   April 14, 2014
+  \date   March 05, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
 /* ********************************************************************* */
-void SoundSpeed2 (double **v, double *cs2, double *h, int beg, int end,
-                  int pos, Grid *grid)
+void SoundSpeed2 (const State *p, int beg, int end, int pos, Grid *grid)
 /*!
  * Define the square of the sound speed.
  * 
- * \param [in]    v   1D array of primitive quantities
- * \param [out] cs2   1D array containing the square of the sound speed
- * \param [in]    h   1D array of enthalpy values
+ * \param [in]   p    pointer to a state structure
  * \param [in]  beg   initial index of computation 
  * \param [in]  end   final   index of computation
  * \param [in]  pos   an integer specifying the spatial position 
@@ -31,26 +28,26 @@ void SoundSpeed2 (double **v, double *cs2, double *h, int beg, int end,
   double *x1, *x2, *x3;
 
   #if PHYSICS == HD || PHYSICS == MHD
-   x1 = grid[IDIR].x;
-   x2 = grid[JDIR].x;
-   x3 = grid[KDIR].x;
+   x1 = grid->x[IDIR];
+   x2 = grid->x[JDIR];
+   x3 = grid->x[KDIR];
 
    i = g_i; j = g_j; k = g_k;
     
    if (g_dir == IDIR) {
 
-     x1 = (pos == FACE_CENTER ? grid[IDIR].xr : grid[IDIR].x);
-     for (i = beg; i <= end; i++) cs2[i] = g_isoSoundSpeed*g_isoSoundSpeed;
+     x1 = (pos == FACE_CENTER ? grid->xr[IDIR] : grid->x[IDIR]);
+     for (i = beg; i <= end; i++) p->a2[i] = g_isoSoundSpeed*g_isoSoundSpeed;
 
    }else if (g_dir == JDIR){
 
-     x2 = (pos == FACE_CENTER ? grid[JDIR].xr : grid[JDIR].x);
-     for (j = beg; j <= end; j++) cs2[j] = g_isoSoundSpeed*g_isoSoundSpeed;
+     x2 = (pos == FACE_CENTER ? grid->xr[JDIR] : grid->x[JDIR]);
+     for (j = beg; j <= end; j++) p->a2[j] = g_isoSoundSpeed*g_isoSoundSpeed;
 
    }else if (g_dir == KDIR){
 
-     x3 = (pos == FACE_CENTER ? grid[KDIR].xr : grid[KDIR].x);
-     for (k = beg; k <= end; k++) cs2[k] = g_isoSoundSpeed*g_isoSoundSpeed;
+     x3 = (pos == FACE_CENTER ? grid->xr[KDIR] : grid->x[KDIR]);
+     for (k = beg; k <= end; k++) p->a2[k] = g_isoSoundSpeed*g_isoSoundSpeed;
 
   }
   #else
@@ -60,7 +57,7 @@ void SoundSpeed2 (double **v, double *cs2, double *h, int beg, int end,
 }
 
 /* ********************************************************************* */
-void Enthalpy (double **v, real *h, int beg, int end)
+void Enthalpy (double **v, double *h, int beg, int end)
 /*!
  * Compute the enthalpy.
  *

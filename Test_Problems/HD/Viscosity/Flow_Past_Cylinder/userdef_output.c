@@ -15,9 +15,9 @@ void ComputeUserVar (const Data *d, Grid *grid)
   vy = GetUserVar("vy");
   
   DOM_LOOP(k,j,i){
-    x1 = grid[IDIR].x[i];
-    x2 = grid[JDIR].x[j];
-    x3 = grid[KDIR].x[k];
+    x1 = grid->x[IDIR][i];
+    x2 = grid->x[JDIR][j];
+    x3 = grid->x[KDIR][k];
 
     v[0] = d->Vc[VX1][k][j][i];
     v[1] = d->Vc[VX2][k][j][i];
@@ -29,7 +29,7 @@ void ComputeUserVar (const Data *d, Grid *grid)
   }
 }
 /* ************************************************************* */
-void ChangeDumpVar ()
+void ChangeOutputVar ()
 /* 
  *
  * 

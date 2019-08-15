@@ -9,10 +9,12 @@
   parallel mode.
   The SB_SetBoundaryVar() function applies shearing-box boundary conditions 
   to a 3D array U[k][j][i] at an X1_BEG or X1_END boundary.
-  The array U[k][j][i] is defined on the RBox *box with grid indices 
-  (box->ib) <= i <= (box->ie), (box->jb) <= j <= (box->je)
-  (box->kb) <= k <= (box->ke), and assumes that periodic boundary 
-  conditions have already been set.
+  The array U[k][j][i] is defined on the RBox *box with grid indices
+  <tt>
+  (box->ibeg) <= i <= (box->iend), (box->jbeg) <= j <= (box->jend)
+  (box->kbeg) <= k <= (box->kend),
+  </tt> 
+  and assumes that periodic boundary conditions have already been set.
   Indices in the y-directions are not necessary, since the 
   entire y-range is assumed.
  
@@ -25,7 +27,7 @@
     
   \authors A. Mignone (mignone@ph.unito.it)\n
            G. Muscianisi (g.musicanisi@cineca.it)
-  \date   Jan 31, 2014
+  \date    Nov 13, 2015
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -55,7 +57,7 @@ void SB_SetBoundaryVar(double ***U, RBox *box, int side, double t, Grid *grid)
   static double *qL, *qR;
 
   if (side != X1_BEG && side != X1_END){
-    print1 ("! SB_SetBoundaryVar: wrong boundary\n");
+    print ("! SB_SetBoundaryVar: wrong boundary\n");
     QUIT_PLUTO(1);
   }
 
@@ -66,43 +68,41 @@ void SB_SetBoundaryVar(double ***U, RBox *box, int side, double t, Grid *grid)
 
   sb_Ly = g_domEnd[JDIR] - g_domBeg[JDIR];
 
-/* -- get number of ghost zones to the left and to the right --*/
+/* -- Get number of ghost zones to the left and to the right --*/
 
-  nghL = JBEG - box->jb;
-  nghR = box->je - JEND;
+  nghL = JBEG - box->jbeg;
+  nghR = box->jend - JEND;
 
-/* -- shift data values across parallel domains -- */
+/* -- Shift data values across parallel domains -- */
 
-  #ifdef PARALLEL
-   if (grid[JDIR].nproc > 1) SB_ShiftBoundaryVar(U, box, side, t, grid);
-  #endif
+#ifdef PARALLEL
+  if (grid->nproc[JDIR] > 1) SB_ShiftBoundaryVar(U, box, side, t, grid);
+#endif
 
-/* -- exchange values between processors to fill ghost zones -- */
+/* -- Exchange values between processors to fill ghost zones -- */
 
   SB_FillBoundaryGhost(U, box, nghL, nghR, grid);
 
-/* ---- perform 1D interpolation in the x 
+/* ---- Perform 1D interpolation in the x 
         boundary zones along the y direction  ---- */
 
   if (side == X1_BEG){
-    for (k = box->kb; k <= box->ke; k++){
-      for (i = box->ib; i <= box->ie; i++){
-        JTOT_LOOP(j) qR[j] = U[k][j][i];
-        SB_ShearingInterp (qL, qR, t, X1_BEG, grid);
-        JDOM_LOOP(j) U[k][j][i] = qL[j];
-      }
-    }
+    for (k = box->kbeg; k <= box->kend; k++){
+    for (i = box->ibeg; i <= box->iend; i++){
+      JTOT_LOOP(j) qR[j] = U[k][j][i];
+      SB_ShearingInterp (qL, qR, t, X1_BEG, grid);
+      JDOM_LOOP(j) U[k][j][i] = qL[j];
+    }}
   }else if (side == X1_END){
-    for (k = box->kb; k <= box->ke; k++){
-      for (i = box->ib; i <= box->ie; i++){
-        JTOT_LOOP(j) qL[j] = U[k][j][i];
-        SB_ShearingInterp (qL, qR, t, X1_END, grid);
-        JDOM_LOOP(j) U[k][j][i] = qR[j];
-      }
-    }
+    for (k = box->kbeg; k <= box->kend; k++){
+    for (i = box->ibeg; i <= box->iend; i++){
+      JTOT_LOOP(j) qL[j] = U[k][j][i];
+      SB_ShearingInterp (qL, qR, t, X1_END, grid);
+      JDOM_LOOP(j) U[k][j][i] = qR[j];
+    }}
   }
 
-/* -- exchange values between processors to fill ghost zones -- */
+/* -- Exchange values between processors to fill ghost zones -- */
 
   SB_FillBoundaryGhost (U, box, nghL, nghR, grid);
   return;
@@ -159,8 +159,8 @@ void SB_ShiftBoundaryVar(double ***q, RBox *box, int side, double t, Grid *grid)
     will be applied later on.                                            */
 /*  -------------------------------------------------------------------- */
 
-  ngh_x = grid[IDIR].nghost;
-  ngh_y = grid[JDIR].nghost;
+  ngh_x = grid->nghost[IDIR];
+  ngh_y = grid->nghost[JDIR];
   if (snd_buf == NULL){
     int nz = NX3_TOT;
     #if defined STAGGERED_MHD && DIMENSIONS == 3
@@ -174,10 +174,10 @@ void SB_ShiftBoundaryVar(double ***q, RBox *box, int side, double t, Grid *grid)
 
 /* -- compute buffer index offsets in x/z -- */
 
-  buf1.ib = buf2.ib = box->ib;
-  buf1.ie = buf2.ie = box->ie;
-  buf1.kb = buf2.kb = box->kb;
-  buf1.ke = buf2.ke = box->ke;
+  buf1.ibeg = buf2.ibeg = box->ibeg;
+  buf1.iend = buf2.iend = box->iend;
+  buf1.kbeg = buf2.kbeg = box->kbeg;
+  buf1.kend = buf2.kend = box->kend;
     
 /* --------------------------------------------------------------------- */
 /*! Depending on the boundary side, we set buffer offsets in the 
@@ -195,7 +195,7 @@ void SB_ShiftBoundaryVar(double ***q, RBox *box, int side, double t, Grid *grid)
 */
 /* --------------------------------------------------------------------- */
 
-  scrh    = (fmod(sb_vy*t, sb_Ly))/grid[JDIR].dx[JBEG]; 
+  scrh    = (fmod(sb_vy*t, sb_Ly))/grid->dx[JDIR][JBEG]; 
   Delta_j = (int)scrh;                   
 
   shift_coordy_mod = Delta_j%NX2; 
@@ -206,17 +206,17 @@ void SB_ShiftBoundaryVar(double ***q, RBox *box, int side, double t, Grid *grid)
     ny_buf1 = NX2 - (shift_coordy_mod) + ngh_y;
     ny_buf2 = ngh_y + (shift_coordy_mod); 
 
-    buf1.jb = 0; buf1.je = ny_buf1 - 1;
-    buf2.jb = 0; buf2.je = ny_buf2 - 1;
+    buf1.jbeg = 0; buf1.jend = ny_buf1 - 1;
+    buf2.jbeg = 0; buf2.jend = ny_buf2 - 1;
 
-    for (i = 0; i < DIMENSIONS; i++) coords[i] = grid[i].rank_coord;
+    for (i = 0; i < DIMENSIONS; i++) coords[i] = grid->rank_coord[i];
     coords[JDIR] += shift_coordy_div;
     MPI_Cart_rank(cartcomm, coords, &dst1);
     
     coords[JDIR] += 1;
     MPI_Cart_rank(cartcomm, coords, &dst2);
     
-    for (i = 0; i < DIMENSIONS; i++) coords[i] = grid[i].rank_coord;
+    for (i = 0; i < DIMENSIONS; i++) coords[i] = grid->rank_coord[i];
     coords[JDIR] -= shift_coordy_div;
     MPI_Cart_rank(cartcomm, coords, &src1);
 
@@ -228,17 +228,17 @@ void SB_ShiftBoundaryVar(double ***q, RBox *box, int side, double t, Grid *grid)
     ny_buf1 = shift_coordy_mod + ngh_y;
     ny_buf2 = ngh_y + (NX2 - shift_coordy_mod);
 
-    buf1.jb = 0; buf1.je = ny_buf1 - 1;
-    buf2.jb = 0; buf2.je = ny_buf2 - 1;
+    buf1.jbeg = 0; buf1.jend = ny_buf1 - 1;
+    buf2.jbeg = 0; buf2.jend = ny_buf2 - 1;
 
-    for (i = 0; i < DIMENSIONS; i++) coords[i] = grid[i].rank_coord;
+    for (i = 0; i < DIMENSIONS; i++) coords[i] = grid->rank_coord[i];
     coords[JDIR] -= shift_coordy_div;
     MPI_Cart_rank(cartcomm, coords, &dst2);
     
     coords[JDIR] -= 1;
     MPI_Cart_rank(cartcomm, coords, &dst1);
     
-    for (i = 0; i < DIMENSIONS; i++) coords[i] = grid[i].rank_coord;
+    for (i = 0; i < DIMENSIONS; i++) coords[i] = grid->rank_coord[i];
     coords[JDIR] += shift_coordy_div;
     MPI_Cart_rank(cartcomm, coords, &src2);
 
@@ -246,27 +246,27 @@ void SB_ShiftBoundaryVar(double ***q, RBox *box, int side, double t, Grid *grid)
     MPI_Cart_rank(cartcomm, coords, &src1);
 
   }else{
-    print1 ("! SB_ShiftBoundaryVar: wrong boundary\n");
+    print ("! SB_ShiftBoundaryVar: wrong boundary\n");
     QUIT_PLUTO(1);
   }
 
-/* -- compute buffer sizes in the three directions -- */
+/* -- Compute buffer sizes in the three directions -- */
 
-  nx_buf1 = buf1.ie - buf1.ib + 1;
-  nx_buf2 = buf2.ie - buf2.ib + 1;
+  nx_buf1 = buf1.iend - buf1.ibeg + 1;
+  nx_buf2 = buf2.iend - buf2.ibeg + 1;
 
-  ny_buf1 = buf1.je - buf1.jb + 1;
-  ny_buf2 = buf2.je - buf2.jb + 1;
+  ny_buf1 = buf1.jend - buf1.jbeg + 1;
+  ny_buf2 = buf2.jend - buf2.jbeg + 1;
 
-  nz_buf1 = buf1.ke - buf1.kb + 1;
-  nz_buf2 = buf2.ke - buf2.kb + 1;
+  nz_buf1 = buf1.kend - buf1.kbeg + 1;
+  nz_buf2 = buf2.kend - buf2.kbeg + 1;
 
-/* -- total buffer size -- */
+/* -- Total buffer size -- */
 
   buf1_size = nz_buf1*ny_buf1*nx_buf1;
   buf2_size = nz_buf2*ny_buf2*nx_buf2;
 
-/* -- fill send buffers with values -- */
+/* -- Fill send buffers with values -- */
 
   pbuf1 = &buf1;  /* pointer to RBox are used   */
   pbuf2 = &buf2;  /* inside the BOX_LOOP macros */
@@ -285,7 +285,7 @@ void SB_ShiftBoundaryVar(double ***q, RBox *box, int side, double t, Grid *grid)
                rcv_buf + buf1_size, buf2_size, MPI_DOUBLE, src2, 2, 
                cartcomm, &status);
 
-/* -- store received buffers in the correct locations -- */
+/* -- Store received buffers in the correct locations -- */
 
   count = 0;
   BOX_LOOP(pbuf1, k, j, i) q[k][j+ny_buf2][i] = rcv_buf[count++];   
@@ -314,44 +314,44 @@ void SB_FillBoundaryGhost(double ***U, RBox *box,
 {
   int i, j, k;
   int jb0, je0; 
-  #ifdef PARALLEL
-   int coords[3];
-   long int count, buf_size;
-   static double *snd_buf1, *snd_buf2, *rcv_buf1, *rcv_buf2;
-   static int dst1, dst2;
-   static MPI_Comm cartcomm;
-   MPI_Status status;
-  #endif
+#ifdef PARALLEL
+  int coords[3];
+  long int count, buf_size;
+  static double *snd_buf1, *snd_buf2, *rcv_buf1, *rcv_buf2;
+  static int dst1, dst2;
+  static MPI_Comm cartcomm;
+  MPI_Status status;
+#endif
 
 /* -------------------------------------------------------
-    save a copy of the original grid indices in the y-dir
+    Store a copy of the original grid indices in the y-dir
    ------------------------------------------------------- */
  
-  jb0 = box->jb;
-  je0 = box->je;
+  jb0 = box->jbeg;
+  je0 = box->jend;
 
 /* ------------------------------------------------------------------
-        impose periodic b.c. if there's only 1 processor along y
+    Impose periodic b.c. if there's only 1 processor along y
    ------------------------------------------------------------------ */
 
-  if (grid[JDIR].nproc == 1){
-    box->jb = JBEG - nghL; 
-    box->je = JBEG - 1;
+  if (grid->nproc[JDIR] == 1){
+    box->jbeg = JBEG - nghL; 
+    box->jend = JBEG - 1;
     BOX_LOOP(box, k, j, i) U[k][j][i] = U[k][j + NX2][i];
 
-    box->jb = JEND + 1; 
-    box->je = JEND + nghR;
+    box->jbeg = JEND + 1; 
+    box->jend = JEND + nghR;
     BOX_LOOP(box, k, j, i) U[k][j][i] = U[k][j - NX2][i];
 
-    box->jb = jb0; box->je = je0;
+    box->jbeg = jb0; box->jend = je0;
     return;
   }
  
 #ifdef PARALLEL
 
 /* ----------------------------------------------------------------
-    - allocate memory for maximum buffer size;
-    - get destination ranks of the processors lying above and 
+    - Allocate memory for maximum buffer size;
+    - Get destination ranks of the processors lying above and 
       below current processor. 
       This is done only once at the beginning since parallel
       decomposition is not going to change during the computation.
@@ -359,8 +359,8 @@ void SB_FillBoundaryGhost(double ***U, RBox *box,
 
   if (snd_buf1 == NULL){
    
-    i = grid[IDIR].nghost;
-    j = grid[JDIR].nghost;
+    i = grid->nghost[IDIR];
+    j = grid->nghost[JDIR];
     k = NX3_TOT;
     #ifdef STAGGERED_MHD 
      j++;
@@ -373,7 +373,7 @@ void SB_FillBoundaryGhost(double ***U, RBox *box,
 
     AL_Get_cart_comm(SZ, &cartcomm);
 
-    for (i = 0; i < DIMENSIONS; i++) coords[i] = grid[i].rank_coord;
+    for (i = 0; i < DIMENSIONS; i++) coords[i] = grid->rank_coord[i];
     coords[JDIR] -= 1;
     MPI_Cart_rank(cartcomm, coords, &dst1);
 
@@ -393,49 +393,49 @@ void SB_FillBoundaryGhost(double ***U, RBox *box,
                        <----- buf1        buf2  ---->
    ----------------------------------------------------------------- */
 
-/* -- send buffer at JBEG -- */
+/* -- Send buffer at JBEG -- */
 
   count = 0; 
-  box->jb = JBEG; 
-  box->je = JBEG + nghR - 1;
-  buf_size =  (box->ke - box->kb + 1)
-             *(box->je - box->jb + 1)
-             *(box->ie - box->ib + 1);
+  box->jbeg = JBEG; 
+  box->jend = JBEG + nghR - 1;
+  buf_size =  (box->kend - box->kbeg + 1)
+             *(box->jend - box->jbeg + 1)
+             *(box->iend - box->ibeg + 1);
   BOX_LOOP(box, k, j, i) snd_buf1[count++] = U[k][j][i];
 
   MPI_Sendrecv(snd_buf1, buf_size, MPI_DOUBLE, dst1, 1, 
                rcv_buf2, buf_size, MPI_DOUBLE, dst2, 1,
                cartcomm, &status);
 
-/* -- send buffer at JEND -- */
+/* -- Send buffer at JEND -- */
 
   count = 0; 
-  box->jb = JEND - nghL + 1; 
-  box->je = JEND; 
-  buf_size =  (box->ke - box->kb + 1)
-             *(box->je - box->jb + 1)
-             *(box->ie - box->ib + 1);
+  box->jbeg = JEND - nghL + 1; 
+  box->jend = JEND; 
+  buf_size =  (box->kend - box->kbeg + 1)
+             *(box->jend - box->jbeg + 1)
+             *(box->iend - box->ibeg + 1);
   BOX_LOOP(box, k, j, i) snd_buf2[count++] = U[k][j][i];
 
   MPI_Sendrecv(snd_buf2, buf_size, MPI_DOUBLE, dst2, 2, 
                rcv_buf1, buf_size, MPI_DOUBLE, dst1, 2, 
                cartcomm, &status);
 
-/* -- place buffers in the correct position -- */
+/* -- Place buffers in the correct position -- */
 
   count = 0; 
-  box->jb = JEND + 1; 
-  box->je = JEND + nghR;
+  box->jbeg = JEND + 1; 
+  box->jend = JEND + nghR;
   BOX_LOOP(box, k, j, i) U[k][j][i] = rcv_buf2[count++];
   
   count = 0; 
-  box->jb = JBEG - nghL; 
-  box->je = JBEG - 1;
+  box->jbeg = JBEG - nghL; 
+  box->jend = JBEG - 1;
   BOX_LOOP(box, k, j, i) U[k][j][i] = rcv_buf1[count++];
 
-/* -- restore original grid index in the y-dir -- */
+/* -- Restore original grid index in the y-dir -- */
 
-  box->jb = jb0; box->je = je0;
+  box->jbeg = jb0; box->jend = je0;
 
 #endif /* PARALLEL */
 }
@@ -474,8 +474,8 @@ void SB_ShearingInterp (double *qL, double *qR, double t, int side,
     flux = ARRAY_1D(NMAX_POINT, double);
   }   
 
-  Delta_y = grid[JDIR].dx[JBEG];
-  nghost  = grid[JDIR].nghost;
+  Delta_y = grid->dx[JDIR][JBEG];
+  nghost  = grid->nghost[JDIR];
 
   if (side == X1_BEG){
     q_from = qR; 
@@ -498,7 +498,7 @@ void SB_ShearingInterp (double *qL, double *qR, double t, int side,
 /* -- in parallel mode, shift has alrady been done at this point -- */
 
   #ifdef PARALLEL
-   if (grid[JDIR].nproc > 1) Delta_j = 0;
+   if (grid->nproc[JDIR] > 1) Delta_j = 0;
   #endif
  
 /* -- compute limited slopes & interpolate -- */
@@ -620,7 +620,7 @@ void SB_ShearingInterp (double *qL, double *qR, double t, int side,
 
   if (side == X1_END) dyfrac *= -1.0;
 
-  if (grid[JDIR].nproc == 1){
+  if (grid->nproc[JDIR] == 1){
     for (j = JBEG; j <= JEND; j++){
       jp = SB_JSHIFT(j + Delta_j);
       jm = SB_JSHIFT(jp - 1);

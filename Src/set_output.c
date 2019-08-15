@@ -10,7 +10,7 @@
   conditional inclusion flag (telling if the corresponding variable has
   to be written in the specified format), and so on.
   
-  The function SetDumpVar() can be used to include or exclude a given 
+  The function SetOutputVar() can be used to include or exclude a given 
   variable to be written using a particular output format.
   
   The function GetUserVar() returns the memory address to a 
@@ -23,7 +23,7 @@
         in your definitions.h.        
   
   \authors A. Mignone (mignone@ph.unito.it)
-  \date    Aug 24, 2015
+  \date    March 29, 2018
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -58,14 +58,27 @@ void SetOutput (Data *d, Runtime *runtime)
           Loop on output types 
    --------------------------------------------- */
 
-  for (k = 0; k < MAX_OUTPUT_TYPES; k++){ 
+  for (k = 0; k < MAX_OUTPUT_TYPES; k++){
+    
     output = runtime->output + k;
-    output->var_name = ARRAY_2D(64,128,char);
-    output->stag_var = ARRAY_1D(64, int);
-    output->dump_var = ARRAY_1D(64, int);
+    output->var_name = ARRAY_2D(MAX_OUTPUT_VARS, 128,char);
+//    output->stag_var = ARRAY_1D(64, int);
+//    output->dump_var = ARRAY_1D(64, int);
     strcpy(output->dir, runtime->output_dir); /* output directory is the same     */
-                                            /* for all outputs (easy to change) */
+                                              /* for all outputs (easy to change) */
     output->nfile    = -1;  
+
+  /* -- Set particles filename extensions -- */
+
+/* -- Exclude particle outputs -- */
+
+    #ifdef PARTICLES
+    if (output->type == PARTICLES_DBL_OUTPUT ||
+        output->type == PARTICLES_FLT_OUTPUT ||
+        output->type == PARTICLES_VTK_OUTPUT ||
+        output->type == PARTICLES_TAB_OUTPUT ||
+        output->type == PARTICLES_HDF5_OUTPUT) continue;
+    #endif
 
   /* -- set variables names -- */
 
@@ -80,15 +93,15 @@ void SetOutput (Data *d, Runtime *runtime)
     nv = NVAR;
     #ifdef STAGGERED_MHD
      D_EXPAND(
-       output->var_name[nv]   = "bx1s"; 
+       output->var_name[nv]   = "Bx1s"; 
        output->V[nv]          = d->Vs[BX1s]; 
        output->stag_var[nv++] = 0;           ,
 
-       output->var_name[nv]   = "bx2s"; 
+       output->var_name[nv]   = "Bx2s"; 
        output->V[nv]          = d->Vs[BX2s]; 
        output->stag_var[nv++] = 1;           ,
 
-       output->var_name[nv]   = "bx3s"; 
+       output->var_name[nv]   = "Bx3s"; 
        output->V[nv]          = d->Vs[BX3s]; 
        output->stag_var[nv++] = 2; 
      )
@@ -175,51 +188,56 @@ void SetOutput (Data *d, Runtime *runtime)
      --------------------------------------------------------------- */
    
     #ifdef GLM_MHD
-     if (output->type == DBL_OUTPUT || output->type == DBL_H5_OUTPUT)  
+     if (output->type == DBL_OUTPUT || output->type == DBL_H5_OUTPUT) {
        output->dump_var[PSI_GLM] = YES;
-     else
+       #ifdef PHI_GLM
+       output->dump_var[PHI_GLM] = YES;
+       #endif       
+     } else {
        output->dump_var[PSI_GLM] = NO;
+       #ifdef PHI_GLM
+       output->dump_var[PHI_GLM] = NO;
+       #endif       
+     }
     #endif
   }
  
-/* -- exclude stag components from all output except .dbl -- */
+/* -- Exclude staggered components from all output except .dbl and .h5.dbl -- */
 
   #ifdef STAGGERED_MHD
-   D_EXPAND( SetDumpVar ("bx1s", VTK_OUTPUT, NO);  ,
-             SetDumpVar ("bx2s", VTK_OUTPUT, NO);  ,
-             SetDumpVar ("bx3s", VTK_OUTPUT, NO);)
-   D_EXPAND( SetDumpVar ("bx1s", FLT_OUTPUT, NO);  ,
-             SetDumpVar ("bx2s", FLT_OUTPUT, NO);  ,
-             SetDumpVar ("bx3s", FLT_OUTPUT, NO);)
-   D_EXPAND( SetDumpVar ("bx1s", FLT_H5_OUTPUT, NO);  ,
-             SetDumpVar ("bx2s", FLT_H5_OUTPUT, NO);  ,
-             SetDumpVar ("bx3s", FLT_H5_OUTPUT, NO);)
-   D_EXPAND( SetDumpVar ("bx1s", TAB_OUTPUT, NO);  ,
-             SetDumpVar ("bx2s", TAB_OUTPUT, NO);  ,
-             SetDumpVar ("bx3s", TAB_OUTPUT, NO);)
+  D_EXPAND( SetOutputVar ("Bx1s", VTK_OUTPUT, NO);  ,
+            SetOutputVar ("Bx2s", VTK_OUTPUT, NO);  ,
+            SetOutputVar ("Bx3s", VTK_OUTPUT, NO);)
+  D_EXPAND( SetOutputVar ("Bx1s", FLT_OUTPUT, NO);  ,
+            SetOutputVar ("Bx2s", FLT_OUTPUT, NO);  ,
+            SetOutputVar ("Bx3s", FLT_OUTPUT, NO);)
+  D_EXPAND( SetOutputVar ("Bx1s", FLT_H5_OUTPUT, NO);  ,
+            SetOutputVar ("Bx2s", FLT_H5_OUTPUT, NO);  ,
+            SetOutputVar ("Bx3s", FLT_H5_OUTPUT, NO);)
+  D_EXPAND( SetOutputVar ("Bx1s", TAB_OUTPUT, NO);  ,
+            SetOutputVar ("Bx2s", TAB_OUTPUT, NO);  ,
+            SetOutputVar ("Bx3s", TAB_OUTPUT, NO);)
   #endif
 
 /* -- defaults: dump density only in ppm and png formats -- */
 
-  SetDumpVar ("rho", PPM_OUTPUT, YES);
-  SetDumpVar ("rho", PNG_OUTPUT, YES);
+  SetOutputVar ("rho", PPM_OUTPUT, YES);
+  SetOutputVar ("rho", PNG_OUTPUT, YES);
   
-  ChangeDumpVar();
 }
 
 /* ********************************************************************* */
-int SetDumpVar (char *var_name, int out_type, int flag)
+int SetOutputVar (char *var_name, int output_type, int flag)
 /*!
- *  Include ('flag == YES') or exclude ('flag == NO') the 
- *  variable associated to 'var_name' in or from the output 
- *  type 'out_type'. 
- *  If 'out_type' corresponds to an image (ppm or png), create
- *  a correspdonding Image structure.
+ *  Include ('flag == YES') or exclude ('flag == NO') the variable
+ *  corresponding to 'var_name' in or from the output type 'out_type'. 
+ *  If 'out_type' corresponds to an image (ppm or png), create a
+ *  correspdonding Image structure.
  *
- * \param [in] var_name  the name of the variable (e.g. "rho", "vx1",...)
- * \param [in] out_type  select the output type (e.g., DBL_OUTPUT, 
- *             VTK_OUTPUT, and so forth)
- * \param [in] flag     an integer values (YES/NO).      
+ * \param [in] var_name     the name of the variable (e.g. "rho", "vx1",...)
+ * \param [in] output_type  select the output type (e.g., DBL_OUTPUT, 
+ *                          VTK_OUTPUT, and so forth)
+ * \param [in] flag         an integer values (YES/NO).      
  *********************************************************************** */
 {
   int k, nv;
@@ -227,14 +245,14 @@ int SetDumpVar (char *var_name, int out_type, int flag)
 
   for (k = 0; k < MAX_OUTPUT_TYPES; k++){ 
     output = all_outputs + k;
-    if (output->type == out_type) break;
+    if (output->type == output_type) break;
   }
 
   for (nv = output->nvar; nv--; ) { 
-    if (strcmp(output->var_name[nv], var_name) == 0) { 
+    if (strcmp(output->var_name[nv], var_name) == 0) {
       output->dump_var[nv] = flag;
       if (flag == YES){
-        if (out_type == PPM_OUTPUT || out_type == PNG_OUTPUT){
+        if (output_type == PPM_OUTPUT || output_type == PNG_OUTPUT){
           CreateImage (var_name);
         }
       }
@@ -242,10 +260,38 @@ int SetDumpVar (char *var_name, int out_type, int flag)
     }
   }
 
-  print1 ("! var_name '%s' cannot be set/unset for writing\n",var_name);
+  print ("! var_name '%s' cannot be set/unset for writing\n",var_name);
   return(1);
-  
 }
+
+/* ********************************************************************* */
+int GetOutputVarNames(int output_type, char *var_name[NVAR])
+/*!
+ *  Return the number and the names of the variables being written to
+ *  disk with a particular output type.
+ *
+ * \param [in]  output_type    The output type (e.g. FLT_OUTPUT)
+ * \param [out] var_names      An array of strings containing the actual
+ *                              variable names.
+ *
+ * \return An integer giving the number of variables.
+ *
+ *********************************************************************** */
+{
+  int k, nv, count = 0;
+  Output *output;
+
+  for (k = 0; k < MAX_OUTPUT_TYPES; k++){ 
+    output = all_outputs + k;
+    if (output->type == output_type) break;
+  }
+
+  for (nv = 0; nv < output->nvar; nv++) {
+    if (output->dump_var[nv]) sprintf (var_name[count++], "%s", output->var_name[nv]);
+  }
+  return count;
+}
+
 
 /* ********************************************************************* */
 double ***GetUserVar (char *var_name)
@@ -259,7 +305,7 @@ double ***GetUserVar (char *var_name)
   
   while (strcmp(all_outputs->var_name[++indx], var_name)){
     if (all_outputs->V[indx] == NULL){
-      print1 ("! Error: uservar '%s' is not allocated\n"); 
+      print ("! Error: uservar '%s' is not allocated\n"); 
       QUIT_PLUTO(1);
     }
   }

@@ -3,7 +3,7 @@
 #define  sqrt_1_2  (0.70710678118654752440)
 
 /* **************************************************************************** */
-void Roe_Solver (const State_1D *state, int beg, int end, 
+void Roe_Solver (const Sweep *sweep, int beg, int end, 
                  double *cmax, Grid *grid)
 /*
  *
@@ -64,12 +64,12 @@ void Roe_Solver (const State_1D *state, int beg, int end,
   #endif
 
   #ifdef GLM_MHD
-   GLM_Solve (state, VL, VR, beg, end, grid);
+   GLM_Solve (sweep, VL, VR, beg, end, grid);
    PrimToCons (VL, UL, beg, end);
    PrimToCons (VR, UR, beg, end);
   #else
-   VL = state->vL; UL = state->uL;
-   VR = state->vR; UR = state->uR;
+   VL = sweep->vL; UL = sweep->uL;
+   VR = sweep->vR; UR = sweep->uR;
   #endif
 
   SoundSpeed2 (VL, a2L, NULL, beg, end, FACE_CENTER, grid);
@@ -78,7 +78,7 @@ void Roe_Solver (const State_1D *state, int beg, int end,
   Flux (UL, VL, a2L, bgf, fL, pL, beg, end);
   Flux (UR, VR, a2R, bgf, fR, pR, beg, end);
 
-  SL = state->SL; SR = state->SR;
+  SL = sweep->SL; SR = sweep->SR;
 
 /*  Some eigenvector components will always be zero so set
       R = 0 initially   */
@@ -105,19 +105,19 @@ void Roe_Solver (const State_1D *state, int beg, int end,
        cmax[i] = scrh0; 
 
        if (SL[i] > 0.0) {
-         for (nv = NFLX; nv--; ) state->flux[i][nv] = fL[i][nv];
-         state->press[i] = pL[i];
+         for (nv = NFLX; nv--; ) sweep->flux[i][nv] = fL[i][nv];
+         sweep->press[i] = pL[i];
        } else if (SR[i] < 0.0) {
-         for (nv = NFLX; nv--; ) state->flux[i][nv] = fR[i][nv];
-         state->press[i] = pR[i];
+         for (nv = NFLX; nv--; ) sweep->flux[i][nv] = fR[i][nv];
+         sweep->press[i] = pR[i];
        }else{
          scrh0 = 1.0/(SR[i] - SL[i]);
          for (nv = NFLX; nv--; ){
-           state->flux[i][nv]  = SR[i]*SL[i]*(uR[nv] - uL[nv])
+           sweep->flux[i][nv]  = SR[i]*SL[i]*(uR[nv] - uL[nv])
                               +  SR[i]*fL[i][nv] - SL[i]*fR[i][nv];
-           state->flux[i][nv] *= scrh0;
+           sweep->flux[i][nv] *= scrh0;
          }
-         state->press[i] = (SR[i]*pL[i] - SL[i]*pR[i])*scrh0;
+         sweep->press[i] = (SR[i]*pL[i] - SL[i]*pR[i])*scrh0;
        }
        continue;
      }
@@ -399,13 +399,13 @@ void Roe_Solver (const State_1D *state, int beg, int end,
         }
         scrh0 += scrh1*eta[k]*Rc[nv][k];
       }
-      state->flux[i][nv] = 0.5*(fL[i][nv] + fR[i][nv] - scrh0);
+      sweep->flux[i][nv] = 0.5*(fL[i][nv] + fR[i][nv] - scrh0);
     }
-    state->press[i] = 0.5*(pL[i] + pR[i]);
+    sweep->press[i] = 0.5*(pL[i] + pR[i]);
   }
 
   #if DIVB_CONTROL == EIGHT_WAVES
-   ROE_DivBSource (state, grid, beg, end);
+   ROE_DivBSource (sweep, grid, beg, end);
   #endif
 }
 #undef sqrt_1_2

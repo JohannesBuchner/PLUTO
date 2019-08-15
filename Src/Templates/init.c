@@ -8,7 +8,7 @@
   It is automatically searched for by the makefile.
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   Sept 10, 2012
+  \date   March 5, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -46,22 +46,34 @@ void Init (double *v, double x1, double x2, double x3)
   v[VX2] = 0.0;
   v[VX3] = 0.0;
   #if HAVE_ENERGY
-   v[PRS] = 1.0;
+  v[PRS] = 1.0;
   #endif
   v[TRC] = 0.0;
 
   #if PHYSICS == MHD || PHYSICS == RMHD
+  v[BX1] = 0.0;
+  v[BX2] = 0.0;
+  v[BX3] = 0.0;
 
-   v[BX1] = 0.0;
-   v[BX2] = 0.0;
-   v[BX3] = 0.0;
-
-   v[AX1] = 0.0;
-   v[AX2] = 0.0;
-   v[AX3] = 0.0;
-
+  v[AX1] = 0.0;
+  v[AX2] = 0.0;
+  v[AX3] = 0.0;
   #endif
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /*! 
@@ -120,12 +132,12 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
   int   i, j, k, nv;
   double  *x1, *x2, *x3;
 
-  x1 = grid[IDIR].x;
-  x2 = grid[JDIR].x;
-  x3 = grid[KDIR].x;
+  x1 = grid->x[IDIR];
+  x2 = grid->x[JDIR];
+  x3 = grid->x[KDIR];
 
   if (side == 0) {    /* -- check solution inside domain -- */
-    DOM_LOOP(k,j,i){};
+    DOM_LOOP(k,j,i){}
   }
 
   if (side == X1_BEG){  /* -- X1_BEG boundary -- */

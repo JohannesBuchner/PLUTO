@@ -10,8 +10,7 @@
 #include "pluto.h"
 
 /* ********************************************************************* */
-int MaxSignalSpeed (double **v, double *a2, double *h,
-                    double *cmin, double *cmax, int beg, int end)
+int MaxSignalSpeed (const State *state, double *cmin, double *cmax, int beg, int end)
 /*!
  *  Return the rightmost (cmax) and leftmost (cmin) 
  *  wave propagation speed in the Riemann fan
@@ -19,13 +18,23 @@ int MaxSignalSpeed (double **v, double *a2, double *h,
  *********************************************************************** */
 {
   int    i, err;
-  double lambda[NFLX];
+  double lambda[NFLX], scrh, a2;
 
   for (i = beg; i <= end; i++) {
-    err = Magnetosonic (v[i], a2[i], h[i], lambda);
+    #if RESISTIVITY == NO
+    err = Magnetosonic (state->v[i], state->a2[i], state->h[i], lambda);
+    if (err) Where(i,NULL); 
     if (err != 0) return i;
     cmax[i] = lambda[KFASTP];
     cmin[i] = lambda[KFASTM];
+    #else
+    a2     = state->a2[i];
+    scrh   = fabs(state->v[i][VXn])/sqrt(a2);
+    g_maxMach = MAX(scrh, g_maxMach);
+
+    cmax[i] =  1.0;
+    cmin[i] = -1.0;
+    #endif
   }
   return 0;
 }
@@ -134,8 +143,8 @@ simplify(a0 - coeff(fMB2,lambda,0)/gamma^2);
   double  b2, del, z[4];
 
 #if RMHD_FAST_EIGENVALUES
-  Eigenvalues (vp, cs2, h, lambda);
-  return 0;
+  iflag = ApproximateFastWaves(vp, cs2, h, lambda);
+  return iflag;
 #endif
 
   scrh   = fabs(vp[VXn])/sqrt(cs2);
@@ -147,7 +156,7 @@ simplify(a0 - coeff(fMB2,lambda,0)/gamma^2);
   vm2 = u02;
 
   if (u02 >= 1.0){
-    print ("! MAGNETOSONIC: |v|= %f > 1\n",u02);
+    print ("! Magnetosonic(): |v|= %f > 1\n",u02);
     return 1;
   }
 
@@ -274,12 +283,18 @@ if (z[3] < z[2] || z[3] < z[1] || z[3] < z[0] ||
 }
 
 /* ********************************************************************* */
-int Eigenvalues(double *v, double cs2, double h, double *lambda)
+int ApproximateFastWaves(double *v, double cs2, double h, double *lambda)
 /*!
  * Compute an approximate expression for the fast magnetosonic speed
  * using the upper-bound estimated outlined by
  * Leismann et al. (A&A 2005, 436, 503), Eq. [27].
  *
+ * \param [in]  v       an array of primitive variables
+ * \param [in]  cs2     the sound speed
+ * \param [in]  h       the specific entropy
+ * \param [out] lambda  an array containing the fast magnetosonic speeds
+ *
+ * \return 1 if an error occurred.
  *********************************************************************** */
 {
   double vel2, lor2, Bmag2, b2, ca2, om2, vB2;
@@ -307,7 +322,7 @@ int Eigenvalues(double *v, double cs2, double h, double *lambda)
   lambda[KFASTM] = vl - scrh;
   lambda[KFASTP] = vl + scrh;
 
-  if (fabs(lambda[KFASTM])>1.0 || fabs(lambda[KFASTP]) > 1.0){
+  if (fabs(lambda[KFASTM]) > 1.0 || fabs(lambda[KFASTP]) > 1.0){
     print ("! Eigenvalues(): vm, vp = %8.3e, %8.3e\n",lambda[KFASTM],lambda[KFASTP]);
     QUIT_PLUTO(1);
   }
@@ -318,6 +333,7 @@ int Eigenvalues(double *v, double cs2, double h, double *lambda)
    
   scrh      = fabs(vx)/sqrt(cs2);
   g_maxMach = MAX(scrh, g_maxMach);
+  return 0;
 }
 
 

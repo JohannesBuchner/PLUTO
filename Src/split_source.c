@@ -16,13 +16,13 @@
   - additional user-defined terms may also be included here.
 
   \authors A. Mignone (mignone@ph.unito.it)
-  \date    May 10, 2013
+  \date    Oct 26, 2016
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
 /* ********************************************************************* */
-void SplitSource (const Data *d, double dt, Time_Step *Dts, Grid *grid)
+void SplitSource (const Data *d, double dt, timeStep *Dts, Grid *grid)
 /*! 
  *  Take one step on operator-split source terms.
  *
@@ -36,23 +36,20 @@ void SplitSource (const Data *d, double dt, Time_Step *Dts, Grid *grid)
  *
  *********************************************************************** */
 {
-/*  ---- GLM source term treated in main ----  */
-/*
-  #ifdef GLM_MHD
-   GLM_SOURCE (d->Vc, dt, grid);
-  #endif
-*/
+
 /*  ---------------------------------------------
              Cooling/Heating losses
     ---------------------------------------------  */
 
-  #if COOLING != NO
-   #if COOLING == POWER_LAW  /* -- solve exactly -- */
-    PowerLawCooling (d->Vc, dt, Dts, grid);
-   #else
-    CoolingSource (d, dt, Dts, grid);
-   #endif
+#if COOLING != NO
+  #if COOLING == POWER_LAW  /* -- solve exactly -- */
+  PowerLawCooling (d->Vc, dt, Dts, grid);
+  #elif COOLING == KROME /* -- Interfaced krome solvers -- */
+  KromeCooling (d, dt, Dts, grid);
+  #else
+  CoolingSource (d, dt, Dts, grid);
   #endif
+#endif
 
 /* ----------------------------------------------
     Parabolic terms using STS:
@@ -62,11 +59,12 @@ void SplitSource (const Data *d, double dt, Time_Step *Dts, Grid *grid)
     - viscosity 
    ---------------------------------------------- */
 
-  #if (PARABOLIC_FLUX & SUPER_TIME_STEPPING)
-   STS (d, Dts, grid);
-  #endif
+#if (PARABOLIC_FLUX & SUPER_TIME_STEPPING)
+  STS (d, dt, Dts, grid);
+#endif
 
-  #if (PARABOLIC_FLUX & RK_CHEBYSHEV)
-   RKC (d, Dts, grid);
-  #endif
+#if (PARABOLIC_FLUX & RK_LEGENDRE)
+  RKL (d, dt, Dts, grid);
+#endif
+
 }

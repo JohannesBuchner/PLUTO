@@ -14,31 +14,35 @@
     (tangent \c "t" and bi-tangent \c "b").
 
  \author A. Mignone (mignone@ph.unito.it)
- \date   July 5, 2015
+ \date   Oct 12, 2016
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
 /* ********************************************************************* */
-void Flux (double **u, double **v, double *a2, double **fx, 
-           double *p, int beg, int end)
+void Flux (const State *state, int beg, int end)
 /*
- *
- *
+ * \param [in,out]  state   Pointer to a state structure
+ * \param [in]      beg     initial index of computation 
+ * \param [in]      end     final   index of computation
  *
  *********************************************************************** */
 {
   int    nv, i;
-  double vn;
+  double *u, *v, *fx, vn;
 
   for (i = beg ; i <= end; i++) {
-    vn = v[i][VXn];
+    v  = state->v[i];
+    u  = state->u[i];
+    fx = state->flux[i];
 
-    fx[i][RHO]  = u[i][RHO]*vn;
-    EXPAND(fx[i][MX1] = u[i][MX1]*vn;  ,
-           fx[i][MX2] = u[i][MX2]*vn;  ,
-           fx[i][MX3] = u[i][MX3]*vn;)
-    fx[i][ENG] = u[i][MXn];
-    p[i] = v[i][PRS];
+    vn = v[VXn];
+
+    fx[RHO]  = u[RHO]*vn;
+    EXPAND(fx[MX1] = u[MX1]*vn;  ,
+           fx[MX2] = u[MX2]*vn;  ,
+           fx[MX3] = u[MX3]*vn;)
+    fx[ENG] = u[MXn];
+    state->prs[i] = v[PRS];
   }
 }

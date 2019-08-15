@@ -16,8 +16,8 @@
   The macro ::COUNT_FAILURES can be set to YES if one wishes to count
   how many times the solver fails.
   
-  On input, it takes left and right primitive state vectors 
-  \c state->vL and \c state->vR at zone edge i+1/2;
+  On input, it takes left and right primitive sweep vectors 
+  \c sweep->vL and \c sweep->vR at zone edge i+1/2;
   On output, return flux and pressure vectors at the same interface 
   \c i+1/2 (note that the \c i refers to \c i+1/2).
   
@@ -68,14 +68,14 @@ static void HLLD_PrintStates(double *, double *);
 static void HLLD_PrintWhatsWrong(Riemann_State *, Riemann_State *, 
                                  double, double *, double *);
 
-#define DEBUG  NO
+#define HLLD_DEBUG  NO
 /* ********************************************************************* */
-void HLLD_Solver (const State_1D *state, int beg, int end, 
+void HLLD_Solver (const Sweep *sweep, int beg, int end, 
                   double *cmax, Grid *grid)
 /*!
  * Solve the Riemann problem using the HLLD Riemann solver.
  *
- * \param[in,out] state   pointer to State_1D structure
+ * \param[in,out] sweep   pointer to Sweep structure
  * \param[in]     beg     initial grid index
  * \param[out]    end     final grid index
  * \param[out]    cmax    1D array of maximum characteristic speeds
@@ -86,16 +86,19 @@ void HLLD_Solver (const State_1D *state, int beg, int end,
   int    nv, i, k;
   int    switch_to_hll;
   double   scrh;
-  static double **fluxL, **fluxR;
-  static double *pL, *pR, *a2L, *a2R, *hL, *hR;
   static double **Uhll, **Fhll, **Vhll;
   double *vL, *vR, *fL, *fR, *uL, *uR, *SL, *SR;
-  static double **VL, **VR, **UL, **UR;
  
   double p0, f0, p, f, dp, dS_1;
   double Uc[NVAR];
   Riemann_State PaL, PaR;
   double pguess;
+  const State   *stateL = &(sweep->stateL);
+  const State   *stateR = &(sweep->stateR);
+  double **fluxL = stateL->flux, **fluxR = stateR->flux;
+  double *a2L = stateL->a2,   *a2R = stateR->a2;
+  double  *hL = stateL->h,     *hR = stateR->h;
+  double  *pL = stateL->prs,   *pR = stateR->prs;
 
 /* -------------------------------------------------------
      for information purposes, show how many failures
@@ -132,26 +135,10 @@ void HLLD_Solver (const State_1D *state, int beg, int end,
  
 /* ----------------------------------------------------------- */
 
-  if (fluxL == NULL){
-    fluxL = ARRAY_2D(NMAX_POINT, NFLX, double);
-    fluxR = ARRAY_2D(NMAX_POINT, NFLX, double);
-    pL    = ARRAY_1D(NMAX_POINT, double);
-    pR    = ARRAY_1D(NMAX_POINT, double);
+  if (Uhll == NULL){
     Uhll = ARRAY_2D(NMAX_POINT, NVAR, double);
     Fhll = ARRAY_2D(NMAX_POINT, NVAR, double);
     Vhll = ARRAY_2D(NMAX_POINT, NVAR, double);
-
-    #ifdef GLM_MHD
-     VL = ARRAY_2D(NMAX_POINT, NVAR, double);
-     VR = ARRAY_2D(NMAX_POINT, NVAR, double);
-     UL = ARRAY_2D(NMAX_POINT, NVAR, double);
-     UR = ARRAY_2D(NMAX_POINT, NVAR, double);
-    #endif
-
-    a2L = ARRAY_1D(NMAX_POINT, double);
-    a2R = ARRAY_1D(NMAX_POINT, double);
-    hL  = ARRAY_1D(NMAX_POINT, double);
-    hR  = ARRAY_1D(NMAX_POINT, double);
   }
 /*
   #if DIVB_CONTROL == EIGHT_WAVES
@@ -160,29 +147,24 @@ void HLLD_Solver (const State_1D *state, int beg, int end,
   #endif
 */
 
-  #ifdef GLM_MHD
-   GLM_Solve (state, VL, VR, beg, end, grid);
-   PrimToCons (VL, UL, beg, end);
-   PrimToCons (VR, UR, beg, end);
-  #else
-   VL = state->vL; UL = state->uL;
-   VR = state->vR; UR = state->uR;
-  #endif
+#ifdef GLM_MHD
+  GLM_Solve (sweep, beg, end, grid);
+#endif
 
 /* ----------------------------------------------------
      compute sound speed & fluxes at zone interfaces
    ---------------------------------------------------- */
 
-  SoundSpeed2 (VL, a2L, hL, beg, end, FACE_CENTER, grid);
-  SoundSpeed2 (VR, a2R, hR, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (stateL, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (stateR, beg, end, FACE_CENTER, grid);
 
-  Flux (UL, VL, hL, fluxL, pL, beg, end);
-  Flux (UR, VR, hR, fluxR, pR, beg, end);
+  Flux (stateL, beg, end);
+  Flux (stateR, beg, end);
 
 /* -- compute speeds -- */
 
-  SL = state->SL; SR = state->SR;
-  HLL_Speed (VL, VR, a2L, a2R, hL, hR, SL, SR, beg, end);
+  SL = sweep->SL; SR = sweep->SR;
+  HLL_Speed (stateL, stateR, SL, SR, beg, end);
 
 /* -------------------------------------------------------
                Begin main loop 
@@ -190,7 +172,7 @@ void HLLD_Solver (const State_1D *state, int beg, int end,
 
   for (i = beg; i <= end; i++) {
 
-#if DEBUG == YES
+#if HLLD_DEBUG == YES
     if (!(grid[IDIR].x[i] < 0.5 && grid[IDIR].x[i+1] > 0.5)) continue;
 #endif
 
@@ -201,22 +183,22 @@ void HLLD_Solver (const State_1D *state, int beg, int end,
     scrh  = MAX(fabs(SL[i]), fabs(SR[i]));
     cmax[i] = scrh;
 
-    vL = VL[i]; vR = VR[i]; fR = fluxR[i];
-    uL = UL[i]; uR = UR[i]; fL = fluxL[i];
+    vL = stateL->v[i]; uL = stateL->u[i]; fL = stateL->flux[i];
+    vR = stateR->v[i]; uR = stateR->u[i]; fR = stateR->flux[i];
 
     if (SL[i] >= 0.0){
 
-      for (nv = NFLX; nv--; ) state->flux[i][nv] = fL[nv];
-      state->press[i] = pL[i];
+      for (nv = NFLX; nv--; ) sweep->flux[i][nv] = fL[nv];
+      sweep->press[i] = pL[i];
 
     }else if (SR[i] <= 0.0){
 
-      for (nv = NFLX; nv--; ) state->flux[i][nv] = fR[nv];
-      state->press[i] = pR[i];
+      for (nv = NFLX; nv--; ) sweep->flux[i][nv] = fR[nv];
+      sweep->press[i] = pR[i];
 
     }else{
 
-  /* ---- build the HLL average state ---- */
+  /* ---- build the HLL average sweep ---- */
 
       dS_1 = 1.0/(SR[i] - SL[i]);
       for (nv = NFLX; nv--;  ){  /* -- we use NVAR and not NFLX  since 
@@ -244,9 +226,9 @@ void HLLD_Solver (const State_1D *state, int beg, int end,
   /* ---- revert to HLL in proximity of strong shocks ---- */
 
 #if SHOCK_FLATTENING == MULTID
-      if ((state->flag[i] & FLAG_HLL) || (state->flag[i+1] & FLAG_HLL)){        
-        for (nv = NFLX; nv--; ) state->flux[i][nv] = Fhll[i][nv];
-        state->press[i] = (SR[i]*pL[i] - SL[i]*pR[i])*dS_1;
+      if ((sweep->flag[i] & FLAG_HLL) || (sweep->flag[i+1] & FLAG_HLL)){        
+        for (nv = NFLX; nv--; ) sweep->flux[i][nv] = Fhll[i][nv];
+        sweep->press[i] = (SR[i]*pL[i] - SL[i]*pR[i])*dS_1;
         continue;
       }
 #endif
@@ -282,7 +264,7 @@ void HLLD_Solver (const State_1D *state, int beg, int end,
 
       }else{  /* ----  use HLL average ---- */
                          
-        ConsToPrim(Uhll, Vhll, i, i, state->flag);
+        ConsToPrim(Uhll, Vhll, i, i, sweep->flag);
         p0    = HLLD_TotalPressure(Vhll[i]);
       }
       
@@ -300,7 +282,7 @@ void HLLD_Solver (const State_1D *state, int beg, int end,
         p  = 1.025*p0; f  = f0;
         for (k = 1; k < MAX_ITER; k++){
 
-#if DEBUG == YES
+#if HLLD_DEBUG == YES
  printf ("k = %d, p = %12.6e,  f = %12.6e\n",k,p,f);
 #endif
 
@@ -319,7 +301,7 @@ void HLLD_Solver (const State_1D *state, int beg, int end,
         }
       }else p = p0;
 
-#if DEBUG == YES
+#if HLLD_DEBUG == YES
 HLLD_PrintWhatsWrong(&PaL, &PaR, phll, phll, p0Bx, p, vL, vR);
 #endif
 
@@ -332,8 +314,8 @@ HLLD_PrintWhatsWrong(&PaL, &PaR, phll, phll, p0Bx, p, vL, vR);
          totfail += 1.0;
         #endif
 
-        for (nv = NFLX; nv--; ) state->flux[i][nv] = Fhll[i][nv];
-        state->press[i]  = (SR[i]*pL[i] - SL[i]*pR[i])*dS_1;
+        for (nv = NFLX; nv--; ) sweep->flux[i][nv] = Fhll[i][nv];
+        sweep->press[i]  = (SR[i]*pL[i] - SL[i]*pR[i])*dS_1;
         continue;
       }
 
@@ -352,9 +334,9 @@ HLLD_PrintWhatsWrong(&PaL, &PaR, phll, phll, p0Bx, p, vL, vR);
          PaL.u[ENG] -= PaL.u[RHO];
         #endif
         for (nv = NFLX; nv--;   ) {
-          state->flux[i][nv] = fL[nv] + SL[i]*(PaL.u[nv] - uL[nv]);
+          sweep->flux[i][nv] = fL[nv] + SL[i]*(PaL.u[nv] - uL[nv]);
         }
-        state->press[i] = pL[i];
+        sweep->press[i] = pL[i];
 
       }else if (PaR.Sa <= 1.e-6){
 
@@ -363,9 +345,9 @@ HLLD_PrintWhatsWrong(&PaL, &PaR, phll, phll, p0Bx, p, vL, vR);
          PaR.u[ENG] -= PaR.u[RHO];
         #endif
         for (nv = NFLX; nv--;   ) {
-          state->flux[i][nv] = fR[nv] + SR[i]*(PaR.u[nv] - uR[nv]);
+          sweep->flux[i][nv] = fR[nv] + SR[i]*(PaR.u[nv] - uR[nv]);
         }
-        state->press[i] = pR[i];
+        sweep->press[i] = pR[i];
 
       }else{
 
@@ -376,10 +358,10 @@ HLLD_PrintWhatsWrong(&PaL, &PaR, phll, phll, p0Bx, p, vL, vR);
            Uc[ENG]    -= Uc[RHO];
           #endif
           for (nv = NFLX; nv--;   ) {
-            state->flux[i][nv] = fL[nv] + SL[i]*(PaL.u[nv] - uL[nv]) 
+            sweep->flux[i][nv] = fL[nv] + SL[i]*(PaL.u[nv] - uL[nv]) 
                                         + PaL.Sa*(Uc[nv] - PaL.u[nv]);
           }
-          state->press[i] = pL[i];
+          sweep->press[i] = pL[i];
 
         }else{
           #if RMHD_REDUCED_ENERGY == YES
@@ -387,10 +369,10 @@ HLLD_PrintWhatsWrong(&PaL, &PaR, phll, phll, p0Bx, p, vL, vR);
            Uc[ENG]    -= Uc[RHO];
           #endif
           for (nv = NFLX; nv--;   ) {
-            state->flux[i][nv] = fR[nv] + SR[i]*(PaR.u[nv] - uR[nv]) 
+            sweep->flux[i][nv] = fR[nv] + SR[i]*(PaR.u[nv] - uR[nv]) 
                                         + PaR.Sa*(Uc[nv] - PaR.u[nv]);
           }
-          state->press[i] = pR[i];
+          sweep->press[i] = pR[i];
         }  
       }
     } /* --- end if on SL, SR -- */
@@ -401,7 +383,7 @@ HLLD_PrintWhatsWrong(&PaL, &PaR, phll, phll, p0Bx, p, vL, vR);
    -------------------------------------------------------- */
  
   #if DIVB_CONTROL == EIGHT_WAVES
-   HLL_DIVB_SOURCE (state, Uhll, beg + 1, end, grid);
+   HLL_DIVB_SOURCE (sweep, Uhll, beg + 1, end, grid);
   #endif
 
 }
@@ -427,7 +409,7 @@ double HLLD_Fstar (Riemann_State *PaL, Riemann_State *PaR, double p)
   success *= HLLD_GetRiemannState (PaL, p, -1);
   success *= HLLD_GetRiemannState (PaR, p,  1);
 
-/* -- compute B from average state -- */
+/* -- compute B from average sweep -- */
 
   dK  = PaR->Kx - PaL->Kx + 1.e-12;
 
@@ -457,7 +439,7 @@ fun = dK*(1.0 - Bx*(  (1.0 - PaR->K2)/(PaR->sw*dK - KRBc)
                     - (1.0 - PaL->K2)/(PaL->sw*dK - KLBc)) );
 */
 
-  /* -- check if state makes physically sense -- */
+  /* -- check if sweep makes physically sense -- */
 
   success  = (vxcL - PaL->Kx)  > -1.e-6;
   success *= (PaR->Kx  - vxcR) > -1.e-6;
@@ -487,7 +469,7 @@ PaL->denR = (PaR->sw*dK - KRBc);
 /* ********************************************************************* */
 int HLLD_GetRiemannState (Riemann_State *Pv, double p, int side)
 /*!
- * Express the state behind a wave as function of the total
+ * Express the sweep behind a wave as function of the total
  * pressure p and the right hand side on the other side of the wave.
  *  
  * On output, return 1 if succesful, 0 if w < 0 is encountered.
@@ -573,7 +555,7 @@ int HLLD_GetRiemannState (Riemann_State *Pv, double p, int side)
 /* ********************************************************************* */
 void HLLD_GetAState (Riemann_State *Pa,  double p)
 /*!
- *  Compute states aL and aR behind fast waves.
+ *  Compute sweeps aL and aR behind fast waves.
  *
  *********************************************************************** */
 {
@@ -603,7 +585,7 @@ void HLLD_GetAState (Riemann_State *Pa,  double p)
 void HLLD_GetCState (Riemann_State *PaL, Riemann_State *PaR, double p,
                      double *Uc)
 /*!
- *  Compute states cL and cR across contact mode.
+ *  Compute sweeps cL and cR across contact mode.
  *
  *************************************************************** */
 {

@@ -18,11 +18,11 @@ void ComputeUserVar (const Data *d, Grid *grid)
   double ***Ch_dt, ***Cp_dt;
   static double *cmax, **dcoeff;
   static double ***T;
-  static State_1D state;
+  static Sweep sweep;
   Index indx;
   
-  if (state.rhs == NULL) {
-    MakeState(&state);
+  if (sweep.rhs == NULL) {
+    MakeState(&sweep);
     cmax   = ARRAY_1D(NMAX_POINT, double);
     dcoeff = ARRAY_2D(NMAX_POINT, NVAR, double);
     T      = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double); 
@@ -50,11 +50,11 @@ void ComputeUserVar (const Data *d, Grid *grid)
     GetInverse_dl(grid);
     
     for (i = 0; i < NX1_TOT; i++){
-      for (nv = NVAR; nv--;  ) state.v[i][nv] = d->Vc[nv][k][j][i];
+      for (nv = NVAR; nv--;  ) sweep.v[i][nv] = d->Vc[nv][k][j][i];
     }
-    States (&state, IBEG-1, IEND+1, grid);
-    HLL_Solver(&state, IBEG-1, IEND, cmax, grid);
-    TC_Flux (T, &state, dcoeff, IBEG-1, IEND, grid);  
+    States (&sweep, IBEG-1, IEND+1, grid);
+    HLL_Solver(&sweep, IBEG-1, IEND, cmax, grid);
+    TC_Flux (T, &sweep, dcoeff, IBEG-1, IEND, grid);  
     
     Ch_dt[k][j][i] = 0.5*(cmax[i] + cmax[i-1])*inv_dl[i];
 
@@ -73,11 +73,11 @@ void ComputeUserVar (const Data *d, Grid *grid)
     GetInverse_dl(grid);
     
     for (j = 0; j < NX2_TOT; j++){
-      for (nv = NVAR; nv--;  ) state.v[j][nv] = d->Vc[nv][k][j][i];
+      for (nv = NVAR; nv--;  ) sweep.v[j][nv] = d->Vc[nv][k][j][i];
     }
-    States (&state, JBEG-1, JEND+1, grid);
-    HLL_Solver(&state, JBEG-1, JEND, cmax, grid);
-    TC_Flux (T, &state, dcoeff, JBEG-1, JEND, grid);  
+    States (&sweep, JBEG-1, JEND+1, grid);
+    HLL_Solver(&sweep, JBEG-1, JEND, cmax, grid);
+    TC_Flux (T, &sweep, dcoeff, JBEG-1, JEND, grid);  
     
     Ch_dt[k][j][i] += 0.5*(cmax[j] + cmax[j-1])*inv_dl[j];
 

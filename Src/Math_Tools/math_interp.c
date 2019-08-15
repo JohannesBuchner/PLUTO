@@ -68,9 +68,9 @@ void MonotoneSplineCoeffs (double *x, double *y, double *dydx, int n,
       c[k] = dx*dydx[k];
       d[k] = y[k];
     }else{
-      print1 ("! MonotoneSplineCoeffs(): monotonicity condition not ");
-      print1 ("satisifed in SPLINE1 \n");
-      print1 ("cm = %d, c1 = %d, c2 = %d, c2a = %d\n",cm,c1,c2,c2a);
+      print ("! MonotoneSplineCoeffs(): monotonicity condition not ");
+      print ("satisifed in SPLINE1 \n");
+      print ("cm = %d, c1 = %d, c2 = %d, c2a = %d\n",cm,c1,c2,c2a);
       QUIT_PLUTO(1);
     }
 

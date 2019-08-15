@@ -4,7 +4,7 @@
   \brief  Miscellaneous math functions.
   \author A. Mignone (mignone@ph.unito.it)
           B. Vaidya 
-  \date   June 28, 2015
+  \date   Oct 4, 2016
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -191,7 +191,7 @@ double BesselKn(int n, double x)
   int j;
   double bk,bkm,bkp,tox;
   if (n < 2){
-    print1("!BesselKn: Index n less than 2");
+    print("!BesselKn: Index n less than 2");
     QUIT_PLUTO(1);
   }  
   tox = 2.0/x;
@@ -205,22 +205,70 @@ double BesselKn(int n, double x)
   return bk;
 }
 
+
 /* ********************************************************************* */
-double RandomNumber (double rmin, double rmax)
+void QuickSort(int *x,int first,int last)
 /*!
- * Generate and return a random number between [rmin, rmax] 
+ * Sort an integer array x in ascending order.
+ * Taken from http://www.cquestions.com/2008/01/c-program-for-quick-sort.html
+ *
+ * \param [in,out] *x     the array to be sorted.
+ * \param [in]     first  the starting element of the array
+ * \param [in]     last   the final element of the array
+ *
  *********************************************************************** */
 {
-  static int first_call = 1;
-  double eps, rnd;
+  int pivot,j,temp,i;
 
-  if (first_call == 1){
-    srand(time(NULL) + prank);
-    first_call = 0;    
+  if (first < last){
+    pivot = first;
+    i     = first;
+    j     = last;
+
+    while(i<j){
+      while(x[i]<=x[pivot]&&i<last)
+        i++;
+      while(x[j]>x[pivot])
+        j--;
+      if(i<j){
+        temp=x[i];
+        x[i]=x[j];
+        x[j]=temp;
+      }
+    }
+
+    temp=x[pivot];
+    x[pivot]=x[j];
+    x[j]=temp;
+    QuickSort(x,first,j-1);
+    QuickSort(x,j+1,last);
   }
-  eps = (double)(rand())/((double)RAND_MAX + 1.0);  /* 0 < eps < 1 */
-  rnd = rmin + eps*(rmax-rmin); /* Map random number between [rmin,rmax] */
-  return rnd;
+}
+
+/* ********************************************************************* */
+void SortArray(double *z, int n)
+/*!
+ * Sort array elements using straight insertion.
+ *
+ * \param [in,out]  z   pointer to 1D array in double precision
+ * \param [in]      n   the number of elements (starting at 0)
+ *
+ * \b Reference:
+ *    -"Numerical Recipes in C", sect. 8.1
+ *********************************************************************** */
+{
+  int    i, j;
+  double f;
+
+  for (j = 1; j < n; j++){
+    f = z[j];
+    i = j - 1;
+    while(i >= 0 && z[i] > f) {
+       z[i+1] = z[i];
+       i--;
+    }
+    z[i+1] = f;
+  }
 }
 
 /* ********************************************************************* */

@@ -33,7 +33,7 @@
            G. Muscianisi (g.musicanisi@cineca.it)\n
            G. Bodo (bodo@oato.inaf.it)
            
-  \date   Feb 14, 2014
+  \date   Nov 13, 2015
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -54,12 +54,12 @@ static double ***FluxR; /**< Array of fluxes at the right x-boundary. */
 #define swR  (1.0 - swL)
 
 /* ********************************************************************* */
-void SB_SaveFluxes (State_1D *state, Grid *grid)
+void SB_SaveFluxes (Sweep *sweep, Grid *grid)
 /*!
  * Store leftmost and rightmost conservative fluxes in the x direction 
  * into FluxL and FluxR. 
  *
- * \param [in] state     pointer to a State_1D structure
+ * \param [in] sweep     pointer to a Sweep structure
  * \param [in] grid      pointer to an array of Grid structures
  *
  * \return This function has no return value.
@@ -67,9 +67,9 @@ void SB_SaveFluxes (State_1D *state, Grid *grid)
 {
   int nv;
 
-  #if SB_SYMMETRIZE_HYDRO == NO
-   return;
-  #endif
+#if SB_SYMMETRIZE_HYDRO == NO
+  return;
+#endif
 
   if (FluxL == NULL){
     FluxL = ARRAY_3D(NVAR, NX3_TOT, NX2_TOT, double);
@@ -80,11 +80,11 @@ void SB_SaveFluxes (State_1D *state, Grid *grid)
     Save Fluxes on the LEFT physical boundary
    ---------------------------------------------------- */
   
-  if (g_dir == IDIR && grid[IDIR].lbound != 0){
-    state->flux[IBEG - 1][MX1] += state->press[IBEG - 1];
-    state->press[IBEG - 1]      = 0.0;  
+  if (g_dir == IDIR && grid->lbound[IDIR] != 0){
+    sweep->flux[IBEG - 1][MX1] += sweep->press[IBEG - 1];
+    sweep->press[IBEG - 1]      = 0.0;  
     for (nv = 0; nv <= NVLAST; nv++){
-      FluxL[nv][g_k][g_j] = state->flux[IBEG - 1][nv];
+      FluxL[nv][g_k][g_j] = sweep->flux[IBEG - 1][nv];
     } 
   }
 
@@ -92,11 +92,11 @@ void SB_SaveFluxes (State_1D *state, Grid *grid)
     Save Fluxes on the RIGHT pysical boundary
    ---------------------------------------------------- */
   
-  if (g_dir == IDIR && grid[IDIR].rbound != 0){
-    state->flux[IEND][MX1] += state->press[IEND];    
-    state->press[IEND]      = 0.0;  
+  if (g_dir == IDIR && grid->rbound[IDIR] != 0){
+    sweep->flux[IEND][MX1] += sweep->press[IEND];    
+    sweep->press[IEND]      = 0.0;  
     for (nv = 0; nv <= NVLAST; nv++){
-      FluxR[nv][g_k][g_j] = state->flux[IEND][nv];
+      FluxR[nv][g_k][g_j] = sweep->flux[IEND][nv];
     }
   }
 }
@@ -119,9 +119,9 @@ void SB_CorrectFluxes (Data_Arr U, double t, double dt, Grid *grid)
   static double **fL, **fR;
   static double ****Ftmp;
   
-  #if SB_SYMMETRIZE_HYDRO == NO
-   return;
-  #endif
+#if SB_SYMMETRIZE_HYDRO == NO
+  return;
+#endif
 
   if (fL == NULL){
     fL   = ARRAY_2D(NVAR, NMAX_POINT, double);
@@ -129,7 +129,7 @@ void SB_CorrectFluxes (Data_Arr U, double t, double dt, Grid *grid)
     Ftmp = ARRAY_4D(NVAR, NX3_TOT, NX2_TOT, 1, double);
   }
 
-  dtdx = dt/grid[IDIR].dx[IBEG];
+  dtdx = dt/grid->dx[IDIR][IBEG];
 
 {
 t = g_time;
@@ -173,15 +173,15 @@ t = g_time;
       
    --------------------------------------------------------------------- */
 
-  if (grid[IDIR].lbound != 0){  /* ---- Left x-boundary ---- */
+  if (grid->lbound[IDIR] != 0){  /* ---- Left x-boundary ---- */
 
     RBox box;
 
   /* -- set grid ranges of FluxR and exchange b.c. -- */
 
-    box.ib = 0; box.ie = 0; 
-    box.jb = 0; box.je = NX2_TOT-1; 
-    box.kb = 0; box.ke = NX3_TOT-1;
+    box.ibeg = 0; box.iend = 0; 
+    box.jbeg = 0; box.jend = NX2_TOT-1; 
+    box.kbeg = 0; box.kend = NX3_TOT-1;
 
   /* -- copy FluxR on temporary storage and shift -- */
 
@@ -199,10 +199,10 @@ t = g_time;
       }}
       for (j = JBEG; j <= JEND; j++){
         #if HAVE_ENERGY
-         fL[ENG][j] += swR*sb_vy*(fL[MX2][j] + 0.5*sb_vy*fL[RHO][j]);
+        fL[ENG][j] += swR*sb_vy*(fL[MX2][j] + 0.5*sb_vy*fL[RHO][j]);
         #endif
         #ifdef GLM_MHD
-         fL[BX2][j] -= swR*sb_vy*fL[PSI_GLM][j]/glm_ch/glm_ch;
+        fL[BX2][j] -= swR*sb_vy*fL[PSI_GLM][j]/glm_ch/glm_ch;
 /*         fL[BX2][j] -= 0.5*sb_vy*FluxL[PSI_GLM][k][j]/glm_ch/glm_ch; */
         #endif
         fL[MX2][j] += swR*sb_vy*fL[RHO][j];
@@ -216,14 +216,14 @@ t = g_time;
     }
   }   
 
-  if (grid[IDIR].rbound != 0){  /* ---- Right x-boundary ---- */
+  if (grid->rbound[IDIR] != 0){  /* ---- Right x-boundary ---- */
 
   /* -- set grid ranges of FluxL and exchange b.c. -- */
 
     RBox box;
-    box.ib = 0; box.ie = 0;
-    box.jb = 0; box.je = NX2_TOT-1;
-    box.kb = 0; box.ke = NX3_TOT-1;
+    box.ibeg = 0; box.iend = 0;
+    box.jbeg = 0; box.jend = NX2_TOT-1;
+    box.kbeg = 0; box.kend = NX3_TOT-1;
 
   /* -- copy FluxL on temporary storage and shift -- */
 
@@ -241,10 +241,10 @@ t = g_time;
       }}
       for (j = JBEG; j <= JEND; j++){
         #if HAVE_ENERGY
-         fR[ENG][j] += swL*sb_vy*(-fR[MX2][j] + 0.5*sb_vy*fR[RHO][j]);
+        fR[ENG][j] += swL*sb_vy*(-fR[MX2][j] + 0.5*sb_vy*fR[RHO][j]);
         #endif
         #ifdef GLM_MHD
-         fR[BX2][j] += swL*sb_vy*fR[PSI_GLM][j]/glm_ch/glm_ch;
+        fR[BX2][j] += swL*sb_vy*fR[PSI_GLM][j]/glm_ch/glm_ch;
 /*         fR[BX2][j] += 0.5*sb_vy*FluxR[PSI_GLM][k][j]/glm_ch/glm_ch; */
         #endif
         fR[MX2][j] -= swL*sb_vy*fR[RHO][j];
@@ -352,29 +352,29 @@ void SB_CorrectEMF (EMF *emf, Data_Arr V0, Grid *grid)
    -------------------------------------------------------------- */
 
   if (g_intStage == 1){
-    if (grid[IDIR].lbound != 0){
+    if (grid->lbound[IDIR] != 0){
       KTOT_LOOP(k) JTOT_LOOP(j) BxL[k][j] = BxL0[k][j] = V0[BX1s][k][j][IBEG - 1]; 
     }
-    if (grid[IDIR].rbound != 0){
+    if (grid->rbound[IDIR] != 0){
       KTOT_LOOP(k) JTOT_LOOP(j) BxR[k][j] = BxR0[k][j] = V0[BX1s][k][j][IEND];
     } 
   }
 
   #ifdef CTU
-   if (grid[IDIR].lbound != 0){
+   if (grid->lbound[IDIR] != 0){
      KTOT_LOOP(k) JTOT_LOOP(j) BxL[k][j] = BxL0[k][j] = V0[BX1s][k][j][IBEG - 1]; 
    }
-   if (grid[IDIR].rbound != 0){
+   if (grid->rbound[IDIR] != 0){
      KTOT_LOOP(k) JTOT_LOOP(j) BxR[k][j] = BxR0[k][j] = V0[BX1s][k][j][IEND];
    } 
   #elif TIME_STEPPING == RK2
    if (g_intStage == 2) {
      tB = g_time + 0.5*g_dt;
      dt = 0.5*g_dt;
-     if (grid[IDIR].lbound != 0) KTOT_LOOP(k) JTOT_LOOP(j) {
+     if (grid->lbound[IDIR] != 0) KTOT_LOOP(k) JTOT_LOOP(j) {
        BxL[k][j] = 0.5*(BxL0[k][j] + V0[BX1s][k][j][IBEG - 1]);
      }
-     if (grid[IDIR].rbound != 0) KTOT_LOOP(k) JTOT_LOOP(j) {
+     if (grid->rbound[IDIR] != 0) KTOT_LOOP(k) JTOT_LOOP(j) {
        BxR[k][j] = 0.5*(BxR0[k][j] + V0[BX1s][k][j][IEND]);
      }
    } 
@@ -383,31 +383,31 @@ void SB_CorrectEMF (EMF *emf, Data_Arr V0, Grid *grid)
      tB = g_time + 0.25*g_dt;
      tE = g_time + 0.5*g_dt;
      dt = 0.25*g_dt;
-     if (grid[IDIR].lbound != 0) KTOT_LOOP(k) JTOT_LOOP(j) {
+     if (grid->lbound[IDIR] != 0) KTOT_LOOP(k) JTOT_LOOP(j) {
        BxL[k][j] = 0.75*BxL0[k][j] + 0.25*V0[BX1s][k][j][IBEG - 1];
      }
-     if (grid[IDIR].rbound != 0) KTOT_LOOP(k) JTOT_LOOP(j) {
+     if (grid->rbound[IDIR] != 0) KTOT_LOOP(k) JTOT_LOOP(j) {
        BxR[k][j] = 0.75*BxR0[k][j] + 0.25*V0[BX1s][k][j][IEND];
      }
    }else if (g_intStage == 3) {
      tB = g_time + g_dt/3.0;
      tE = g_time + g_dt;
      dt = g_dt/1.5;
-     if (grid[IDIR].lbound != 0) KTOT_LOOP(k) JTOT_LOOP(j) {
+     if (grid->lbound[IDIR] != 0) KTOT_LOOP(k) JTOT_LOOP(j) {
        BxL[k][j] = (BxL0[k][j] + 2.0*V0[BX1s][k][j][IBEG - 1])/3.0;
      }
-     if (grid[IDIR].rbound != 0) KTOT_LOOP(k) JTOT_LOOP(j) {
+     if (grid->rbound[IDIR] != 0) KTOT_LOOP(k) JTOT_LOOP(j) {
        BxR[k][j] = (BxR0[k][j] + 2.0*V0[BX1s][k][j][IEND])/3.0;
      }
    } 
   #endif
 
-  dtdy   = dt/grid[JDIR].dx[JBEG];
-  nghost = grid[IDIR].nghost;
+  dtdy   = dt/grid->dx[JDIR][JBEG];
+  nghost = grid->nghost[IDIR];
 
 /* -- compute Bx slopes on left side -- */
 
-  if (grid[IDIR].lbound != 0){
+  if (grid->lbound[IDIR] != 0){
 
   /* -- Store Ey, Ez, Bx on the left and compute slopes -- */
 
@@ -427,7 +427,7 @@ void SB_CorrectEMF (EMF *emf, Data_Arr V0, Grid *grid)
 
 /* -- compute Bx slopes on right side -- */
 
-  if (grid[IDIR].rbound != 0){
+  if (grid->rbound[IDIR] != 0){
 
   /* -- Store Ey, Ez, Bx on the right and compute slopes -- */
 
@@ -462,12 +462,12 @@ void SB_CorrectEMF (EMF *emf, Data_Arr V0, Grid *grid)
     its original value is lost after b.c. have been assigned.
    ---------------------------------------------------------------- */
 
-  if (grid[IDIR].lbound != 0){
+  if (grid->lbound[IDIR] != 0){
     RBox box;
    
-    box.ib = 0; box.ie = 0;
-    box.jb = 0; box.je = NX2_TOT-1;
-    box.kb = 0; box.ke = NX3_TOT-1;
+    box.ibeg = 0; box.iend = 0;
+    box.jbeg = 0; box.jend = NX2_TOT-1;
+    box.kbeg = 0; box.kend = NX3_TOT-1;
     #if SB_SYMMETRIZE_EY == YES
 
    /* -- Interpolate eyR --> eyLR -- */
@@ -515,11 +515,11 @@ void SB_CorrectEMF (EMF *emf, Data_Arr V0, Grid *grid)
          Symmetrize Ey, and Ez on the right
    ------------------------------------------------------ */
 
-  if (grid[IDIR].rbound != 0){
+  if (grid->rbound[IDIR] != 0){
     RBox box;
-    box.ib = 0; box.ie = 0;
-    box.jb = 0; box.je = NX2_TOT-1;
-    box.kb = 0; box.ke = NX3_TOT-1;
+    box.ibeg = 0; box.iend = 0;
+    box.jbeg = 0; box.jend = NX2_TOT-1;
+    box.kbeg = 0; box.kend = NX3_TOT-1;
 
     #if SB_SYMMETRIZE_EY == YES
      SB_SetBoundaryVar(eyL, &box, X1_END, tE, grid);
@@ -629,20 +629,20 @@ void ExchangeX (double *bufL, double *bufR, int nel, Grid *grid)
    -------------------------------------- */
 
   if (dest == -1){
-    if (grid[IDIR].lbound != 0){
+    if (grid->lbound[IDIR] != 0){
       MPI_Cart_get(cartcomm, 3, nprocs, periods, coords);
       coords[0] += nprocs[0] - 1;
       MPI_Cart_rank (cartcomm, coords, &dest);
     }
 
-    if (grid[IDIR].rbound != 0){
+    if (grid->rbound[IDIR] != 0){
       MPI_Cart_get(cartcomm, 3, nprocs, periods, coords);
       coords[0] += - nprocs[0] + 1;
       MPI_Cart_rank (cartcomm, coords, &dest); 
     }
   }
 
-  if (grid[IDIR].lbound != 0){
+  if (grid->lbound[IDIR] != 0){
     if (prank != dest){
       MPI_Sendrecv (bufL, nel, MPI_DOUBLE, dest, stag,
                     bufR, nel, MPI_DOUBLE, dest, rtag,
@@ -650,7 +650,7 @@ void ExchangeX (double *bufL, double *bufR, int nel, Grid *grid)
     }
   }
 
-  if (grid[IDIR].rbound != 0){
+  if (grid->rbound[IDIR] != 0){
     if (prank != dest){
       MPI_Sendrecv (bufR, nel, MPI_DOUBLE, dest, stag,
                     bufL, nel, MPI_DOUBLE, dest, rtag,

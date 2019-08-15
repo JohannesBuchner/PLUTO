@@ -21,7 +21,7 @@
   implements the source term part.
  
   \author A. Mignone (mignone@ph.unito.it)
-  \date   Aug 26, 2015
+  \date   March 1, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -80,7 +80,7 @@ void PrimRHS (double *v, double *dv, double cs2, double h, double *Adv)
    Adv[BXn] = v[VXn]*dv[BXn];
   #elif DIVB_CONTROL == DIV_CLEANING 
    ch2 = glm_ch*glm_ch;
-   Adv[BXn]      = dv[PSI_GLM];             
+   Adv[BXn]     = dv[PSI_GLM];             
    Adv[PSI_GLM] = dv[BXn]*ch2; 
   #else
    Adv[BXn] = 0.0;
@@ -117,8 +117,7 @@ void PrimRHS (double *v, double *dv, double cs2, double h, double *Adv)
 }
 
 /* ********************************************************************* */
-void PrimSource (const State_1D *state, int beg, int end, double *a2, 
-                  double *h, double **src, Grid *grid)
+void PrimSource (const State *gas, double **src, int beg, int end, Grid *grid)
 /*!
  * Compute source terms of the MHD equations in primitive variables.
  * These include:
@@ -135,12 +134,10 @@ void PrimSource (const State_1D *state, int beg, int end, double *a2,
  *  For instance, in polar or cylindrical coordinates, curvilinear source
  *  terms are included during the radial sweep only.
  * 
- * \param [in]  state pointer to a State_1D structure
+ * \param [in]  gas   pointer to a Sweep structure
+ * \param [out] src   array of source terms
  * \param [in]  beg   initial index of computation
  * \param [in]  end   final   index of computation
- * \param [in]  a2    array of sound speed
- * \param [in]  h     array of enthalpies (not needed in MHD)
- * \param [out] src   array of source terms
  * \param [in]  grid  pointer to a Grid structure
  *
  * \note This function does not work in spherical coordinates yet. 
@@ -163,59 +160,57 @@ void PrimSource (const State_1D *state, int beg, int end, double *a2,
   int    nv, i, j, k;
   double tau, dA_dV, th;
   double hscale; /* scale factor */
-  double *v, *vp,  *A, *dV, r_inv, ct;
+  double *v;
+  double *a2 = gas->a2;
+  double r_inv, ct;
   double *x1,  *x2,  *x3;
   double *x1p, *x2p, *x3p;
   double *dx1, *dx2, *dx3;
   static double *phi_p;
   double g[3], ch2, db, scrh;
 
-  #if ROTATING_FRAME == YES
-   print1 ("! PrimSource: does not work with rotations\n");
-   QUIT_PLUTO(1);
-  #endif
+#if ROTATING_FRAME == YES
+  print ("! PrimSource: does not work with rotations\n");
+  QUIT_PLUTO(1);
+#endif
 
 /* ----------------------------------------------------------
-   1. Memory allocation and pointer shortcuts 
+   0. Memory allocation and array initialization
    ---------------------------------------------------------- */
 
   if (phi_p == NULL) phi_p = ARRAY_1D(NMAX_POINT, double);
 
-  #if GEOMETRY == CYLINDRICAL
-   x1 = grid[IDIR].xgc; x1p = grid[IDIR].xr; dx1 = grid[IDIR].dx;
-   x2 = grid[JDIR].xgc; x2p = grid[JDIR].xr; dx2 = grid[JDIR].dx;
-   x3 = grid[KDIR].xgc; x3p = grid[KDIR].xr; dx3 = grid[KDIR].dx;
-  #else  
-   x1 = grid[IDIR].x; x1p = grid[IDIR].xr; dx1 = grid[IDIR].dx;
-   x2 = grid[JDIR].x; x2p = grid[JDIR].xr; dx2 = grid[JDIR].dx;
-   x3 = grid[KDIR].x; x3p = grid[KDIR].xr; dx3 = grid[KDIR].dx;
-  #endif
+#if GEOMETRY == CYLINDRICAL
+  x1 = grid->xgc[IDIR]; x1p = grid->xr[IDIR]; dx1 = grid->dx[IDIR];
+  x2 = grid->xgc[JDIR]; x2p = grid->xr[JDIR]; dx2 = grid->dx[JDIR];
+  x3 = grid->xgc[KDIR]; x3p = grid->xr[KDIR]; dx3 = grid->dx[KDIR];
+#else  
+  x1 = grid->x[IDIR]; x1p = grid->xr[IDIR]; dx1 = grid->dx[IDIR];
+  x2 = grid->x[JDIR]; x2p = grid->xr[JDIR]; dx2 = grid->dx[JDIR];
+  x3 = grid->x[KDIR]; x3p = grid->xr[KDIR]; dx3 = grid->dx[KDIR];
+#endif
   
-  #ifdef GLM_MHD
-   ch2 = glm_ch*glm_ch;
-  #endif
+#ifdef GLM_MHD
+  ch2 = glm_ch*glm_ch;
+#endif
 
-  A  = grid[g_dir].A;
-  dV = grid[g_dir].dV;
   hscale  = 1.0;
 
   i = g_i; j = g_j; k = g_k;
   
-/* ----------------------------------------------------------
-     initialize all elements of src to zero
-   ---------------------------------------------------------- */
+/* -- Initialize all elements of src to zero -- */
 
   memset((void *)src[0], '\0',NMAX_POINT*NVAR*sizeof(double));
-  
+
 /* ----------------------------------------------------------
-   2. Compute geometrical source terms
+   1. Compute geometrical source terms
    ---------------------------------------------------------- */
 
 #if GEOMETRY == CYLINDRICAL
 
   if (g_dir == IDIR) {
     for (i = beg; i <= end; i++){
-      v = state->v[i]; 
+      v = gas->v[i]; 
 
       tau   = 1.0/v[RHO];
       dA_dV = 1.0/x1[i];
@@ -240,7 +235,7 @@ void PrimSource (const State_1D *state, int beg, int end, double *a2,
 
   if (g_dir == IDIR) {
     for (i = beg; i <= end; i++){
-      v = state->v[i]; 
+      v = gas->v[i]; 
 
       tau   = 1.0/v[RHO];
       dA_dV = 1.0/x1[i];
@@ -263,33 +258,31 @@ void PrimSource (const State_1D *state, int beg, int end, double *a2,
 
 #elif GEOMETRY == SPHERICAL 
 
-  print1 ("! PrimSource: not implemented in Spherical geometry\n");
+  print ("! PrimSource: not implemented in Spherical geometry\n");
   QUIT_PLUTO(1);
   
 #endif
 
 /* ----------------------------------------------------------
-   3.  Add body forces. This includes:
+   2.  Add body forces. This includes:
        - Coriolis terms for the shearing box module
        - Body forces
    ---------------------------------------------------------- */
 
 #ifdef SHEARINGBOX
-
   if (g_dir == IDIR){
     for (i = beg; i <= end; i++) {
-      src[i][VX1] =  2.0*state->v[i][VX2]*SB_OMEGA;
+      src[i][VX1] =  2.0*gas->v[i][VX2]*SB_OMEGA;
     } 
   }else if (g_dir == JDIR){
     for (j = beg; j <= end; j++) {
-    #ifdef FARGO 
-      src[j][VX2] = (SB_Q - 2.0)*state->v[j][VX1]*SB_OMEGA;
-    #else
-      src[j][VX2] = -2.0*state->v[j][VX1]*SB_OMEGA;
-    #endif
+      #ifdef FARGO 
+      src[j][VX2] = (SB_Q - 2.0)*gas->v[j][VX1]*SB_OMEGA;
+      #else
+      src[j][VX2] = -2.0*gas->v[j][VX1]*SB_OMEGA;
+      #endif
     }
   }
-
 #endif
   
 
@@ -299,27 +292,27 @@ void PrimSource (const State_1D *state, int beg, int end, double *a2,
     i = beg-1;
     j = g_j;
     k = g_k;
-  #if BODY_FORCE & POTENTIAL
+    #if BODY_FORCE & POTENTIAL
     phi_p[i] = BodyForcePotential(x1p[i], x2[j], x3[k]);
-  #endif
+    #endif
     for (i = beg; i <= end; i++){
-    #if BODY_FORCE & VECTOR
-      v = state->v[i];
+      #if BODY_FORCE & VECTOR
+      v = gas->v[i];
       BodyForceVector(v, g, x1[i], x2[j], x3[k]);
       src[i][VX1] += g[IDIR];
-    #endif
-    #if BODY_FORCE & POTENTIAL
+      #endif
+      #if BODY_FORCE & POTENTIAL
       phi_p[i]     = BodyForcePotential(x1p[i], x2[j], x3[k]); 
       src[i][VX1] -= (phi_p[i] - phi_p[i-1])/(hscale*dx1[i]);
-    #endif
+      #endif
 
     /* -- Add tangential components in 1D -- */
     
-    #if DIMENSIONS == 1
+      #if DIMENSIONS == 1
       EXPAND(                         , 
              src[i][VX2] += g[JDIR];  ,
              src[i][VX3] += g[KDIR];)
-    #endif
+      #endif
     }
 
   }else if (g_dir == JDIR){
@@ -327,28 +320,28 @@ void PrimSource (const State_1D *state, int beg, int end, double *a2,
     i = g_i;
     j = beg - 1;
     k = g_k;
-  #if BODY_FORCE & POTENTIAL
+    #if BODY_FORCE & POTENTIAL
     phi_p[j] = BodyForcePotential(x1[i], x2p[j], x3[k]);
-  #endif
-  #if GEOMETRY == POLAR || GEOMETRY == SPHERICAL
+    #endif
+    #if GEOMETRY == POLAR || GEOMETRY == SPHERICAL
     hscale = x1[i];
-  #endif
+    #endif
     for (j = beg; j <= end; j++){
-    #if BODY_FORCE & VECTOR
-      v = state->v[j];
+      #if BODY_FORCE & VECTOR
+      v = gas->v[j];
       BodyForceVector(v, g, x1[i], x2[j], x3[k]);
       src[j][VX2] += g[JDIR];
-    #endif
-    #if BODY_FORCE & POTENTIAL
+      #endif
+      #if BODY_FORCE & POTENTIAL
       phi_p[j]     = BodyForcePotential(x1[i], x2p[j], x3[k]);
       src[j][VX2] -= (phi_p[j] - phi_p[j-1])/(hscale*dx2[j]);
-    #endif
+      #endif
 
     /* -- Add 3rd component in 2D -- */
 
-    #if DIMENSIONS == 2 && COMPONENTS == 3
+      #if DIMENSIONS == 2 && COMPONENTS == 3
       src[j][VX3] += g[KDIR];
-    #endif
+      #endif
     }
 
   }else if (g_dir == KDIR){
@@ -356,92 +349,131 @@ void PrimSource (const State_1D *state, int beg, int end, double *a2,
     i = g_i;
     j = g_j;
     k = beg - 1;
-  #if BODY_FORCE & POTENTIAL
+    #if BODY_FORCE & POTENTIAL
     phi_p[k] = BodyForcePotential(x1[i], x2[j], x3p[k]);
-  #endif
-  #if GEOMETRY == SPHERICAL
+    #endif
+    #if GEOMETRY == SPHERICAL
     th     = x2[j];
     hscale = x1[i]*sin(th);
-  #endif
+    #endif
     for (k = beg; k <= end; k++){
-    #if BODY_FORCE & VECTOR
-      v = state->v[k];
+      #if BODY_FORCE & VECTOR
+      v = gas->v[k];
       BodyForceVector(v, g, x1[i], x2[j], x3[k]);
       src[k][VX3] += g[KDIR];
-    #endif
-    #if BODY_FORCE & POTENTIAL
+      #endif
+      #if BODY_FORCE & POTENTIAL
       phi_p[k]     = BodyForcePotential(x1[i], x2[j], x3p[k]); 
       src[k][VX3] -= (phi_p[k] - phi_p[k-1])/(hscale*dx3[k]);
-    #endif
+      #endif
     }
   }
-#endif
+#endif /* BODY_FORCE != NO */
 
 /* -----------------------------------------------------------
-   4. MHD, div.B related source terms
+   3. MHD, div.B related source terms
    ----------------------------------------------------------- */
 
-  #ifdef GLM_MHD
-   #if GEOMETRY == POLAR || GEOMETRY == SPHERICAL
-    print1 ("! Error: Div. Cleaning does not work in this configuration.\n");
-    print1 ("!        Try RK integrator instead\n");
-    QUIT_PLUTO(1);
-   #endif
-   for (i = beg; i <= end; i++){
-     v = state->v[i];
+#ifdef GLM_MHD
+{
+  double *dx = grid->dx[g_dir];
+  #if GEOMETRY == CYLINDRICAL
+  static double *A, *dV;
+  if (A == NULL){
+    A  = ARRAY_1D(NMAX_POINT, double);
+    dV = ARRAY_1D(NMAX_POINT, double);
+  }
 
-     tau = 1.0/v[RHO]; 
-     db  = 0.5*(  A[i]  *(state->v[i+1][BXn] + state->v[i][BXn]) 
-                - A[i-1]*(state->v[i-1][BXn] + state->v[i][BXn]))/dV[i];
-     #if GLM_EXTENDED == NO
-      EXPAND(src[i][VXn] += v[BXn]*tau*db;  ,
-             src[i][VXt] += v[BXt]*tau*db;  ,
-             src[i][VXb] += v[BXb]*tau*db;)
-     #endif
-     EXPAND(                        ,
-            src[i][BXt] += v[VXt]*db; ,
-            src[i][BXb] += v[VXb]*db;)
-     
-     #if EOS == IDEAL
-      scrh = EXPAND(v[VXn]*v[BXn], + v[VXt]*v[BXt], + v[VXb]*v[BXb]);
-      src[i][PRS] += (1.0 - g_gamma)*scrh*db;
-      #if GLM_EXTENDED == NO
-       scrh = 0.5*(state->v[i+1][PSI_GLM] - state->v[i-1][PSI_GLM])/grid[g_dir].dx[i];
-       src[i][PRS] += (g_gamma - 1.0)*v[BXn]*scrh;
-      #endif        
-     #endif
-   }
+  if (g_dir == IDIR){
+    for (i = beg-1; i <= end; i++){
+      A[i]  = fabs(grid->x[IDIR][i] + 0.5*grid->dx[IDIR][i]); // grid->A[IDIR][g_k][g_j][i];
+      dV[i] = fabs(grid->x[IDIR][i])*grid->dx[IDIR][i]; // grid->dV[g_k][g_j][i];
+    }
+  }else{
+    for (j = beg-1; j <= end; j++){
+      A[j]  = 1.0; // grid->A[JDIR][g_k][j][g_i];
+      dV[j] = grid->dx[JDIR][j]; // grid->dV[g_k][j][g_i];
+    }
+  }
+
+  #elif GEOMETRY == POLAR || GEOMETRY == SPHERICAL 
+  print ("! Error: Div. Cleaning does not work in this configuration.\n");
+  print ("!        Try RK integrator instead\n");
+  QUIT_PLUTO(1);
   #endif
 
+  /* -- In cylindrical coordinates, we need volume and area -- */
+  for (i = beg; i <= end; i++){
+    v = gas->v[i];
+
+    tau = 1.0/v[RHO];
+    #if GEOMETRY == CARTESIAN
+    db  = 0.5*( gas->v[i+1][BXn] - gas->v[i-1][BXn])/dx[i];
+    #elif GEOMETRY == CYLINDRICAL
+    db  = 0.5*(  A[i]  *(gas->v[i+1][BXn] + gas->v[i][BXn]) 
+               - A[i-1]*(gas->v[i-1][BXn] + gas->v[i][BXn]))/dV[i];
+    #endif
+
+    #if GLM_EXTENDED == NO
+     EXPAND(src[i][VXn] += v[BXn]*tau*db;  ,
+            src[i][VXt] += v[BXt]*tau*db;  ,
+            src[i][VXb] += v[BXb]*tau*db;)
+    #endif
+    EXPAND(                        ,
+           src[i][BXt] += v[VXt]*db; ,
+           src[i][BXb] += v[VXb]*db;)
+     
+    #if EOS == IDEAL
+    scrh = EXPAND(v[VXn]*v[BXn], + v[VXt]*v[BXt], + v[VXb]*v[BXb]);
+    src[i][PRS] += (1.0 - g_gamma)*scrh*db;
+    #if GLM_EXTENDED == NO
+    scrh = 0.5*(gas->v[i+1][PSI_GLM] - gas->v[i-1][PSI_GLM])/dx[i];
+    src[i][PRS] += (g_gamma - 1.0)*v[BXn]*scrh;
+    #endif        
+   #endif
+   }
+}
+#endif  /* GLM_MHD */
+
 /* ---------------------------------------------------------------
-   5. Add FARGO source terms (except for SHEARINGBOX).
+   4. Add FARGO source terms (except for SHEARINGBOX).
       When SHEARINGBOX is also enabled, we do not include
       these source terms since they're all provided by body_force)
    --------------------------------------------------------------- */
   
-  #if (defined FARGO && !defined SHEARINGBOX)
-   #if GEOMETRY == POLAR || GEOMETRY == SPHERICAL
-    print1 ("! Time Stepping works only in Cartesian or cylindrical coords\n");
-    print1 ("! Use RK instead\n");
-    QUIT_PLUTO(1);
-   #endif
-
-   double **wA, *dx, *dz;
-   wA = FARGO_GetVelocity();
-   if (g_dir == IDIR){
-     k  = g_k;
-     dx = grid[IDIR].dx;
-     for (i = beg; i <= end; i++){
-       v = state->v[i];
-       src[i][VX2] -= 0.5*v[VX1]*(wA[k][i+1] - wA[k][i-1])/dx[i];
-     }
-   }else if (g_dir == KDIR){
-     i  = g_i;
-     dz = grid[KDIR].dx;
-     for (k = beg; k <= end; k++){
-       v = state->v[k];
-       src[k][VX2] -= 0.5*v[VX3]*(wA[k+1][i] - wA[k-1][i])/dz[k];
-     }
-   }
+#if (defined FARGO && !defined SHEARINGBOX)
+  #if GEOMETRY == POLAR || GEOMETRY == SPHERICAL
+  print ("! Time Stepping works only in Cartesian or cylindrical coords\n");
+  print ("! Use RK instead\n");
+  QUIT_PLUTO(1);
   #endif
+
+  double **wA, *dx, *dz;
+  wA = FARGO_GetVelocity();
+  if (g_dir == IDIR){
+    k  = g_k;
+    dx = grid->dx[IDIR];
+    for (i = beg; i <= end; i++){
+      v = gas->v[i];
+      src[i][VX2] -= 0.5*v[VX1]*(wA[k][i+1] - wA[k][i-1])/dx[i];
+    }
+  }else if (g_dir == KDIR){
+    i  = g_i;
+    dz = grid->dx[KDIR];
+    for (k = beg; k <= end; k++){
+      v = gas->v[k];
+      src[k][VX2] -= 0.5*v[VX3]*(wA[k+1][i] - wA[k-1][i])/dz[k];
+    }
+  }
+#endif
+
+/* ---------------------------------------------------------------
+   5. Add PARTICLES source terms
+   --------------------------------------------------------------- */
+
+#ifdef PARTICLES
+  for (i = beg; i <= end; i++){
+  }
+#endif
+
 }

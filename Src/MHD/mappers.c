@@ -59,9 +59,9 @@ void PrimToCons (double **uprim, double **ucons, int ibeg, int iend)
     kinb2   = v[RHO]*kinb2 + EXPAND(v[BX1]*v[BX1], + v[BX2]*v[BX2], + v[BX3]*v[BX3]);
     kinb2  *= 0.5;
 
-#if EOS == IDEAL
+    #if EOS == IDEAL
     u[ENG] = kinb2 + v[PRS]/gmm1;
-#elif EOS == PVTE_LAW
+    #elif EOS == PVTE_LAW
     status = GetPV_Temperature(v, &T);
     if (status != 0){
       T      = T_CUT_RHOE;
@@ -74,14 +74,14 @@ void PrimToCons (double **uprim, double **ucons, int ibeg, int iend)
       print("! PrimToCons: KE:%12.6e uRHO : %12.6e, m2 : %12.6e \n",rhoe,v[RHO],u[ENG]);
       QUIT_PLUTO(1);
     }
-#endif
+    #endif
     
-#ifdef GLM_MHD
+    #ifdef GLM_MHD
     u[PSI_GLM] = v[PSI_GLM]; 
-#endif
-#if NSCL > 0 
+    #endif
+    #if NSCL > 0 
     NSCL_LOOP(nv) u[nv] = v[RHO]*v[nv];
-#endif    
+    #endif    
   }
 }
 /* ********************************************************************* */
@@ -175,7 +175,7 @@ int ConsToPrim (double **ucons, double **uprim, int ibeg, int iend,
       if (v[PRS] < 0.0){
         WARNING(
                print("! ConsToPrim: negative p(S) (%8.2e, %8.2e), ", v[PRS], u[ENTR]);
-             Where (i, NULL);
+               Where (i, NULL);
            )
         v[PRS]   = g_smallPressure;
         flag[i] |= FLAG_CONS2PRIM_FAIL;
@@ -190,6 +190,7 @@ int ConsToPrim (double **ucons, double **uprim, int ibeg, int iend,
       if (v[PRS] < 0.0){
         WARNING(
           print("! ConsToPrim: negative p(E) (%8.2e), ", v[PRS]);
+Show(ucons,i);                
           Where (i, NULL);
         )
         v[PRS]    = g_smallPressure;
@@ -206,6 +207,12 @@ int ConsToPrim (double **ucons, double **uprim, int ibeg, int iend,
     NSCL_LOOP(nv) v[nv] = u[nv]*tau;
     #endif    
 
+#elif EOS == ISOTHERMAL
+
+    #if NSCL > 0
+    NSCL_LOOP(nv) v[nv] = u[nv]*tau;
+    #endif    
+ 
 #elif EOS == PVTE_LAW
 
   /* -- Convert scalars here since EoS may need ion fractions -- */
@@ -239,17 +246,9 @@ int ConsToPrim (double **ucons, double **uprim, int ibeg, int iend,
 
 #endif  /* EOS  */
 
-#if DUST == YES
-    u[RHO_D] = MAX(u[RHO_D], 1.e-20);
-    v[RHO_D] = u[RHO_D];
-    EXPAND(v[MX1_D] = u[MX1_D]/v[RHO_D];  ,
-           v[MX2_D] = u[MX2_D]/v[RHO_D];  ,
-           v[MX3_D] = u[MX3_D]/v[RHO_D];)
-#endif
-
-#ifdef GLM_MHD
+    #ifdef GLM_MHD
     v[PSI_GLM] = u[PSI_GLM]; 
-#endif
+    #endif
   }
   return ifail;
 }

@@ -12,5 +12,4 @@ OBJ +=  ausm.o eigenv.o fluxes.o mappers.o  prim_eqn.o \
 
 # The next set of files are shared between the HD and MHD directories
 
-OBJ +=  get_area_flux.o rhs.o rhs_source.o
-
+OBJ +=  rhs.o rhs_source.o

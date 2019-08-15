@@ -61,7 +61,7 @@
        Balsara \& Spicer, JCP (1999) 148, 133
   
   \authors A. Mignone (mignone@ph.unito.it)
-  \date    July 28, 2015
+  \date    March 1, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include"pluto.h"
@@ -78,37 +78,34 @@
 /* *************************************************************** */
 void FlagShock (const Data *d, Grid *grid)
 /*!
- *
+ * \param [in,out] d     pointer to data structure
+ * \param [in]     grid  pointer to grid structure
  *  
  ***************************************************************** */
 {
   int  i, j, k, nv;
   int  ip, jp, kp;
   double divv, gradp, pt_min;
-  double dpx1, *dx1, *dV1, ***vx1, pt_min1, dvx1;
-  double dpx2, *dx2, *dV2, ***vx2, pt_min2, dvx2;
-  double dpx3, *dx3, *dV3, ***vx3, pt_min3, dvx3;
-  
-  double *dVx, *dVy, *dVz;
-  double *Ar, *Ath, *r, *th, s;
+  double dpx1, pt_min1, dvx1;
+  double dpx2, pt_min2, dvx2;
+  double dpx3, pt_min3, dvx3;
+  EXPAND(double ***vx1 = d->Vc[VX1];  ,
+         double ***vx2 = d->Vc[VX2];  ,
+         double ***vx3 = d->Vc[VX3];)
+
+  double *dx1 = grid->dx[IDIR];
+  double *dx2 = grid->dx[JDIR];
+  double *dx3 = grid->dx[KDIR];
+
+  double ***Ax1 = grid->A[IDIR];
+  double ***Ax2 = grid->A[JDIR];
+  double ***Ax3 = grid->A[KDIR];
+
   static double ***pt;
 
 /* ----------------------------------------------------
-   0. Define pointers to variables and allocate memory
+   0. Allocate memory
    ---------------------------------------------------- */
-
-  dx1 = grid[IDIR].dx; dV1 = grid[IDIR].dV;
-  dx2 = grid[JDIR].dx; dV2 = grid[JDIR].dV; 
-  dx3 = grid[KDIR].dx; dV3 = grid[KDIR].dV; 
-  
-  Ar  = grid[IDIR].A;
-  r   = grid[IDIR].x;
-  Ath = grid[JDIR].A;
-  th  = grid[JDIR].x;
-
-  EXPAND(vx1 = d->Vc[VX1];  ,
-         vx2 = d->Vc[VX2];  ,
-         vx3 = d->Vc[VX3];)
 
   if (pt == NULL) pt = ARRAY_3D(NX3_MAX, NX2_MAX, NX1_MAX, double);
     
@@ -118,17 +115,17 @@ void FlagShock (const Data *d, Grid *grid)
    -------------------------------------------------------- */
 
   TOT_LOOP(k,j,i){  
-#if EOS == ISOTHERMAL
+    #if EOS == ISOTHERMAL
     pt[k][j][i] = d->Vc[RHO][k][j][i]*g_isoSoundSpeed*g_isoSoundSpeed;
-#else
-  #if HAVE_ENERGY 
-     pt[k][j][i] = d->Vc[PRS][k][j][i];
-  #endif    
-#endif
+    #else
+    #if HAVE_ENERGY 
+    pt[k][j][i] = d->Vc[PRS][k][j][i];
+    #endif    
+    #endif
 
-#if (ENTROPY_SWITCH == SELECTIVE) || (ENTROPY_SWITCH == ALWAYS)
+    #if (ENTROPY_SWITCH == SELECTIVE) || (ENTROPY_SWITCH == ALWAYS)
     d->flag[k][j][i] |= FLAG_ENTROPY;
-#endif
+    #endif
   }
  
 /* ----------------------------------------------
@@ -143,36 +140,33 @@ void FlagShock (const Data *d, Grid *grid)
      
     #if GEOMETRY == CARTESIAN
 
-     D_EXPAND(dvx1 = vx1[k][j][i + 1] - vx1[k][j][i - 1];   ,
-              dvx2 = vx2[k][j + 1][i] - vx2[k][j - 1][i];   ,
-              dvx3 = vx3[k + 1][j][i] - vx3[k - 1][j][i];)
+    D_EXPAND(dvx1 = (vx1[k][j][i+1] - vx1[k][j][i-1])/dx1[i];   ,
+             dvx2 = (vx2[k][j+1][i] - vx2[k][j-1][i])/dx2[j];   ,
+             dvx3 = (vx3[k+1][j][i] - vx3[k-1][j][i])/dx3[k];)
 
-    #elif GEOMETRY == CYLINDRICAL
+    divv = D_EXPAND(dvx1, + dvx2, + dvx3);
+    #else 
+    
+    D_EXPAND(dvx1 =   Ax1[k][j][i]*  (vx1[k][j][i+1] + vx1[k][j][i])
+                    - Ax1[k][j][i-1]*(vx1[k][j][i-1] + vx1[k][j][i]);  ,
 
-     D_EXPAND(dvx1 =   Ar[i]  *(vx1[k][j][i + 1] + vx1[k][j][i])
-                     - Ar[i-1]*(vx1[k][j][i - 1] + vx1[k][j][i]);   ,
-              dvx2 = vx2[k][j + 1][i] - vx2[k][j - 1][i];           , 
-              dvx3 = vx3[k + 1][j][i] - vx3[k - 1][j][i];)
+             dvx2 =   Ax2[k][j][i]*  (vx2[k][j+1][i] + vx2[k][j][i])
+                    - Ax2[k][j-1][i]*(vx2[k][j-1][i] + vx2[k][j][i]);  ,
 
-    #elif GEOMETRY == POLAR
+             dvx3 =   Ax3[k][j][i]*  (vx3[k+1][j][i] + vx3[k][j][i])
+                    - Ax3[k-1][j][i]*(vx3[k-1][j][i] + vx3[k][j][i]))
 
-     D_EXPAND(dvx1 =  Ar[i]  *(vx1[k][j][i + 1] + vx1[k][j][i])
-                    - Ar[i-1]*(vx1[k][j][i - 1] + vx1[k][j][i]);  ,
-              dvx2 = (vx2[k][j + 1][i] - vx2[k][j - 1][i])/r[i];      ,
-              dvx3 =  vx3[k + 1][j][i] - vx3[k - 1][j][i];)
-
-    #elif GEOMETRY == SPHERICAL
-
-     D_EXPAND(dvx1 =  Ar[i]  *(vx1[k][j][i + 1] + vx1[k][j][i])
-                    - Ar[i-1]*(vx1[k][j][i - 1] + vx1[k][j][i]);               ,
-              dvx2 = (  Ath[j] *(vx2[k][j + 1][i] + vx2[k][j][i])
-                     - Ath[j-1]*(vx2[k][j - 1][i] + vx2[k][j][i]))/fabs(r[i]); ,
-              s    = th[j];
-              dvx3 = (vx3[k + 1][j][i] - vx3[k - 1][j][i])/(r[i]*sin(s));)
-
+/*
+double dvz1 = dvx2/grid->dV[k][j][i];
+double dvz2 = (vx2[k][j+1][i] - vx2[k][j-1][i])/dx2[j];
+if (fabs(dvz1-dvz2) > 1.e-10){
+  print ("!!\n");
+  QUIT_PLUTO(1);
+}
+*/
+    divv = (D_EXPAND(dvx1, + dvx2, + dvx3))/grid->dV[k][j][i];
     #endif
 
-    divv = D_EXPAND(dvx1/dV1[i], + dvx2/dV2[j], + dvx3/dV3[k]);
  
     if (divv < 0.0){
     
@@ -197,46 +191,46 @@ void FlagShock (const Data *d, Grid *grid)
       gradp = D_EXPAND(dpx1, + dpx2, + dpx3);
 
       #if SHOCK_FLATTENING == MULTID
-       if (gradp > EPS_PSHOCK_FLATTEN*pt_min) {
-         d->flag[k][j][i]   |= FLAG_HLL;
+      if (gradp > EPS_PSHOCK_FLATTEN*pt_min) {
+        d->flag[k][j][i]   |= FLAG_HLL;
         
-         d->flag[k][j][i]   |= FLAG_MINMOD;
-         D_EXPAND(
-           d->flag[k][j][i+1] |= FLAG_MINMOD;
-           d->flag[k][j][i-1] |= FLAG_MINMOD;  ,
-           d->flag[k][j-1][i] |= FLAG_MINMOD;  
-           d->flag[k][j+1][i] |= FLAG_MINMOD;  ,
-           d->flag[k-1][j][i] |= FLAG_MINMOD;
-           d->flag[k+1][j][i] |= FLAG_MINMOD;)
-       }
+        d->flag[k][j][i]   |= FLAG_MINMOD;
+        D_EXPAND(
+          d->flag[k][j][i+1] |= FLAG_MINMOD;
+          d->flag[k][j][i-1] |= FLAG_MINMOD;  ,
+          d->flag[k][j-1][i] |= FLAG_MINMOD;  
+          d->flag[k][j+1][i] |= FLAG_MINMOD;  ,
+          d->flag[k-1][j][i] |= FLAG_MINMOD;
+          d->flag[k+1][j][i] |= FLAG_MINMOD;)
+      }
       #endif
 
-  /* -----------------------------------------------------
-      When using entropy, we unflag those zones lying in 
-      a shock as well as one neighbour cells to the left
-      and to the right for each dimension.
-     ----------------------------------------------------- */
+    /* -----------------------------------------------------
+        When using entropy, we unflag those zones lying in 
+        a shock as well as one neighbour cells to the left
+        and to the right for each dimension.
+       ----------------------------------------------------- */
 
       #if ENTROPY_SWITCH == SELECTIVE
-       if (gradp > EPS_PSHOCK_ENTROPY*pt_min) { /* -- unflag zone -- */
-         d->flag[k][j][i] &= ~(FLAG_ENTROPY);
-         D_EXPAND(
-           d->flag[k][j][i-1] &= ~(FLAG_ENTROPY);
-           d->flag[k][j][i+1] &= ~(FLAG_ENTROPY); ,
-           d->flag[k][j+1][i] &= ~(FLAG_ENTROPY);
-           d->flag[k][j-1][i] &= ~(FLAG_ENTROPY); ,
-           d->flag[k+1][j][i] &= ~(FLAG_ENTROPY);
-           d->flag[k-1][j][i] &= ~(FLAG_ENTROPY);
-         )
-       }
+      if (gradp > EPS_PSHOCK_ENTROPY*pt_min) { /* -- unflag zone -- */
+        d->flag[k][j][i] &= ~(FLAG_ENTROPY);
+        D_EXPAND(
+          d->flag[k][j][i-1] &= ~(FLAG_ENTROPY);
+          d->flag[k][j][i+1] &= ~(FLAG_ENTROPY); ,
+          d->flag[k][j+1][i] &= ~(FLAG_ENTROPY);
+          d->flag[k][j-1][i] &= ~(FLAG_ENTROPY); ,
+          d->flag[k+1][j][i] &= ~(FLAG_ENTROPY);
+          d->flag[k-1][j][i] &= ~(FLAG_ENTROPY);
+        )
+      }
       #endif
-    } 
+    } /* end if (divV < 0) */
       
   }}}
 
-  #ifdef PARALLEL
-   AL_Exchange (d->flag[0][0], SZ_char);
-  #endif
+#ifdef PARALLEL
+  AL_Exchange (d->flag[0][0], SZ_char);
+#endif
 }
 
 #undef  EPS_PSHOCK_FLATTEN 

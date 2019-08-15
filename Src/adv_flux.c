@@ -28,9 +28,9 @@
   The CMA can also be switched on for standard tracers (<tt> 
   #define USE_CMA  YES</tt>)
   
-  \author A. Mignone (mignone@ph.unito.it)\n
-          O. Tesileanu
-  \date   02 April, 2015
+  \author  A. Mignone (mignone@ph.unito.it)\n
+           O. Tesileanu
+  \date    Feb 28, 2017
 
   \b Reference\n
      "The consistent multi-fluid advection method"
@@ -44,12 +44,13 @@
 #endif
 
 /* ********************************************************************* */
-void AdvectFlux (const State_1D *state, int beg, int end, Grid *grid)
+void AdvectFlux (const Sweep *sweep, int beg, int end, Grid *grid)
 /*! 
  *
- * \param [in,out] state
+ * \param [in,out] sweep
  * \param [in]      beg    initial index of computation 
  * \param [in]      end    final   index of computation
+ * \param [in]      grid   Pointer to Grid structure
  *
  * \return  This function has no return value.
  *********************************************************************** */
@@ -64,9 +65,9 @@ void AdvectFlux (const State_1D *state, int beg, int end, Grid *grid)
 
   for (i = beg; i <= end; i++){
 
-    flux = state->flux[i];
-    vL   = state->vL[i];
-    vR   = state->vR[i];
+    flux = sweep->flux[i];
+    vL   = sweep->stateL.v[i];
+    vR   = sweep->stateR.v[i];
 
     ts = flux[RHO] > 0.0 ? vL:vR;
 
@@ -74,46 +75,52 @@ void AdvectFlux (const State_1D *state, int beg, int end, Grid *grid)
     
     #if COOLING == MINEq
 
-     /* -----   He   -----  */
+    /* -----   He   -----  */
                          
-     phi = ts[X_HeI] + ts[X_HeII];
-     for (nv = X_HeI; nv <= X_HeII; nv++) flux[nv] /= phi;
+    phi = ts[X_HeI] + ts[X_HeII];
+    for (nv = X_HeI; nv <= X_HeII; nv++) flux[nv] /= phi;
 
-     /* -----   C   -----  */
+    /* -----   C   -----  */
 
-     phi = 0.0;
-     for (nv = X_CI; nv < X_CI + C_IONS; nv++) phi += ts[nv]; 
-     for (nv = X_CI; nv < X_CI + C_IONS; nv++) flux[nv] /= phi;
+    phi = 0.0;
+    for (nv = X_CI; nv < X_CI + C_IONS; nv++) phi += ts[nv]; 
+    for (nv = X_CI; nv < X_CI + C_IONS; nv++) flux[nv] /= phi;
 
-     /* -----   N   -----  */
+    /* -----   N   -----  */
 
-     phi = 0.0;
-     for (nv = X_NI; nv < X_NI+N_IONS; nv++) phi += ts[nv]; 
-     for (nv = X_NI; nv < X_NI+N_IONS; nv++) flux[nv] /= phi;
+    phi = 0.0;
+    for (nv = X_NI; nv < X_NI+N_IONS; nv++) phi += ts[nv]; 
+    for (nv = X_NI; nv < X_NI+N_IONS; nv++) flux[nv] /= phi;
 
-     /* -----   O   -----  */
+    /* -----   O   -----  */
 
-     phi = 0.0;
-     for (nv = X_OI; nv < X_OI+O_IONS; nv++) phi += ts[nv]; 
-     for (nv = X_OI; nv < X_OI+O_IONS; nv++) flux[nv] /= phi;
+    phi = 0.0;
+    for (nv = X_OI; nv < X_OI+O_IONS; nv++) phi += ts[nv]; 
+    for (nv = X_OI; nv < X_OI+O_IONS; nv++) flux[nv] /= phi;
 
-     /* -----   Ne   -----  */
+    /* -----   Ne   -----  */
 
-     phi = 0.0;
-     for (nv = X_NeI; nv < X_NeI+Ne_IONS; nv++) phi += ts[nv];
-     for (nv = X_NeI; nv < X_NeI+Ne_IONS; nv++) flux[nv] /= phi;
+    phi = 0.0;
+    for (nv = X_NeI; nv < X_NeI+Ne_IONS; nv++) phi += ts[nv];
+    for (nv = X_NeI; nv < X_NeI+Ne_IONS; nv++) flux[nv] /= phi;
 
-     /* -----   S   -----  */
+    /* -----   S   -----  */
 
-     phi = 0.0;
-     for (nv = X_SI; nv < X_SI+S_IONS; nv++) phi += ts[nv]; 
-     for (nv = X_SI; nv < X_SI+S_IONS; nv++) flux[nv] /= phi;
+    phi = 0.0;
+    for (nv = X_SI; nv < X_SI+S_IONS; nv++) phi += ts[nv]; 
+    for (nv = X_SI; nv < X_SI+S_IONS; nv++) flux[nv] /= phi;
 
     #endif
 
     #if COOLING == H2_COOL
      phi = ts[X_HI] + 2.0*ts[X_H2] + ts[X_HII];
      for (nv = X_HI; nv < X_HI + NIONS; nv++) flux[nv] /= phi; 
+    #endif
+
+    #if COOLING == KROME
+     phi = 0.0;
+     for (nv = X_H; nv < X_H + NIONS; nv++) phi += ts[nv];
+     for (nv = X_H; nv < X_H + NIONS; nv++) flux[nv] /= phi;
     #endif
 
     #if USE_CMA == YES  /* -- only for tracers -- */
@@ -123,8 +130,77 @@ void AdvectFlux (const State_1D *state, int beg, int end, Grid *grid)
     #endif
 
     #if ENTROPY_SWITCH
-     if (flux[RHO] >= 0.0) flux[ENTR] = state->vL[i][ENTR]*flux[RHO];
-     else                  flux[ENTR] = state->vR[i][ENTR]*flux[RHO];
+    if (flux[RHO] >= 0.0) flux[ENTR] = vL[ENTR]*flux[RHO];
+    else                  flux[ENTR] = vR[ENTR]*flux[RHO];
     #endif
+  }
+}
+
+/* ********************************************************************* */
+void StoreAMRFlux (double **flux, double **aflux, int sign,
+                    int nvar_beg, int nvar_end, int beg, int end, Grid *grid)
+/*!
+ * \param [in]  flux      pointer to a 1D flux array
+ * \param [out] aflux     pointer to a 1D flux array for AMR refluxing
+ *                        operation
+ * \param [in]  sign      an integer equal to 0, +1 or -1.
+ *                        When equal to 0, flux is initialized, otherwise
+ *                        it is added (+1) or subtracted (-1)
+ * \param [in]  nvar_beg  the starting variable index
+ * \param [in]  nvar_end  the final variable index
+ * \param [in]  grid      a pointer to the grid structure.
+ *
+ *********************************************************************** */
+{
+  int i,j,k,nv;
+  int nxf, nyf, nzf;
+  int nxb, nyb, nzb;
+  int *in;
+  long int indf, ind1;
+  double w;  
+
+#ifdef CTU                      /* With CTU, fluxes are saved at the */
+  if (g_intStage == 1) return;  /* corrector step.                   */ 
+#endif
+
+  nxf = grid->np_int[IDIR] + (g_dir == IDIR);
+  nyf = grid->np_int[JDIR] + (g_dir == JDIR);
+  nzf = grid->np_int[KDIR] + (g_dir == KDIR);
+
+  nxb = grid->lbeg[IDIR] - (g_dir == IDIR);
+  nyb = grid->lbeg[JDIR] - (g_dir == JDIR);
+  nzb = grid->lbeg[KDIR] - (g_dir == KDIR);
+
+  i = g_i; j = g_j; k = g_k;
+  if (g_dir == IDIR) in = &i;
+  if (g_dir == JDIR) in = &j;
+  if (g_dir == KDIR) in = &k;
+
+#if TIME_STEPPING == RK2
+  w = 0.5;
+#else 
+  w = 1.0;
+#endif
+
+  if (sign == 0){
+
+    for ((*in) = beg; (*in) <= end; (*in)++) {
+      ind1 = (k - nzb)*nyf*nxf + (j - nyb)*nxf + (i - nxb);
+      for (nv = nvar_beg; nv <= nvar_end; nv++){
+        indf = nv*nzf*nyf*nxf + ind1;
+        aflux[g_dir][indf] = w*flux[*in][nv];
+      }
+    }
+
+  }else{ 
+
+    for ((*in) = beg; (*in) <= end; (*in)++) {
+      ind1 = (k - nzb)*nyf*nxf + (j - nyb)*nxf + (i - nxb);
+      for (nv = nvar_beg; nv <= nvar_end; nv++){
+        indf = nv*nzf*nyf*nxf + ind1;
+        aflux[g_dir][indf] += sign*w*flux[*in][nv];
+      }
+    }
+
   }
 }

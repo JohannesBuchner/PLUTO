@@ -10,7 +10,7 @@
   an array of primitive quantities.
   During the conversion, pressure is normally recovered from total 
   energy using the algorithm outlined in
-  - "Equation of state in relativistic magnetohydrodynamics: variable versus
+  - "Equation of sweep in relativistic magnetohydrodynamics: variable versus
      constant adiabatic index"\n
      Mignone \& Mc Kinney, MNRAS (2007) 378, 1118.
 
@@ -31,6 +31,12 @@
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
+
+
+#if RMHD_RESISTIVE_CHECK
+static int CheckConversionQuartic (double rho, double *m, double *B, double *E, 
+                             double Enr, double glor, double *F_gamma, double *dF_gamma);
+#endif
 
 /* ********************************************************************* */
 void PrimToCons (double **uprim, double **ucons, int beg, int end)
@@ -183,7 +189,7 @@ int ConsToPrim (double **ucons, double **uprim, int beg, int end,
       If an error occurs, use the PressureFix() function
      ------------------------------------------------------- */
 
-#if ENTROPY_SWITCH
+    #if ENTROPY_SWITCH
     use_entropy = (flag[i] & FLAG_ENTROPY);
     use_energy  = !use_entropy;
     par.sigma_c = u[ENTR];
@@ -201,7 +207,7 @@ int ConsToPrim (double **ucons, double **uprim, int beg, int end,
       }
       u[ENG] = par.E;  /* Redefine energy */
     } 
-#endif
+    #endif
  
     if (use_energy){
       err = EnergySolve(&par);
@@ -216,9 +222,9 @@ int ConsToPrim (double **ucons, double **uprim, int beg, int end,
         flag[i] |= FLAG_CONS2PRIM_FAIL;
         ifail    = 1;
       }
-#if ENTROPY_SWITCH     
+      #if ENTROPY_SWITCH     
       u[ENTR] = par.sigma_c;  /* Redefine entropy */
-#endif      
+      #endif      
     }
 
  /* -- W, p and lor have been found. Now complete conversion --  */
@@ -244,14 +250,144 @@ int ConsToPrim (double **ucons, double **uprim, int beg, int end,
            v[BX2] = u[BX2];  ,
            v[BX3] = u[BX3];)
 
-#if NSCL > 0 
+    #if NSCL > 0 
     NSCL_LOOP(nv) v[nv] = u[nv]/u[RHO];
-#endif
+    #endif
 
-#ifdef GLM_MHD
+    #ifdef GLM_MHD
     v[PSI_GLM] = u[PSI_GLM]; 
-#endif
+    #endif
 
+
+    #if RMHD_RESISTIVE_CHECK
+  /* -------------------------------------------------------------
+        Now check the quartic that will be used in RRMHD 
+     ------------------------------------------------------------- */
+
+   /* -- Compute ideal electric field -- */
+
+    double emf[3];
+    emf[IDIR] = v[VX3]*v[BX2] - v[VX2]*v[BX3];
+    emf[JDIR] = v[VX1]*v[BX3] - v[VX3]*v[BX1];
+    emf[KDIR] = v[VX2]*v[BX1] - v[VX1]*v[BX2]; 
+
+    double g, F, G, dF, g_lornew, g_lorold, p_new, v_new[3], rho_new, omega_new, E2, B2, g1 = g_gamma/(g_gamma-1.0);
+    int fun, check1=0, check2=0;
+    double glor_1;
+
+    for (g = 0.95; g <= 30.0; g += 5){
+      fun = CheckConversionQuartic (u[RHO], u + MX1, u + BX1, emf, u[ENG] + u[RHO], g, &F, &dF);
+      fun = CheckConversionQuartic (u[RHO], u + MX1, u + BX1, emf, u[ENG] + u[RHO], g + 5, &G, &dF);
+      if(F*G<=0){
+        check1=1;
+ 
+        g_lornew=g+5;
+        g_lorold=g;
+        while(fabs(g_lorold-g_lornew)>1.e-10){
+          check2++;
+          g_lorold=g_lornew;
+          fun = CheckConversionQuartic (u[RHO], u + MX1, u + BX1, emf, u[ENG] + u[RHO], g_lorold, &F, &G);
+          g_lornew=g_lornew-F/G;
+     
+          if(check2>20){
+            print ("Error, Newton-Rhapson does not converge\n");
+            QUIT_PLUTO(1);
+          }
+        }
+        if(fabs(g_lornew-par.lor)>1.e-6){
+          print ("Error, zero found not accurate\n");
+          QUIT_PLUTO(1);
+        }
+      }
+    }
+    if(check1==0){
+      print ("Error, zero not found!\n");
+      QUIT_PLUTO(1);
+    }
+
+    /*Now we compute and check all the other primitive variables*/
+
+    E2 = emf[IDIR]*emf[IDIR] + emf[JDIR]*emf[JDIR] + emf[KDIR]*emf[KDIR];
+    B2 = u[BX1]*u[BX1] + u[BX2]*u[BX2] + u[BX3]*u[BX3];    
+
+    rho_new = u[RHO]/g_lornew;
+    if(fabs(v[RHO] - rho_new)>1.e-6) {
+      print ("Density is not accurate!\n");
+      QUIT_PLUTO(1);
+    }
+
+    p_new = (u[ENG] +u[RHO] - u[RHO]*g_lornew - 0.5*(E2 + B2))/(g_lornew*g_lornew*g1 - 1);
+    if(fabs(v[PRS] - p_new)/v[PRS]/v[PRS]>1.e-6) {
+      print ("Pressure is not accurate!\n");
+      QUIT_PLUTO(1);
+    }
+
+    omega_new = rho_new+g1*p_new;
+
+    glor_1 = 1/(omega_new*g_lornew*g_lornew);
+
+    v_new[0] = (u[VX1] - emf[JDIR]*u[BX3] + emf[KDIR]*u[BX2])*glor_1;
+    if(fabs(v[VX1] - v_new[0])>1.e-6) {
+      print ("Velocity (X) is not accurate!\n");
+      QUIT_PLUTO(1);
+    }
+
+    v_new[1] = (u[VX2] - emf[KDIR]*u[BX1] + emf[IDIR]*u[BX3])*glor_1;
+    if(fabs(v[VX2] - v_new[1])>1.e-6) {
+      print ("Velocity (Y) is not accurate!\n");
+      QUIT_PLUTO(1);
+    }
+
+    v_new[2] = (u[VX3] - emf[IDIR]*u[BX2] + emf[JDIR]*u[BX1])*glor_1;
+    if(fabs(v[VX3] - v_new[2])>1.e-6) {
+      print ("Velocity (Z) is not accurate!\n");
+      QUIT_PLUTO(1);
+    }  
+     
+    #endif
   }
   return ifail;
 }
+
+#if RMHD_RESISTIVE_CHECK
+/* ********************************************************************* */
+int CheckConversionQuartic (double D, double *m, double *B, double *E, 
+                             double tau, double glor, double *F_gamma, double *dF_gamma)
+/*
+ *
+ *********************************************************************** */
+{
+  double EvecB[3], EB_2, m2, m_EB, E2, B2, C_1, C_2, g1 = ((g_gamma-1.0)/g_gamma);
+  double A4, A3, A2, A1, A0;
+  
+  //input
+
+  EvecB[IDIR] = E[JDIR]*B[KDIR] - E[KDIR]*B[JDIR];
+  EvecB[JDIR] = E[KDIR]*B[IDIR] - E[IDIR]*B[KDIR];
+  EvecB[KDIR] = E[IDIR]*B[JDIR] - E[JDIR]*B[IDIR];
+
+  EB_2 = EvecB[IDIR]*EvecB[IDIR] + EvecB[JDIR]*EvecB[JDIR] + EvecB[KDIR]*EvecB[KDIR];
+  m2 = m[IDIR]*m[IDIR] + m[JDIR]*m[JDIR] + m[KDIR]*m[KDIR];
+  m_EB = -2*m[IDIR]*EvecB[IDIR] - 2*m[JDIR]*EvecB[JDIR] - 2*m[KDIR]*EvecB[KDIR];
+  E2 = E[IDIR]*E[IDIR] + E[JDIR]*E[JDIR] + E[KDIR]*E[KDIR];
+  B2 = B[IDIR]*B[IDIR] + B[JDIR]*B[JDIR] + B[KDIR]*B[KDIR];
+
+  C_1 = m2 + EB_2 + m_EB;
+  C_2 = tau - 0.5*E2 - 0.5*B2;
+
+  A4 = C_1 - C_2*C_2;
+  A3 = 2*C_2*g1*D;
+  A2 = C_2*C_2 - 2*C_1*g1 - g1*g1*D*D;
+  A1 = -2*C_2*g1*D;
+  A0 = g1*g1*(C_1 + D*D);
+
+  *F_gamma = A0 + glor*(A1 + glor*(A2 + glor*(A3 + glor*A4)));
+
+  *dF_gamma = A1+glor*(2.0*A2+glor*(3.0*A3+4.0*glor*A4));
+
+  return 0;
+ 
+}
+    
+#endif
+

@@ -1,249 +1,95 @@
 /* ///////////////////////////////////////////////////////////////////// */
 /*! 
   \file  
-  \brief Basic RBox database.
+  \brief Collects various functions to operate on the RBox structure.
 
-  The function SetRBox() defines an array of predefined RBox structures 
-  needed to loop through different portions (or regions) of the 
-  computational domain.
-  
-  - rbox_center: an array of RBoxes for looping over the cell-centered data.
-  - rbox_x1face: an array of RBoxes for looping over the X1-staggered data.
-  - rbox_x2face: an array of RBoxes for looping over the X2-staggered data.
-  - rbox_x3face: an array of RBoxes for looping over the X3-staggered data.
- 
-  Each array of structures has 8 elements corresponding to the six sides
-  of the computational domain (X1_BEG, ... , X3_END) and, in addition, 
-  we also define the DOM and TOT array indices to loop over the active 
-  computational zones or over the total
-  computational domain (interior + ghost zones), respectively.
+  - RBoxDefine() is used to set the box extent in terms of six
+    indices (beg..end for each direction) and the variable location
+    inside the cell.
 
-  The function GetRBox() can be used to retrieve a pointer to a RBox
-  structure given the computational side and the variable position.
+  - RBoxSetDirections() is used to set normal, tangent and binormal indices
+    with respect to the specified (sweeping) direction.
+    The convention adopted here is the same one used for vector indices
+    permutation in PLUTO: <tt> (i,j,k) -> (j,i,k) -> (k,i,j) </tt>.
+    Useful for sweeping along different directions during the time stepping
+    routines.
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   May 13, 2015
+  \date   Nov 13, 2015
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
-static RBox rbox_center[8], rbox_x1face[8], rbox_x2face[8], rbox_x3face[8];
-
 /* ********************************************************************* */
-void SetRBox(void)
+void RBoxDefine(int ib, int ie, int jb, int je, int kb, int ke, int vpos, RBox *box)
 /*! 
- *
+ * 
+ * \param [in]  ib    leftmost  index in the X1 direction
+ * \param [in]  ie    rightmost index in the X1 direction
+ * \param [in]  jb    leftmost  index in the X2 direction
+ * \param [in]  je    rightmost index in the X2 direction
+ * \param [in]  kb    leftmost  index in the X3 direction
+ * \param [in]  ke    rightmost index in the X3 direction
+ * \param [in] vpos   the variable location inside the cell
+ *                    (CENTER/X1FACE/.../X3FACE)
+ * \param [out] box   pointer to a RBox structure
  *
  *********************************************************************** */
 {
-  int s;
+  box->ibeg = ib;
+  box->iend = ie;
 
-/* ---------------------------------------------------
-    0. Set X1_BEG grid index ranges
-   --------------------------------------------------- */
+  box->jbeg = jb;
+  box->jend = je;
 
-  s = X1_BEG; s -= X1_BEG;
-
-  rbox_center[s].vpos = CENTER;
-
-  rbox_center[s].ib = IBEG-1; rbox_center[s].ie =         0;
-  rbox_center[s].jb =      0; rbox_center[s].je = NX2_TOT-1;
-  rbox_center[s].kb =      0; rbox_center[s].ke = NX3_TOT-1;
-
-  rbox_x1face[s] = rbox_x2face[s] = rbox_x3face[s] = rbox_center[s];
-
-  #ifndef CHOMBO /* -- useless for AMR -- */
-   rbox_x1face[s].vpos = X1FACE;
-   rbox_x2face[s].vpos = X2FACE;
-   rbox_x3face[s].vpos = X3FACE;
-
-   D_EXPAND(rbox_x1face[s].ib--; rbox_x1face[s].ie--;  ,
-            rbox_x2face[s].jb--;                       ,
-            rbox_x3face[s].kb--;)
-  #endif
-
-/* ---------------------------------------------------
-    1. set X1_END grid index ranges
-   --------------------------------------------------- */
-  
-  s = X1_END; s -= X1_BEG;
-
-  rbox_center[s].vpos = CENTER;
-
-  rbox_center[s].ib = IEND+1; rbox_center[s].ie = NX1_TOT-1;
-  rbox_center[s].jb =      0; rbox_center[s].je = NX2_TOT-1;
-  rbox_center[s].kb =      0; rbox_center[s].ke = NX3_TOT-1;
-
-  rbox_x1face[s] = rbox_x2face[s] = rbox_x3face[s] = rbox_center[s];
-
-  #ifndef CHOMBO /* -- useless for AMR -- */
-   rbox_x1face[s].vpos = X1FACE;
-   rbox_x2face[s].vpos = X2FACE;
-   rbox_x3face[s].vpos = X3FACE;
-
-   D_EXPAND(                   ;   ,
-            rbox_x2face[s].jb--;   ,
-            rbox_x3face[s].kb--;)
-  #endif
-
-/* ---------------------------------------------------
-    2. set X2_BEG grid index ranges
-   --------------------------------------------------- */
-
-  s = X2_BEG; s -= X1_BEG;
-
-  rbox_center[s].vpos = CENTER;
-
-  rbox_center[s].ib =      0; rbox_center[s].ie = NX1_TOT-1;
-  rbox_center[s].jb = JBEG-1; rbox_center[s].je =         0;
-  rbox_center[s].kb =      0; rbox_center[s].ke = NX3_TOT-1;
-
-  rbox_x1face[s] = rbox_x2face[s] = rbox_x3face[s] = rbox_center[s];
-
-  #ifndef CHOMBO /* -- useless for AMR -- */
-   rbox_x1face[s].vpos = X1FACE;
-   rbox_x2face[s].vpos = X2FACE;
-   rbox_x3face[s].vpos = X3FACE;
-
-   D_EXPAND(rbox_x1face[s].ib--;                       ,
-            rbox_x2face[s].jb--; rbox_x2face[s].je--;  ,
-            rbox_x3face[s].kb--;)
-  #endif
-
-/* ---------------------------------------------------
-    3. set X2_END grid index ranges
-   --------------------------------------------------- */
-  
-  s = X2_END; s -= X1_BEG;
-
-  rbox_center[s].vpos = CENTER;
-
-  rbox_center[s].ib =      0; rbox_center[s].ie = NX1_TOT-1;
-  rbox_center[s].jb = JEND+1; rbox_center[s].je = NX2_TOT-1;
-  rbox_center[s].kb =      0; rbox_center[s].ke = NX3_TOT-1;
-
-  rbox_x1face[s] = rbox_x2face[s] = rbox_x3face[s] = rbox_center[s];
-
-  #ifndef CHOMBO /* -- useless for AMR -- */
-   rbox_x1face[s].vpos = X1FACE;
-   rbox_x2face[s].vpos = X2FACE;
-   rbox_x3face[s].vpos = X3FACE;
-
-   D_EXPAND(rbox_x1face[s].ib--;    ,
-                               ;    ,
-            rbox_x3face[s].kb--;)
-  #endif
-
-/* ---------------------------------------------------
-    4. set X3_BEG grid index ranges
-   --------------------------------------------------- */
-
-  s = X3_BEG; s -= X1_BEG;
-
-  rbox_center[s].vpos = CENTER;
-
-  rbox_center[s].ib =      0; rbox_center[s].ie = NX1_TOT-1;
-  rbox_center[s].jb =      0; rbox_center[s].je = NX2_TOT-1;
-  rbox_center[s].kb = KBEG-1; rbox_center[s].ke =         0;
-
-  rbox_x1face[s] = rbox_x2face[s] = rbox_x3face[s] = rbox_center[s];
-
-  #ifndef CHOMBO /* -- useless for AMR -- */
-   rbox_x1face[s].vpos = X1FACE;
-   rbox_x2face[s].vpos = X2FACE;
-   rbox_x3face[s].vpos = X3FACE;
-
-   D_EXPAND(rbox_x1face[s].ib--;   ,
-            rbox_x2face[s].jb--;   ,
-            rbox_x3face[s].kb--; rbox_x3face[s].ke--;)
-  #endif
-
-/* ---------------------------------------------------
-    5.  set X3_END grid index ranges
-   --------------------------------------------------- */
-  
-  s = X3_END; s -= X1_BEG;
-
-  rbox_center[s].vpos = CENTER;
-
-  rbox_center[s].ib =      0; rbox_center[s].ie = NX1_TOT-1; 
-  rbox_center[s].jb =      0; rbox_center[s].je = NX2_TOT-1; 
-  rbox_center[s].kb = KEND+1; rbox_center[s].ke = NX3_TOT-1; 
-
-  rbox_x1face[s] = rbox_x2face[s] = rbox_x3face[s] = rbox_center[s];
-
-  #ifndef CHOMBO /* -- useless for AMR -- */
-   rbox_x1face[s].vpos = X1FACE;
-   rbox_x2face[s].vpos = X2FACE;
-   rbox_x3face[s].vpos = X3FACE;
-
-   D_EXPAND(rbox_x1face[s].ib--;      ,
-            rbox_x2face[s].jb--;      ,
-                               ;)
-  #endif
-
-/* ---------------------------------------------------
-    6. set DOM index ranges
-   --------------------------------------------------- */
-  
-  s = DOM; s -= X1_BEG;
-
-  rbox_center[s].vpos = CENTER;
-  rbox_center[s].ib = IBEG; rbox_center[s].ie = IEND; 
-  rbox_center[s].jb = JBEG; rbox_center[s].je = JEND; 
-  rbox_center[s].kb = KBEG; rbox_center[s].ke = KEND; 
-
-  rbox_x1face[s] = rbox_x2face[s] = rbox_x3face[s] = rbox_center[s];
-
-  #ifndef CHOMBO /* -- useless for AMR -- */
-   rbox_x1face[s].vpos = X1FACE;
-   rbox_x2face[s].vpos = X2FACE;
-   rbox_x3face[s].vpos = X3FACE;
-
-   D_EXPAND(rbox_x1face[s].ib--;   ,
-            rbox_x2face[s].jb--;   ,
-            rbox_x3face[s].kb--;)
-  #endif
-
-/* ---------------------------------------------------
-    7. set TOT index ranges
-   --------------------------------------------------- */
-  
-  s = TOT; s -= X1_BEG;
-
-  rbox_center[s].vpos = CENTER;
-  rbox_center[s].ib = 0; rbox_center[s].ie = NX1_TOT-1; 
-  rbox_center[s].jb = 0; rbox_center[s].je = NX2_TOT-1; 
-  rbox_center[s].kb = 0; rbox_center[s].ke = NX3_TOT-1; 
-
-  rbox_x1face[s] = rbox_x2face[s] = rbox_x3face[s] = rbox_center[s];
-
-  #ifndef CHOMBO /* -- useless for AMR -- */
-   rbox_x1face[s].vpos = X1FACE;
-   rbox_x2face[s].vpos = X2FACE;
-   rbox_x3face[s].vpos = X3FACE;
-
-   D_EXPAND(rbox_x1face[s].ib--;   ,
-            rbox_x2face[s].jb--;   ,
-            rbox_x3face[s].kb--;)
-  #endif
+  box->kbeg = kb;
+  box->kend = ke;
+ 
+  box->vpos = vpos;   
 }
+
 /* ********************************************************************* */
-RBox *GetRBox(int side, int vpos)
+void RBoxSetDirections(RBox *box, int dir)
 /*!
- *  Returns a pointer to a local static RBox 
+ * Set normal, tangent and binormal directions while sweeping
+ * across a box using the BOX_TRANSVERSE_LOOP macro;
  *
- *  \param[in]  side  the region of the computational domain where 
- *                    the box is required. There 8 possible values:
- *                    X1_BEG, ... , X3_END, DOM, TOT.
- *  \param[in]  vpos  the variable position inside the cell:
- *                    CENTER, X1FACE, X2FACE or X3FACE.
+ * \param [in,out]  box  pointer to a RBox structure
+ * \param [in]      dir  the sweeping direction giving the normal direction
+ *                       and respect to which assign the tangent and binormal
+ *                       indices.
+ *********************************************************************** */
+{
+  if (dir == IDIR){
+    box->nbeg = &(box->ibeg); box->nend = &(box->iend);
+    box->tbeg = &(box->jbeg); box->tend = &(box->jend);
+    box->bbeg = &(box->kbeg); box->bend = &(box->kend);
+  }else if (dir == JDIR){
+    box->nbeg = &(box->jbeg); box->nend = &(box->jend);
+    box->tbeg = &(box->ibeg); box->tend = &(box->iend);
+    box->bbeg = &(box->kbeg); box->bend = &(box->kend);
+  }else if (dir == KDIR){
+    box->nbeg = &(box->kbeg); box->nend = &(box->kend);
+    box->tbeg = &(box->ibeg); box->tend = &(box->iend);
+    box->bbeg = &(box->jbeg); box->bend = &(box->jend);
+  }else{
+    print ("! RBoxSetDirections(): invalid dir = %d\n",dir);
+    QUIT_PLUTO(1);
+  }
+
+}
+
+/* ********************************************************************* */
+void RBoxShow(RBox *box)
+/*
+ *
  *
  *********************************************************************** */
 {
-  if      (vpos == CENTER) return &(rbox_center[side-X1_BEG]);
-  else if (vpos == X1FACE) return &(rbox_x1face[side-X1_BEG]);
-  else if (vpos == X2FACE) return &(rbox_x2face[side-X1_BEG]);
-  else if (vpos == X3FACE) return &(rbox_x3face[side-X1_BEG]);
+  print ("===============================================================\n");
+  print (" (ibeg, iend) = (%d, %d)\n",box->ibeg, box->iend);
+  print (" (jbeg, jend) = (%d, %d)\n",box->jbeg, box->jend);
+  print (" (kbeg, kend) = (%d, %d)\n",box->kbeg, box->kend);
+  print ("===============================================================\n");
+ 
 }
-

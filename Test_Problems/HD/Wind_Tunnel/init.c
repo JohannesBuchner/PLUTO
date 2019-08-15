@@ -20,6 +20,20 @@ void Init (double *us, double x1, double x2, double x3)
    us[PRS] = 1.0;
 
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 
@@ -56,8 +70,8 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
   int   i, j, k, i1, j1;
   double  *x, *y;
 
-  x = grid[IDIR].x;
-  y = grid[JDIR].x;
+  x = grid->x[IDIR];
+  y = grid->x[JDIR];
 
   if (side == 0 && g_dir == IDIR){
     KDOM_LOOP(k) { 

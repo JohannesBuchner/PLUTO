@@ -26,7 +26,7 @@
   This can be done also when BACKGROUND_FIELD is set to YES.
 
   On input, this function takes left and right primitive state vectors 
-  \c state->vL and \c state->vR at zone edge i+1/2;
+  \c stateL->v and \c stateR->v at zone edge i+1/2;
   On output, return flux and pressure vectors at the same interface 
   \c i+1/2 (note that the \c i refers to \c i+1/2).
   
@@ -40,7 +40,7 @@
        
   \authors A. Mignone (mignone@ph.unito.it)
            C. Zanni   (zanni@oato.inaf.it)
-  \date    April 11, 2014 
+  \date   April 16, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include"pluto.h"
@@ -50,13 +50,13 @@
 #define CHECK_ROE_MATRIX     NO
 
 /* ********************************************************************* */
-void Roe_Solver (const State_1D *state, int beg, int end, 
+void Roe_Solver (const Sweep *sweep, int beg, int end, 
                  double *cmax, Grid *grid)
 /*!
  * Solve Riemann problem for the adiabatic MHD equations using the 
  * Roe Riemann solver of Cargo & Gallice (1997).
  * 
- * \param[in,out] state   pointer to State_1D structure
+ * \param[in,out] sweep   pointer to Sweep structure
  * \param[in]     beg     initial grid index
  * \param[out]    end     final grid index
  * \param[out]    cmax    1D array of maximum characteristic speeds
@@ -66,6 +66,10 @@ void Roe_Solver (const State_1D *state, int beg, int end,
 {
   int  nv, i, j, k;
   int  ifail;
+
+  const State   *stateL = &(sweep->stateL);
+  const State   *stateR = &(sweep->stateR);
+
   double rho, u, v, w, vel2, bx, by, bz, pr;
   double a2, a, ca2, cf2, cs2;
   double cs, ca, cf, b2;
@@ -82,79 +86,58 @@ void Roe_Solver (const State_1D *state, int beg, int end,
   double vdm, BdB, beta_dv, beta_dB;
   double bt2, Btmag, sqr_rho_L, sqr_rho_R;
 
-  static double *pR, *pL, *a2L, *a2R;
-  static double **fL, **fR;
-  static double **VL, **VR, **UL, **UR;
   double **bgf;
   #if BACKGROUND_FIELD == YES
    double B0x, B0y, B0z, B1x, B1y, B1z;
   #endif      
   double Us[NFLX];
+  double **fL = stateL->flux, **fR = stateR->flux;
+  double *a2L = stateL->a2,   *a2R = stateR->a2;
+  double  *pL = stateL->prs,   *pR = stateR->prs;
+
   delta    = 1.e-6;
-
-/* -----------------------------------------------------------
-   1. Allocate static memory areas
-   ----------------------------------------------------------- */
-   
-  if (fL == NULL){
-
-    fL = ARRAY_2D(NMAX_POINT, NFLX, double);
-    fR = ARRAY_2D(NMAX_POINT, NFLX, double);
-
-    pR = ARRAY_1D(NMAX_POINT, double);
-    pL = ARRAY_1D(NMAX_POINT, double);
-
-    a2R = ARRAY_1D(NMAX_POINT, double);
-    a2L = ARRAY_1D(NMAX_POINT, double);
-
-    #ifdef GLM_MHD
-     VL = ARRAY_2D(NMAX_POINT, NVAR, double);
-     VR = ARRAY_2D(NMAX_POINT, NVAR, double);
-     UL = ARRAY_2D(NMAX_POINT, NVAR, double);
-     UR = ARRAY_2D(NMAX_POINT, NVAR, double);
-    #endif
-  }
 
 /* -----------------------------------------------------------
    2. Background field
    ----------------------------------------------------------- */
 
-  #if BACKGROUND_FIELD == YES
-   bgf = GetBackgroundField (beg, end, FACE_CENTER, grid);
-   #if (DIVB_CONTROL == EIGHT_WAVES)
-    print1 ("! Roe_Solver: background field and 8wave not tested\n");
-    QUIT_PLUTO(1);
-   #endif
+#if BACKGROUND_FIELD == YES
+  GetBackgroundField (stateL, beg, end, FACE_CENTER, grid);
+  bgf = stateL->Bbck;
+  #if (DIVB_CONTROL == EIGHT_WAVES)
+  print ("! Roe_Solver(): background field and 8wave not tested\n");
+  QUIT_PLUTO(1);
   #endif
+#endif
 
 /* -----------------------------------------------------------
    3. GLM pre-Rieman solver
    ----------------------------------------------------------- */
    
-  #ifdef GLM_MHD
-   GLM_Solve (state, VL, VR, beg, end, grid);
-   PrimToCons (VL, UL, beg, end);
-   PrimToCons (VR, UR, beg, end);
-  #else
-   VL = state->vL; UL = state->uL;
-   VR = state->vR; UR = state->uR;
-  #endif
+#ifdef GLM_MHD
+  GLM_Solve (sweep, beg, end, grid);
+#endif
 
 /* ----------------------------------------------------
    4. Compute sound speed & fluxes at zone interfaces
    ---------------------------------------------------- */
 
-  SoundSpeed2 (VL, a2L, NULL, beg, end, FACE_CENTER, grid);
-  SoundSpeed2 (VR, a2R, NULL, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (stateL, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (stateR, beg, end, FACE_CENTER, grid);
 
-  Flux (UL, VL, a2L, bgf, fL, pL, beg, end);
-  Flux (UR, VR, a2R, bgf, fR, pR, beg, end);
+  Flux (stateL, beg, end);
+  Flux (stateR, beg, end);
 
-  SL = state->SL; SR = state->SR;
+#if (defined PARTICLES22) && (PARTICLES_TYPE == COSMIC_RAYS)
+  print ("! Roe_Solver(): cannot be used with cosmic ray particles\n");
+  QUIT_PLUTO(1);
+#endif
 
-  #if EOS == IDEAL
-   g1 = g_gamma - 1.0;
-  #endif
+  SL = sweep->SL; SR = sweep->SR;
+
+#if EOS == IDEAL
+  g1 = g_gamma - 1.0;
+#endif
 
 /* -------------------------------------------------
    5. Some eigenvectors components will always be 
@@ -172,34 +155,34 @@ void Roe_Solver (const State_1D *state, int beg, int end,
    
   for (i = beg; i <= end; i++) {
 
-    vL = VL[i]; uL = UL[i];
-    vR = VR[i]; uR = UR[i];
+    vL = stateL->v[i]; uL = stateL->u[i];
+    vR = stateR->v[i]; uR = stateR->u[i];
 
   /* -----------------------------------------------------------
      6a.  switch to HLL in proximity of strong shock 
      ----------------------------------------------------------- */
 
     #if SHOCK_FLATTENING == MULTID
-     if ((state->flag[i] & FLAG_HLL) || (state->flag[i+1] & FLAG_HLL)){
-       HLL_Speed (VL, VR, a2L, a2R, NULL, SL, SR, i, i);
+     if ((sweep->flag[i] & FLAG_HLL) || (sweep->flag[i+1] & FLAG_HLL)){
+       HLL_Speed (stateL, stateR, SL, SR, i, i);
 
        scrh = MAX(fabs(SL[i]), fabs(SR[i]));
        cmax[i] = scrh;
 
        if (SL[i] > 0.0) {
-         for (nv = NFLX; nv--; ) state->flux[i][nv] = fL[i][nv];
-         state->press[i] = pL[i];
+         for (nv = NFLX; nv--; ) sweep->flux[i][nv] = fL[i][nv];
+         sweep->press[i] = pL[i];
        } else if (SR[i] < 0.0) {
-         for (nv = NFLX; nv--; ) state->flux[i][nv] = fR[i][nv];
-         state->press[i] = pR[i];
+         for (nv = NFLX; nv--; ) sweep->flux[i][nv] = fR[i][nv];
+         sweep->press[i] = pR[i];
        }else{
          scrh = 1.0/(SR[i] - SL[i]);
          for (nv = NFLX; nv--; ){
-           state->flux[i][nv]  = SR[i]*SL[i]*(uR[nv] - uL[nv])
+           sweep->flux[i][nv]  = SR[i]*SL[i]*(uR[nv] - uL[nv])
                               +  SR[i]*fL[i][nv] - SL[i]*fR[i][nv];
-           state->flux[i][nv] *= scrh;
+           sweep->flux[i][nv] *= scrh;
          }
-         state->press[i] = (SR[i]*pL[i] - SL[i]*pR[i])*scrh;
+         sweep->press[i] = (SR[i]*pL[i] - SL[i]*pR[i])*scrh;
        }
        continue;
      }
@@ -259,9 +242,9 @@ void Roe_Solver (const State_1D *state, int beg, int end,
 
    #if BACKGROUND_FIELD == YES
    /* -- Define field B0 and total B. B1 is the deviation -- */   
-    EXPAND (B0x = bgf[i][BXn]; B1x = sr*vL[BXn] + sl*vR[BXn]; Bx = B0x + B1x;  ,
-            B0y = bgf[i][BXt]; B1y = sr*vL[BXt] + sl*vR[BXt]; By = B0y + B1y;  ,
-            B0z = bgf[i][BXb]; B1z = sr*vL[BXb] + sl*vR[BXb]; Bz = B0z + B1z;)
+    EXPAND (B0x = bgf[i][BXn-BX1]; B1x = sr*vL[BXn] + sl*vR[BXn]; Bx = B0x + B1x;  ,
+            B0y = bgf[i][BXt-BX1]; B1y = sr*vL[BXt] + sl*vR[BXt]; By = B0y + B1y;  ,
+            B0z = bgf[i][BXb-BX1]; B1z = sr*vL[BXb] + sl*vR[BXb]; Bz = B0z + B1z;)
    #else
     EXPAND (Bx = sr*vL[BXn] + sl*vR[BXn];  ,
             By = sr*vL[BXt] + sl*vR[BXt];  ,
@@ -296,7 +279,7 @@ void Roe_Solver (const State_1D *state, int beg, int end,
      a2 = 0.5*(a2L[i] + a2R[i]) + X;  /* in most cases a2L = a2R
                                          for isothermal MHD */
     #elif EOS == BAROTROPIC
-     print ("! Roe_Solver: not implemented for barotropic EOS\n");
+     print ("! Roe_Solver(): not implemented for barotropic EOS\n");
      QUIT_PLUTO(1);
     #elif EOS == IDEAL
      vel2    = EXPAND(u*u, + v*v, + w*w);
@@ -315,9 +298,10 @@ void Roe_Solver (const State_1D *state, int beg, int end,
 
      a2 = (2.0 - g_gamma)*X + g1*(Hgas - 0.5*vel2);
      if (a2 < 0.0) {
-      printf ("! Roe: a2 = %12.6e < 0.0 !! \n",a2);
-      Show(VL,i);
-      Show(VR,i);
+      print ("! Roe_Solver(): a2 = %12.6e < 0.0 !! \n",a2);
+      a2 = sqrt(g_gamma*(vL[PRS] + vR[PRS])/(vL[RHO] + vR[RHO]));
+      Show(stateL->v,i);
+      Show(stateR->v,i);
       QUIT_PLUTO(1);
      }      
     #endif /* EOS == IDEAL */
@@ -664,9 +648,9 @@ void Roe_Solver (const State_1D *state, int beg, int end,
       for (k = 0; k < NFLX; k++) {
         scrh += alambda[k]*eta[k]*Rc[nv][k];
       }
-      state->flux[i][nv] = 0.5*(fL[i][nv] + fR[i][nv] - scrh);
+      sweep->flux[i][nv] = 0.5*(fL[i][nv] + fR[i][nv] - scrh);
     }
-    state->press[i] = 0.5*(pL[i] + pR[i]);
+    sweep->press[i] = 0.5*(pL[i] + pR[i]);
 
   /* --------------------------------------------------------
      6j. Check the Roe matrix condition, FR - FL = A*(UR - UL)
@@ -699,7 +683,7 @@ void Roe_Solver (const State_1D *state, int beg, int end,
 
   /* -----------------------------------------------------------------
      6l. Hybridize with HLL solver: replace occurences of unphysical 
-        states (p < 0, rho < 0) with HLL Flux. Reference:
+         states (p < 0, rho < 0) with HLL Flux. Reference:
       
         "A Positive Conservative Method for MHD based based on HLL 
          and Roe methods", P. Janhunen, JCP (2000), 160, 649
@@ -711,17 +695,17 @@ void Roe_Solver (const State_1D *state, int beg, int end,
        ifail = 0;    
 
       /* -----------------------
-           check left state 
+           check left sweep 
          ----------------------- */
 
        #if EOS == ISOTHERMAL
-        Uv[RHO] = uL[RHO] + (state->flux[i][RHO] - fL[i][RHO])/SL[i];        
+        Uv[RHO] = uL[RHO] + (sweep->flux[i][RHO] - fL[i][RHO])/SL[i];        
         ifail  = (Uv[RHO] < 0.0);
        #else
         for (nv = NFLX; nv--; ){
-          Uv[nv] = uL[nv] + (state->flux[i][nv] - fL[i][nv])/SL[i];        
+          Uv[nv] = uL[nv] + (sweep->flux[i][nv] - fL[i][nv])/SL[i];        
         }
-        Uv[MXn] += (state->press[i] - pL[i])/SL[i];    
+        Uv[MXn] += (sweep->press[i] - pL[i])/SL[i];    
  
         vel2  = EXPAND(Uv[MX1]*Uv[MX1], + Uv[MX2]*Uv[MX2], + Uv[MX3]*Uv[MX3]);
         b2    = EXPAND(Uv[BX1]*Uv[BX1], + Uv[BX2]*Uv[BX2], + Uv[BX3]*Uv[BX3]);    
@@ -730,17 +714,17 @@ void Roe_Solver (const State_1D *state, int beg, int end,
        #endif
 
       /* -----------------------
-           check right state 
+           check right sweep 
          ----------------------- */
 
        #if EOS == ISOTHERMAL
-        Uv[RHO] = uR[RHO] + (state->flux[i][RHO] - fR[i][RHO])/SR[i];
+        Uv[RHO] = uR[RHO] + (sweep->flux[i][RHO] - fR[i][RHO])/SR[i];
         ifail  = (Uv[RHO] < 0.0);
        #else
         for (nv = NFLX; nv--;  ){
-          Uv[nv] = uR[nv] + (state->flux[i][nv] - fR[i][nv])/SR[i];
+          Uv[nv] = uR[nv] + (sweep->flux[i][nv] - fR[i][nv])/SR[i];
         }
-        Uv[MXn] += (state->press[i] - pR[i])/SR[i];
+        Uv[MXn] += (sweep->press[i] - pR[i])/SR[i];
 
         vel2  = EXPAND(Uv[MX1]*Uv[MX1], + Uv[MX2]*Uv[MX2], + Uv[MX3]*Uv[MX3]);
         b2    = EXPAND(Uv[BX1]*Uv[BX1], + Uv[BX2]*Uv[BX2], + Uv[BX3]*Uv[BX3]);    
@@ -768,11 +752,11 @@ void Roe_Solver (const State_1D *state, int beg, int end,
        if (ifail){
          scrh = 1.0/(SR[i] - SL[i]);
          for (nv = 0; nv < NFLX; nv++) {
-           state->flux[i][nv] = SL[i]*SR[i]*(uR[nv] - uL[nv]) +
+           sweep->flux[i][nv] = SL[i]*SR[i]*(uR[nv] - uL[nv]) +
                                 SR[i]*fL[i][nv] - SL[i]*fR[i][nv];
-           state->flux[i][nv] *= scrh;
+           sweep->flux[i][nv] *= scrh;
          }
-         state->press[i] = (SR[i]*pL[i] - SL[i]*pR[i])*scrh;
+         sweep->press[i] = (SR[i]*pL[i] - SL[i]*pR[i])*scrh;
        }
      }
     #endif
@@ -782,9 +766,32 @@ void Roe_Solver (const State_1D *state, int beg, int end,
               initialize source term
    -------------------------------------------------------- */
   
-  #if DIVB_CONTROL == EIGHT_WAVES
-   Roe_DivBSource (state, beg + 1, end, grid);
+#if DIVB_CONTROL == EIGHT_WAVES
+  Roe_DivBSource (sweep, beg + 1, end, grid);
+#endif
+
+/* ----------------------------------------------------------
+   4. Add CR flux contribution using simplified upwinding.
+   ---------------------------------------------------------- */
+
+#ifdef PARTICLES
+  #if (PARTICLES_TYPE == COSMIC_RAYS) && (PARTICLES_CR_FEEDBACK == YES) 
+  Particles_CR_Flux (stateL, beg, end);
+  Particles_CR_Flux (stateR, beg, end);
+
+  for (i = beg; i <= end; i++){
+    if (sweep->flux[i][RHO] > 0.0) {
+      for (nv = NFLX; nv--; ) sweep->flux[i][nv] += stateL->fluxCR[i][nv];
+    }else if (sweep->flux[i][RHO] < 0.0){
+      for (nv = NFLX; nv--; ) sweep->flux[i][nv] += stateR->fluxCR[i][nv];
+    }else{
+      for (nv = NFLX; nv--; ) {
+        sweep->flux[i][nv] += 0.5*(stateL->fluxCR[i][nv] + stateR->fluxCR[i][nv]);
+      }
+    }
+  }  
   #endif
+#endif
 
 }
 #undef sqrt_1_2

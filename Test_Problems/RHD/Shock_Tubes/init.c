@@ -70,7 +70,19 @@ void Init (double *us, double x, double y, double z)
     us[VX2] = g_inputParam[VY_R];
     us[PRS] = g_inputParam[PR_R];
   }
+}
 
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
 }
 
 /* ********************************************************************* */

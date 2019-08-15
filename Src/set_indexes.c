@@ -36,17 +36,17 @@
   to obtain transverse predictor in any case.
   Also, with CTU+CT, one needs to expand the grid of one zone in the
   \e normal direction as well.
-  This allows to computed fully corner coupled states in the boundary to
+  This allows to computed fully corner coupled sweeps in the boundary to
   get electric field components during the constrained transport algorithm. 
 
   \author A. Mignone (mignone@ph.unito.it)\n
-  \date   Sep 17, 2012
+  \date   Nov 27, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
 /* ********************************************************************* */
-void SetIndexes (Index *indx, Grid *grid)
+void SetVectorIndices (int dir)
 /*!
  * Set vector indices and integration index range.
  *
@@ -55,53 +55,50 @@ void SetIndexes (Index *indx, Grid *grid)
  *
  *********************************************************************** */
 {
-  IBEG = grid[IDIR].lbeg; IEND = grid[IDIR].lend;
-  JBEG = grid[JDIR].lbeg; JEND = grid[JDIR].lend;
-  KBEG = grid[KDIR].lbeg; KEND = grid[KDIR].lend;
-
-  if (g_dir == IDIR) {   /* -- Order: X-Y-Z  {in,t1,t2 = i,j,k} -- */
+  if (dir == IDIR) {   /* -- Order: X-Y-Z  {in,t1,t2 = i,j,k} -- */
 
     EXPAND(VXn = MXn = VX1; , 
            VXt = MXt = VX2; , 
            VXb = MXb = VX3;)
-#if PHYSICS == MHD || PHYSICS == RMHD
+    #if PHYSICS == MHD || PHYSICS == RMHD
     EXPAND(BXn = BX1; , 
            BXt = BX2; ,  
            BXb = BX3;)
-#endif
-#if DUST == YES
+    #endif
+    #if (PHYSICS == RMHD) && (RESISTIVITY != NO)
+    EXPAND(EXn = EX1; , 
+           EXt = EX2; ,  
+           EXb = EX3;)
+    #endif
+
+#if DUST_FLUID == YES
     EXPAND(VXn_D = MXn_D = VX1_D; , 
            VXt_D = MXt_D = VX2_D; ,  
            VXb_D = MXb_D = VX3_D;)
 #endif
-
-    indx->ntot   = grid[IDIR].np_tot;
-    indx->beg    = IBEG; indx->end    = IEND;
-    indx->t1_beg = JBEG; indx->t1_end = JEND;
-    indx->t2_beg = KBEG; indx->t2_end = KEND;
-
-  }else if (g_dir == JDIR){ /* -- Order: Y-X-Z  {in,t1,t2 = j,i,k} -- */
+ 
+  }else if (dir == JDIR){ /* -- Order: Y-X-Z  {in,t1,t2 = j,i,k} -- */
 
     EXPAND(VXn = MXn = VX2;  , 
            VXt = MXt = VX1;  , 
            VXb = MXb = VX3;)
-#if PHYSICS == MHD || PHYSICS == RMHD
+    #if PHYSICS == MHD || PHYSICS == RMHD
     EXPAND(BXn = BX2; , 
            BXt = BX1; ,  
            BXb = BX3;)
-#endif
-#if DUST == YES
+    #endif
+    #if (PHYSICS == RMHD) && (RESISTIVITY != NO)
+    EXPAND(EXn = EX2; , 
+           EXt = EX1; ,  
+           EXb = EX3;)
+    #endif
+#if DUST_FLUID == YES
     EXPAND(VXn_D = MXn_D = VX2_D; , 
            VXt_D = MXt_D = VX1_D; ,  
            VXb_D = MXb_D = VX3_D;)
 #endif
     
-    indx->ntot   = grid[JDIR].np_tot;
-    indx->beg    = JBEG; indx->end    = JEND;
-    indx->t1_beg = IBEG; indx->t1_end = IEND;
-    indx->t2_beg = KBEG; indx->t2_end = KEND;
-
-  }else if (g_dir == KDIR){ /* -- Order: Z-X-Y  {in,t1,t2 = k,i,j} -- */
+  }else if (dir == KDIR){ /* -- Order: Z-X-Y  {in,t1,t2 = k,i,j} -- */
 
     VXn = MXn = VX3;
     VXt = MXt = VX1;
@@ -111,58 +108,24 @@ void SetIndexes (Index *indx, Grid *grid)
      BXt = BX1;
      BXb = BX2;
     #endif
-#if DUST == YES
+    #if (PHYSICS == RMHD) && (RESISTIVITY != NO)
+    EXPAND(EXn = EX3; , 
+           EXt = EX1; ,  
+           EXb = EX2;)
+    #endif
+#if DUST_FLUID == YES
     EXPAND(VXn_D = MXn_D = VX3_D; , 
            VXt_D = MXt_D = VX1_D; ,  
            VXb_D = MXb_D = VX2_D;)
 #endif
 
-    indx->ntot   = grid[KDIR].np_tot;
-    indx->beg    = KBEG; indx->end    = KEND;
-    indx->t1_beg = IBEG; indx->t1_end = IEND;
-    indx->t2_beg = JBEG; indx->t2_end = JEND;
-
   }
-
-/* -------------------------------------------------------
-    Expand grid one further zone to account for proper 
-    flux computation. This is necessary to obtain the EMF 
-    in the boundary zones and to get transverse rhs for 
-    corner coupled states.
-   ------------------------------------------------------- */
-
-  #ifdef STAGGERED_MHD
-   D_EXPAND(                              ;  ,
-            indx->t1_beg--; indx->t1_end++;  ,
-            indx->t2_beg--; indx->t2_end++;)
-   #ifdef CTU
-    if (g_intStage == 1){
-      indx->beg--;
-      indx->end++; 
-      D_EXPAND(                              ;  ,
-               indx->t1_beg--; indx->t1_end++;  ,
-               indx->t2_beg--; indx->t2_end++;)
-    }
-   #endif
-  #else
-   #ifdef CTU 
-    if (g_intStage == 1){
-      #if (PARABOLIC_FLUX & EXPLICIT)
-       indx->beg--;
-       indx->end++; 
-      #endif
-      D_EXPAND(                                 ,
-               indx->t1_beg--; indx->t1_end++;  ,
-               indx->t2_beg--; indx->t2_end++;) 
-    }
-   #endif
-  #endif
 }
 
 /* ********************************************************************* */
-void ResetState (const Data *d, State_1D *state, Grid *grid)
+void ResetState (const Data *d, Sweep *sweep, Grid *grid)
 /*!
- * Initialize some of the elements of the State_1D structure to zero
+ * Initialize some of the elements of the Sweep structure to zero
  * in order to speed up computations. These includes:
  *
  *    - source term
@@ -170,7 +133,7 @@ void ResetState (const Data *d, State_1D *state, Grid *grid)
  *    - the maximum eigenvalue ???
  *
  * \param [in] d  pointer to Data structure
- * \param [out] state pointer to a State_1D structure
+ * \param [out] sweep pointer to a Sweep structure
  * \param [in]  grid pointer to an array of Grid structures
  *
  *********************************************************************** */
@@ -179,15 +142,24 @@ void ResetState (const Data *d, State_1D *state, Grid *grid)
   double v[NVAR], lambda[NVAR];
   double a;
 
+  memset ((void *)sweep->src[0],   '\0', NMAX_POINT*NVAR*sizeof(double));
+
+  memset ((void *)sweep->stateC.Rp[0][0], '\0', NMAX_POINT*NFLX*NFLX*sizeof(double));
+  memset ((void *)sweep->stateC.Lp[0][0], '\0', NMAX_POINT*NFLX*NFLX*sizeof(double));
+  memset ((void *)sweep->stateL.Rp[0][0], '\0', NMAX_POINT*NFLX*NFLX*sizeof(double));
+  memset ((void *)sweep->stateL.Lp[0][0], '\0', NMAX_POINT*NFLX*NFLX*sizeof(double));
+  memset ((void *)sweep->stateR.Rp[-1][0], '\0', NMAX_POINT*NFLX*NFLX*sizeof(double));
+  memset ((void *)sweep->stateR.Lp[-1][0], '\0', NMAX_POINT*NFLX*NFLX*sizeof(double));
+/*
   for (i = 0; i < NMAX_POINT; i++){
-    for (j = NVAR; j--;  ) state->src[i][j] = 0.0;
+    for (j = NVAR; j--;  ) sweep->src[i][j] = 0.0;
 
     for (j = NFLX; j--;  ){
     for (k = NFLX; k--;  ){
-      state->Lp[i][j][k] = state->Rp[i][j][k] = 0.0;
+      sweep->Lp[i][j][k] = sweep->Rp[i][j][k] = 0.0;
     }}
   }  
-
+*/
 /* ---------------------------------------------------------
      When using Finite Difference methods, we need to find,
      for each characteristic k, its maximum over the 
@@ -195,6 +167,6 @@ void ResetState (const Data *d, State_1D *state, Grid *grid)
    --------------------------------------------------------- */
 
   #ifdef FINITE_DIFFERENCE
-   FD_GetMaxEigenvalues (d, state, grid);
+   FD_GetMaxEigenvalues (d, sweep, grid);
   #endif
 }

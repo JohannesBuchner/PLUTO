@@ -55,6 +55,20 @@ void Init (double *v, double x1, double x2, double x3)
   v[VX1] =  U*(1.0 - 1.0/(x1*x1))*cos(x2);
   v[VX2] = -U*(1.0 + 1.0/(x1*x1))*sin(x2); 
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /*
@@ -74,9 +88,9 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
   double x, y, r, rnd, Mach;
   double c, s;
 
-  x1 = grid[IDIR].x;
-  x2 = grid[JDIR].x;
-  x3 = grid[KDIR].x;
+  x1 = grid->x[IDIR];
+  x2 = grid->x[JDIR];
+  x3 = grid->x[KDIR];
 
   if (side == 0) {    /* -- check solution inside domain -- */
     TOT_LOOP(k,j,i){

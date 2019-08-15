@@ -1,7 +1,7 @@
 #include "pluto.h"
 
 /* ********************************************************************* */
-void RusanovDW_Solver (const State_1D *state, int beg, int end, 
+void RusanovDW_Solver (const Sweep *sweep, int beg, int end, 
                 double *cmax, Grid *grid)
 /*!
  * Solve Riemann problem using the Lax-Friedrichs Rusanov solver:
@@ -39,14 +39,14 @@ double num, den, lambda, dU, dF, vn;
      compute sound speed & fluxes at zone interfaces
    ---------------------------------------------------- */
 
-  SoundSpeed2 (state->vL, a2L, NULL, beg, end, FACE_CENTER, grid);
-  SoundSpeed2 (state->vR, a2R, NULL, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (sweep->vL, a2L, NULL, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (sweep->vR, a2R, NULL, beg, end, FACE_CENTER, grid);
 
-  Flux (state->uL, state->vL, a2L, fL, pL, beg, end);
-  Flux (state->uR, state->vR, a2R, fR, pR, beg, end);
+  Flux (sweep->uL, sweep->vL, a2L, fL, pL, beg, end);
+  Flux (sweep->uR, sweep->vR, a2R, fR, pR, beg, end);
 
 /* ---------------------------------------------------------------------
-    Compute average state in order to get the local max characteristic
+    Compute average sweep in order to get the local max characteristic
     velocity.
     In order to avoid underestimating this speed at strong reflecting
     boundaries (or when vxL = -vxR in general) , we average the
@@ -55,9 +55,9 @@ double num, den, lambda, dU, dF, vn;
 
   for (i = beg; i <= end; i++)           {
     for (nv = NFLX; nv--;  ) {
-      vRL[i][nv] = 0.5*(state->vL[i][nv] + state->vR[i][nv]);
+      vRL[i][nv] = 0.5*(sweep->vL[i][nv] + sweep->vR[i][nv]);
     }
-    vRL[i][VXn] = 0.5*(fabs(state->vL[i][VXn]) + fabs(state->vR[i][VXn]));
+    vRL[i][VXn] = 0.5*(fabs(sweep->vL[i][VXn]) + fabs(sweep->vR[i][VXn]));
   }
 
 /* ---------------------------------------------------------------------
@@ -68,9 +68,9 @@ double num, den, lambda, dU, dF, vn;
   MaxSignalSpeed (vRL, a2R, cRL_min, cRL_max, beg, end);
 
   for (i = beg; i <= end; i++) {
-    uR   = state->uR[i];
-    uL   = state->uL[i];
-    flux = state->flux[i];
+    uR   = sweep->uR[i];
+    uL   = sweep->uL[i];
+    flux = sweep->flux[i];
   
   /* -- compute max eigenvalue -- */
 
@@ -90,8 +90,8 @@ lambda = fabs(num)/(fabs(den) + 1.e-12);
 
 if (lambda > cmax[i])  lambda = cmax[i];
 
-vn = 0.5*( fabs(state->vR[i][VXn]) + fabs(state->vL[i][VXn]) );
-vn = MAX( fabs(state->vR[i][VXn]), fabs(state->vL[i][VXn]) );
+vn = 0.5*( fabs(sweep->vR[i][VXn]) + fabs(sweep->vL[i][VXn]) );
+vn = MAX( fabs(sweep->vR[i][VXn]), fabs(sweep->vL[i][VXn]) );
 if (lambda < vn) lambda = vn;
 
 /*
@@ -102,6 +102,6 @@ cR = MIN(fabs(cmax_R[i]), fabs(cmin_R[i]));
     for (nv = NFLX; nv--;  ) {
       flux[nv] = 0.5*(fL[i][nv] + fR[i][nv] - lambda*(uR[nv] - uL[nv]));
     }
-    state->press[i] = 0.5*(pL[i] + pR[i]);
+    sweep->press[i] = 0.5*(pL[i] + pR[i]);
   }
 }

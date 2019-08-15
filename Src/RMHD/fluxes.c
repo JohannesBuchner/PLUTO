@@ -14,14 +14,13 @@
     components (tangent \c "t" and bi-tangent \c "b").
 
  \author A. Mignone (mignone@ph.unito.it)
- \date   Jun 10, 2015
+ \date   Oct 16, 2016
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
 /* ***************************************************************** */
-void Flux (double **ucons, double **uprim, double *h, 
-           double **fx, real *pr, int beg, int end)
+void Flux (const State *state, int beg, int end)
 /*
  *
  *
@@ -29,13 +28,15 @@ void Flux (double **ucons, double **uprim, double *h,
  ******************************************************************* */
 {
   int    nv, i;
-  double vB, uB, b2, wt, wtg2, Bmag2, pt; 
-  double *u, *v, b[4], g, g2, g_2;
+  double vB, uB, b2, wt, wtg2, Bmag2, pt, h; 
+  double *u, *v, *fx, b[4], g, g2, g_2;
 
   for (i = beg; i <= end; i++) {
 
-    u = ucons[i];
-    v = uprim[i];
+    u  = state->u[i];
+    v  = state->v[i];
+    h  = state->h[i];
+    fx = state->flux[i];
 
     g     = u[RHO]/v[RHO];
     g2    = g*g;
@@ -50,28 +51,28 @@ void Flux (double **ucons, double **uprim, double *h,
     b2 = Bmag2*g_2 + vB*vB;
    
     pt   = v[PRS] + 0.5*b2;
-    wt   = v[RHO]*h[i] + b2;
+    wt   = v[RHO]*h + b2;
     wtg2 = wt*g2;
 
-    fx[i][RHO]  = u[RHO]*v[VXn];
-    EXPAND(fx[i][MX1] = wtg2*v[VX1]*v[VXn] - b[IDIR]*b[g_dir];  ,
-           fx[i][MX2] = wtg2*v[VX2]*v[VXn] - b[JDIR]*b[g_dir];  ,
-           fx[i][MX3] = wtg2*v[VX3]*v[VXn] - b[KDIR]*b[g_dir];)
-    EXPAND(fx[i][BXn] = 0.0;             ,
-           fx[i][BXt] = v[VXn]*v[BXt] - v[BXn]*v[VXt];   ,
-           fx[i][BXb] = v[VXn]*v[BXb] - v[BXn]*v[VXb]; )
+    fx[RHO]  = u[RHO]*v[VXn];
+    EXPAND(fx[MX1] = wtg2*v[VX1]*v[VXn] - b[IDIR]*b[g_dir];  ,
+           fx[MX2] = wtg2*v[VX2]*v[VXn] - b[JDIR]*b[g_dir];  ,
+           fx[MX3] = wtg2*v[VX3]*v[VXn] - b[KDIR]*b[g_dir];)
+    EXPAND(fx[BXn] = 0.0;             ,
+           fx[BXt] = v[VXn]*v[BXt] - v[BXn]*v[VXt];   ,
+           fx[BXb] = v[VXn]*v[BXb] - v[BXn]*v[VXb]; )
 
-    fx[i][ENG] = u[MXn];
-  #if RMHD_REDUCED_ENERGY
-    fx[i][ENG] -= fx[i][RHO];
-  #endif
+    fx[ENG] = u[MXn];
+    #if RMHD_REDUCED_ENERGY
+    fx[ENG] -= fx[RHO];
+    #endif
 
-    pr[i] = pt;
+    state->prs[i] = pt;
 
-#ifdef GLM_MHD
-    fx[i][BXn]     = v[PSI_GLM];
-    fx[i][PSI_GLM] = glm_ch*glm_ch*v[BXn];
-#endif
+    #ifdef GLM_MHD
+    fx[BXn]     = v[PSI_GLM];
+    fx[PSI_GLM] = glm_ch*glm_ch*v[BXn];
+    #endif
 
   }
 }

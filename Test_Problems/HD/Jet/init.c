@@ -33,7 +33,7 @@
 
   \image html hd_jet.jpg "Pressure (left) and density (right) maps for configuration #01 at t=15" 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   April 13, 2014
+  \date   March 2, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -58,6 +58,20 @@ void Init (double *v, double x1, double x2, double x3)
   #endif
 
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* **************************************************************** */
 void Analysis (const Data *d, Grid *grid)
 /* 
@@ -85,9 +99,9 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
   double  *x1, *x2, *x3;
   double cs, Tj, vj[NVAR];
 
-  x1 = grid[IDIR].xgc;  /* -- array pointer to x1 coordinate -- */
-  x2 = grid[JDIR].xgc;  /* -- array pointer to x2 coordinate -- */
-  x3 = grid[KDIR].xgc;  /* -- array pointer to x3 coordinate -- */
+  x1 = grid->xgc[IDIR];  /* -- array pointer to x1 coordinate -- */
+  x2 = grid->xgc[JDIR];  /* -- array pointer to x2 coordinate -- */
+  x3 = grid->xgc[KDIR];  /* -- array pointer to x3 coordinate -- */
 
   vj[RHO] = 1.0;
   #if EOS == IDEAL

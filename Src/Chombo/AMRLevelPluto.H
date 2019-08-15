@@ -179,7 +179,7 @@ protected:
   // Get the next finer level
   AMRLevelPluto* getFinerLevel() const;
 
-  // Conserverd state, U, at old and new time
+  // Conserverd sweep, U, at old and new time
   LevelData<FArrayBox> m_UOld,m_UNew;
 
   // Union of FArrayBoxes marking the split/unsplit cells of this level
@@ -200,13 +200,13 @@ protected:
   // New time step
   Real m_dtNew;
 
-  // Number of converved states
+  // Number of converved sweeps
   int m_numStates;
 
-  // Names of conserved states
+  // Names of conserved sweeps
   Vector<string> m_ConsStateNames;
 
-  // Names of primitive states
+  // Names of primitive sweeps
   Vector<string> m_PrimStateNames;
 
   // Number of ghost cells (in each direction)

@@ -1,7 +1,7 @@
 #include "pluto.h"
 
 /* ********************************************************************* */
-void RusanovDW_Solver (const State_1D *state, int beg, int end, 
+void RusanovDW_Solver (const Sweep *sweep, int beg, int end, 
                        double *cmax, Grid *grid)
 /*!
  * Solve the Riemann problem for the relativistic MHD equations 
@@ -43,16 +43,16 @@ double num, den, dU, dF, vn;
   }
 
 /* ----------------------------------------------------
-        redefine states if GLM_MHD is used
+        redefine sweeps if GLM_MHD is used
    ---------------------------------------------------- */
 
   #ifdef GLM_MHD
-   GLM_Solve (state, VL, VR, beg, end, grid);
+   GLM_Solve (sweep, VL, VR, beg, end, grid);
    PrimToCons (VL, UL, beg, end);
    PrimToCons (VR, UR, beg, end);
   #else
-   VL = state->vL; UL = state->uL;
-   VR = state->vR; UR = state->uR;
+   VL = sweep->vL; UL = sweep->uL;
+   VR = sweep->vR; UR = sweep->uR;
   #endif
 
 /* ----------------------------------------------------
@@ -66,7 +66,7 @@ double num, den, dU, dF, vn;
   Flux (UR, VR, hR, fR, pR, beg, end);
 
 /* -------------------------------------------------------------------
-       compute Max and min eigenvalues for the left and right states
+       compute Max and min eigenvalues for the left and right sweeps
    ------------------------------------------------------------------- */
 
   MaxSignalSpeed (VL, a2L, hL, cmin_L, cmax_L, beg, end);
@@ -76,15 +76,15 @@ double num, den, dU, dF, vn;
 
     uL   = UL[i];
     uR   = UR[i];
-    flux = state->flux[i];
+    flux = sweep->flux[i];
 
   /* -- compute local max eigenvalue -- */
 
     cL = MAX(fabs(cmax_L[i]), fabs(cmin_L[i]));
     cR = MAX(fabs(cmax_R[i]), fabs(cmin_R[i]));
     cmax[i] = MAX(cL, cR);
-    state->SL[i] = -cmax[i];
-    state->SR[i] =  cmax[i];
+    sweep->SL[i] = -cmax[i];
+    sweep->SR[i] =  cmax[i];
 
 num = den = 0.0;
 lambda = 1.0;
@@ -99,8 +99,8 @@ lambda = fabs(num)/(fabs(den) + 1.e-12);
 
 if (lambda > cmax[i])  lambda = cmax[i];
 
-vn = 0.5*( fabs(state->vR[i][VXn]) + fabs(state->vL[i][VXn]) );
-vn = MAX( fabs(state->vR[i][VXn]), fabs(state->vL[i][VXn]) );
+vn = 0.5*( fabs(sweep->vR[i][VXn]) + fabs(sweep->vL[i][VXn]) );
+vn = MAX( fabs(sweep->vR[i][VXn]), fabs(sweep->vL[i][VXn]) );
 if (lambda < vn) lambda = vn;
 
 /*
@@ -113,7 +113,7 @@ cR = MIN(fabs(cmax_R[i]), fabs(cmin_R[i]));
     for (nv = NFLX; nv--; ) {
       flux[nv] = 0.5*(fL[i][nv] + fR[i][nv] - lambda*(uR[nv] - uL[nv]));
     }
-    state->press[i] = 0.5*(pL[i] + pR[i]);
+    sweep->press[i] = 0.5*(pL[i] + pR[i]);
   }
 
 /* --------------------------------------------------------
@@ -121,6 +121,6 @@ cR = MIN(fabs(cmax_R[i]), fabs(cmin_R[i]));
    -------------------------------------------------------- */
  
   #if DIVB_CONTROL == EIGHT_WAVES
-   POWELL_DIVB_SOURCE (state, beg, end, grid);
+   POWELL_DIVB_SOURCE (sweep, beg, end, grid);
   #endif
 }

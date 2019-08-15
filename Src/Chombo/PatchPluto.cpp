@@ -100,177 +100,145 @@ void PatchPluto::setRiemann(Riemann_Solver *solver)
 
 }
 
-// Set the grid[3] structure to be passed to updateState
+// Set the grid structure to be passed to updateState
 // (or advanceSolution and SWEEP in the next future)
-void PatchPluto::setGrid(const Box&    a_box, struct GRID *grid, FArrayBox& a_dV)
+void PatchPluto::setGrid(const Box&    a_box, Grid *grid, FArrayBox& a_dV)
 {
   int    i, j, k, idim;
   int    np_int, np_tot, np_int_glob, np_tot_glob;
   double stretch, scrh, scrh1, scrh2, scrh3, dxmin[3];
   double ***dV[CHOMBO_NDV];
-  struct GRID *G;
 
   for (int dir = 0; dir < SpaceDim; ++dir){  
-    grid[dir].level       = m_level;
-    grid[dir].np_tot      = a_box.size()[dir]+2*m_numGhost;
-    grid[dir].np_int      = a_box.size()[dir];
-    grid[dir].np_tot_glob = m_domain.domainBox().size()[dir]+2*m_numGhost;
-    grid[dir].np_int_glob = m_domain.domainBox().size()[dir];
-    grid[dir].nghost      = m_numGhost;
-    grid[dir].beg         = a_box.loVect()[dir]+m_numGhost;
-    grid[dir].end         = a_box.hiVect()[dir]+m_numGhost;
-    grid[dir].gbeg        = m_domain.domainBox().loVect()[dir]+m_numGhost;
-    grid[dir].gend        = m_domain.domainBox().hiVect()[dir]+m_numGhost;
-    grid[dir].lbeg        = m_numGhost;
-    grid[dir].lend        = grid[dir].np_int+m_numGhost-1;
+    grid->level            = m_level;
+    grid->np_tot[dir]      = a_box.size()[dir]+2*m_numGhost;
+    grid->np_int[dir]      = a_box.size()[dir];
+    grid->np_tot_glob[dir] = m_domain.domainBox().size()[dir]+2*m_numGhost;
+    grid->np_int_glob[dir] = m_domain.domainBox().size()[dir];
+    grid->nghost[dir]      = m_numGhost;
+    grid->beg[dir]         = a_box.loVect()[dir]+m_numGhost;
+    grid->end[dir]         = a_box.hiVect()[dir]+m_numGhost;
+    grid->gbeg[dir]        = m_domain.domainBox().loVect()[dir]+m_numGhost;
+    grid->gend[dir]        = m_domain.domainBox().hiVect()[dir]+m_numGhost;
+    grid->lbeg[dir]        = m_numGhost;
+    grid->lend[dir]        = grid->np_int[dir] + m_numGhost - 1;
    
-    grid[dir].lbound = 0;
-    grid[dir].rbound = 0;
+    grid->lbound[dir] = 0;
+    grid->rbound[dir] = 0;
    // Set flags to compute boundary conditions
    // is_gbeg (left boundary)
     Box tmp = a_box;
     tmp.shift(dir,-1);
     tmp &= m_domain;
     tmp.shift(dir,1);
-    if (tmp != a_box) grid[dir].lbound = 1;
+    if (tmp != a_box) grid->lbound[dir] = 1;
    // is_gend (right_boundary)
     tmp = a_box;
     tmp.shift(dir,1);
     tmp &= m_domain;
     tmp.shift(dir,-1);
-    if (tmp != a_box) grid[dir].rbound = 1;
+    if (tmp != a_box) grid->rbound[dir] = 1;
 
   }
 
   for (int dir = 0; dir < 3; ++dir){
-    G = grid + dir;
     if (dir >= SpaceDim) {
-        G->np_int = G->np_tot = G->np_int_glob = G->np_tot_glob = 1;
-        G->nghost = G->beg = G->end = G->gbeg = G->gend =
-        G->lbeg   = G->lend = G->lbound = G->rbound = 0;
+      grid->np_int[dir] = grid->np_int_glob[dir] = 1;
+      grid->np_tot[dir] = grid->np_tot_glob[dir] = 1;
+      grid->nghost[dir] = 0;
+      grid->beg[dir]    = grid->end[dir] = 0;
+      grid->gbeg[dir]   = grid->gend[dir] = 0;
+      grid->lbeg[dir]   = grid->lend[dir] = 0;
+      grid->lbound[dir] = grid->rbound[dir] = 0;
     }
-    np_tot_glob = G->np_tot_glob;
-    np_int_glob = G->np_int_glob;
-    np_tot = G->np_tot;
-    np_int = G->np_int;
+    np_tot_glob = grid->np_tot_glob[dir];
+    np_int_glob = grid->np_int_glob[dir];
+    np_tot = grid->np_tot[dir];
+    np_int = grid->np_int[dir];
 
-    G->x  = ARRAY_1D(np_tot, double);
-    G->xr = ARRAY_1D(np_tot, double);
-    G->xl = ARRAY_1D(np_tot, double);
-    G->dx = ARRAY_1D(np_tot, double);
+    grid->x[dir]  = ARRAY_1D(np_tot, double);
+    grid->xr[dir] = ARRAY_1D(np_tot, double);
+    grid->xl[dir] = ARRAY_1D(np_tot, double);
+    grid->dx[dir] = ARRAY_1D(np_tot, double);
 
     stretch = 1.;
     if (dir == JDIR) stretch = g_x2stretch;
     if (dir == KDIR) stretch = g_x3stretch;
 
     for (i = 0; i < np_tot; i++){
-    #if (CHOMBO_LOGR == YES)
-     if (dir == IDIR) {
-      G->xl[i] = g_domBeg[IDIR]*exp(Real( i+grid[dir].beg-2*grid[dir].nghost )*m_dx);
-      G->xr[i] = g_domBeg[IDIR]*exp(Real(i+1+grid[dir].beg-2*grid[dir].nghost)*m_dx);  
-      G->x[i] = 0.5*(G->xr[i]+G->xl[i]);
-      G->dx[i] = G->xr[i]-G->xl[i];
-     } else {
-    #endif
-      G->xl[i]  = Real(i+grid[dir].beg-2*grid[dir].nghost)*m_dx*stretch;
-      G->xl[i] += g_domBeg[dir];
-      G->x[i]  = G->xl[i]+0.5*m_dx*stretch;
-      G->xr[i] = G->xl[i]+m_dx*stretch;
-      G->dx[i] = m_dx*stretch; 
-    #if (CHOMBO_LOGR == YES)
-     }
-    #endif
+      #if (CHOMBO_LOGR == YES)
+      if (dir == IDIR) {
+        double argl = Real(i + grid->beg[dir] - 2*grid->nghost[dir]);
+        double argr = Real(i + grid->beg[dir] - 2*grid->nghost[dir] + 1);
+
+        grid->xl[dir][i] = g_domBeg[IDIR]*exp(argl*m_dx);
+        grid->xr[dir][i] = g_domBeg[IDIR]*exp(argr*m_dx);  
+        grid->x[dir][i]  = 0.5*(grid->xr[dir][i] + grid->xl[dir][i]);
+        grid->dx[dir][i] = grid->xr[dir][i] - grid->xl[dir][i];
+      } else {
+      #endif
+        double argl = Real(i + grid->beg[dir] - 2*grid->nghost[dir]);
+        grid->xl[dir][i] = argl*m_dx*stretch + g_domBeg[dir];
+        grid->x[dir][i]  = grid->xl[dir][i] + 0.5*m_dx*stretch;
+        grid->xr[dir][i] = grid->xl[dir][i] + m_dx*stretch;
+        grid->dx[dir][i] = m_dx*stretch; 
+      #if (CHOMBO_LOGR == YES)
+      }
+      #endif
     }
   }
 
   CH_assert(m_isBoundarySet);
-  grid[IDIR].lbound *=   left_bound_side[IDIR];
-  grid[IDIR].rbound *=  right_bound_side[IDIR];
-  grid[JDIR].lbound *=   left_bound_side[JDIR];
-  grid[JDIR].rbound *=  right_bound_side[JDIR];
-  grid[KDIR].lbound *=   left_bound_side[KDIR];
-  grid[KDIR].rbound *=  right_bound_side[KDIR];
+  grid->lbound[IDIR] *=   left_bound_side[IDIR];
+  grid->rbound[IDIR] *=  right_bound_side[IDIR];
+  grid->lbound[JDIR] *=   left_bound_side[JDIR];
+  grid->rbound[JDIR] *=  right_bound_side[JDIR];
+  grid->lbound[KDIR] *=   left_bound_side[KDIR];
+  grid->rbound[KDIR] *=  right_bound_side[KDIR];
   MakeGeometry(grid);
 
 // compute cell volumes (dV/m_dx^3) and cylindrical radius
 
-   #if GEOMETRY != CARTESIAN
+  #if GEOMETRY != CARTESIAN
+  double mdx_dim = D_EXPAND(m_dx, *m_dx, *m_dx);
 
-    NX1_TOT = grid[IDIR].np_tot;
-    NX2_TOT = grid[JDIR].np_tot;
-    NX3_TOT = grid[KDIR].np_tot;
-    for (i = 0; i < CHOMBO_NDV; i++) dV[i] = ArrayMap(NX3_TOT, NX2_TOT, NX1_TOT, a_dV.dataPtr(i));
+  NX1_TOT = grid->np_tot[IDIR];
+  NX2_TOT = grid->np_tot[JDIR];
+  NX3_TOT = grid->np_tot[KDIR];
+  for (i = 0; i < CHOMBO_NDV; i++) {
+    dV[i] = ArrayMap(NX3_TOT, NX2_TOT, NX1_TOT, a_dV.dataPtr(i));
+  }
 
-    #if GEOMETRY == CYLINDRICAL
-     for (k = 0; k < NX3_TOT; k++) {
-     for (j = 0; j < NX2_TOT; j++) {
-     for (i = 0; i < NX1_TOT; i++) {
-       dV[0][k][j][i] = fabs(grid[IDIR].x[i]);
-      #if CH_SPACEDIM > 1
-       dV[0][k][j][i] *= g_x2stretch; 
-      #endif
-
-      #if CHOMBO_CONS_AM == YES
-        dV[1][k][j][i] = grid[IDIR].x[i];
-      #endif
-     }}}
+  for (k = 0; k < NX3_TOT; k++) {
+  for (j = 0; j < NX2_TOT; j++) {
+  for (i = 0; i < NX1_TOT; i++) {
+    dV[0][k][j][i] = grid->dV[k][j][i]/mdx_dim;
+    #if CHOMBO_CONS_AM == YES
+    #if GEOMETRY == POLAR || GEOMETRY == CYLINDRICAL
+    dV[1][k][j][i] = grid->x[IDIR][i];
+    #else
+    dV[1][k][j][i] = D_EXPAND(grid->x[IDIR][i], *= sin(grid->x[JDIR][j]);
     #endif
-
-    #if GEOMETRY == SPHERICAL
-     for (k = 0; k < NX3_TOT; k++) {
-     for (j = 0; j < NX2_TOT; j++) {
-     for (i = 0; i < NX1_TOT; i++) {
-       dV[0][k][j][i] = grid[IDIR].dV[i]/m_dx;
-      #if CH_SPACEDIM > 1
-       dV[0][k][j][i] *= grid[JDIR].dV[j]/m_dx;
-      #endif
-      #if CH_SPACEDIM == 3
-       dV[0][k][j][i] *= g_x3stretch;
-      #endif
-
-      #if CHOMBO_CONS_AM == YES
-       dV[1][k][j][i] = grid[IDIR].x[i];
-       #if CH_SPACEDIM > 1
-        dV[1][k][j][i] *= sin(grid[JDIR].x[j]);
-       #endif
-      #endif
-     }}}
     #endif
+  }}}
 
-    #if GEOMETRY == POLAR
-     for (k = 0; k < NX3_TOT; k++) {
-     for (j = 0; j < NX2_TOT; j++) {
-     for (i = 0; i < NX1_TOT; i++) {
-       dV[0][k][j][i] = grid[IDIR].dV[i]/m_dx;
-      #if CH_SPACEDIM > 1
-       dV[0][k][j][i] *= g_x2stretch;
-      #endif
-      #if CH_SPACEDIM == 3
-       dV[0][k][j][i] *= g_x3stretch;
-      #endif
 
-      #if CHOMBO_CONS_AM == YES
-       dV[1][k][j][i] = grid[IDIR].x[i];
-      #endif
-     }}}
-    #endif
-
-    for (i = 0; i < CHOMBO_NDV; i++) FreeArrayMap(dV[i]);
-   #endif /* != CARTESIAN */
+  for (i = 0; i < CHOMBO_NDV; i++) FreeArrayMap(dV[i]);
+#endif /* != CARTESIAN */
 
 // compute dl_min
 
- #if (GEOMETRY == CARTESIAN) || (GEOMETRY == CYLINDRICAL)
+#if (GEOMETRY == CARTESIAN) || (GEOMETRY == CYLINDRICAL)
 
-  grid[IDIR].dl_min = m_dx;
-  grid[JDIR].dl_min = m_dx*g_x2stretch;
-  grid[KDIR].dl_min = m_dx*g_x3stretch;
+  grid->dl_min[IDIR] = m_dx;
+  grid->dl_min[JDIR] = m_dx*g_x2stretch;
+  grid->dl_min[KDIR] = m_dx*g_x3stretch;
 
- #else
+#else
 
-  IBEG = grid[IDIR].lbeg; IEND = grid[IDIR].lend;
-  JBEG = grid[JDIR].lbeg; JEND = grid[JDIR].lend;
-  KBEG = grid[KDIR].lbeg; KEND = grid[KDIR].lend;
+  IBEG = grid->lbeg[IDIR]; IEND = grid->lend[IDIR];
+  JBEG = grid->lbeg[JDIR]; JEND = grid->lend[JDIR];
+  KBEG = grid->lbeg[KDIR]; KEND = grid->lend[KDIR];
 
   for (idim = 0; idim < 3; idim++)  dxmin[idim] = 1.e30;
 
@@ -301,9 +269,9 @@ void PatchPluto::setGrid(const Box&    a_box, struct GRID *grid, FArrayBox& a_dV
 
   }}}
 
-  grid[IDIR].dl_min = dxmin[IDIR];
-  grid[JDIR].dl_min = dxmin[JDIR];
-  grid[KDIR].dl_min = dxmin[KDIR];
+  grid->dl_min[IDIR] = dxmin[IDIR];
+  grid->dl_min[JDIR] = dxmin[JDIR];
+  grid->dl_min[KDIR] = dxmin[KDIR];
 
  #endif
 

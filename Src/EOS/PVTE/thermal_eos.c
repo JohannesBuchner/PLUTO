@@ -84,7 +84,7 @@ void MakePV_TemperatureTable()
   double mu_lo, mu_hi;
   struct func_param par;
 
-  print1 ("> MakePV_TemperatureTable: Generating table...\n");
+  print ("> MakePV_TemperatureTable: Generating table...\n");
 
 /* --------------------------------------------------------------
     Initialize table. The two table axis are given by 
@@ -121,8 +121,8 @@ void MakePV_TemperatureTable()
 /*    status = Ridder(TFunc, &par, Tlo, Thi, -1, 1.0e-12, &T); */
     status = Brent(TFunc, &par, Tlo, Thi, -1, 1.0e-12, &T);    
     if (status != 0) {
-      print1 ("! MakePV_TemperatureTable: ");
-      print1 ("root could not be found [%d]\n",status);
+      print ("! MakePV_TemperatureTable: ");
+      print ("root could not be found [%d]\n",status);
       QUIT_PLUTO(1);
     }
     Ttab.f[j][i] = T;

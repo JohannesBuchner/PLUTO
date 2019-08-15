@@ -16,7 +16,7 @@
         Mignone et al, ApJS (2012) 198, 7M
         
   \author A. Mignone (mignone@ph.unito.it)
-  \date   Jan 28, 2014
+  \date   Aug 22, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -43,14 +43,14 @@
 #endif
 
 /* ********************************************************************* */
-void CharTracingStep(const State_1D *state, int beg, int end, Grid *grid)
+void CharTracingStep(const Sweep *sweep, int beg, int end, Grid *grid)
 /*! 
  *  Compute interface states using characteristic tracing step.
  *
- * \param [in]  state  pointer to a State_1D structure
+ * \param [in]  sweep  pointer to a Sweep structure
  * \param [in]    beg  initial index of computation
  * \param [in]    end  final   index of computation
- * \param [in]   grid  pointer to an array of Grid structures
+ * \param [in]   grid  pointer to Grid structure
 
  * \return This function has no return value.
  *
@@ -59,6 +59,10 @@ void CharTracingStep(const State_1D *state, int beg, int end, Grid *grid)
  *********************************************************************** */
 {
   int    i, nv, k;
+  const State *stateC = &(sweep->stateC);
+  const State *stateL = &(sweep->stateL);
+  const State *stateR = &(sweep->stateR);
+
   double dx, dtdx;
   double dwh, d2w, dwp[NVAR], dwm[NVAR], dvp[NVAR], dvm[NVAR];
   double nup=1.0, num=-1.0, nu[NFLX];
@@ -66,38 +70,57 @@ void CharTracingStep(const State_1D *state, int beg, int end, Grid *grid)
   double *vc, *vp, *vm, **L, **R, *lambda;
   static double **src;
 
+/* -------------------------------------------------------
+   0. Allocate memory
+   ------------------------------------------------------- */
+
   if (src == NULL){
     src = ARRAY_2D(NMAX_POINT, NVAR, double);
   }
 
-  #if CHAR_LIMITING == NO
-   SoundSpeed2 (state->v, state->a2, state->h, beg, end, CELL_CENTER, grid);
-  #endif
+/* -------------------------------------------------------
+   1. Compute preliminary quantities such as sound speed,
+      eigenvectors, etc...
+      CR Flux is computed at time level n and will be
+      added at the end of the function.
+   ------------------------------------------------------- */
 
-  PrimSource (state, beg, end, state->a2, state->h, src, grid);
+#if CHAR_LIMITING == NO
+  SoundSpeed2 (stateC, beg, end, CELL_CENTER, grid);
+  PrimEigenvectors (stateC, beg, end);
+#endif
+  PrimSource  (stateC, src, beg, end, grid);
+#ifdef PARTICLES
+  #if (PARTICLES_TYPE == COSMIC_RAYS) && (PARTICLES_CR_FEEDBACK == YES) 
+  Particles_CR_Flux(stateL, beg, end);
+  Particles_CR_Flux(stateR, beg-1, end-1);
+  #endif
+#endif
+
+/* -------------------------------------------------------
+   2. Sweep along 1D row of zones
+   ------------------------------------------------------- */
+
   for (i = beg; i <= end; i++){    
 
-    dx   = grid[g_dir].dx[beg];
+    dx   = grid->dx[g_dir][beg];
     dtdx = g_dt/dx;
 
-    vc     = state->v[i]; 
-    vp     = state->vp[i];
-    vm     = state->vm[i];
-    L      = state->Lp[i];
-    R      = state->Rp[i];
-    lambda = state->lambda[i];
+    vc     = stateC->v[i]; 
+    vp     = stateL->v[i];
+    vm     = stateR->v[i-1];
+    L      = stateC->Lp[i];
+    R      = stateC->Rp[i];
+    lambda = stateC->lambda[i];
 
   /* ------------------------------------------------------------ */
-  /*! 1) Compute eigenvectors and eigenvalues if not yet defined. */
+  /*! 2a) Define characteristic cfl coefficients.                 */
   /* ------------------------------------------------------------ */
 
-    #if CHAR_LIMITING == NO
-     PrimEigenvectors (vc, state->a2[i], state->h[i], lambda, L, R);
-    #endif
     for (k = 0; k < NFLX; k++) nu[k] = dtdx*lambda[k];
 
   /* ------------------------------------------------------------- */
-  /*! 2) Obtain characteristic variable increments dwp and dwm.    */
+  /*! 2b) Obtain characteristic variable increments dwp and dwm.    */
   /* ------------------------------------------------------------- */
 
     for (nv = NVAR; nv--;  ) {
@@ -108,19 +131,19 @@ void CharTracingStep(const State_1D *state, int beg, int end, Grid *grid)
     PrimToChar(L, dvm, dwm);
 
   /* ------------------------------------------------------------- */
-  /*! 3) Initialize vp and vm to the reference state.
-         Since this is somewhat arbitrary we use the value of 
-         ::CHTR_REF_STATE to select one of the following cases:
+  /*! 2c) Initialize vp and vm to the reference state.
+          Since this is somewhat arbitrary we use the value of 
+          ::CHTR_REF_STATE to select one of the following cases:
          
-         - CHTR_REF_STATE==1: use cell-center value;
-           
-         - CHTR_REF_STATE==2: interpolated value at base 
+          - CHTR_REF_STATE==1: use cell-center value;
+            
+          - CHTR_REF_STATE==2: interpolated value at base 
                                     time level 
-         - CHTR_REF_STATE==3: 
-           traditional PPM reference state (fastest wave), minimize 
-           the size of the term subject to characteristic limiting. 
+          - CHTR_REF_STATE==3: 
+            traditional PPM reference state (fastest wave), minimize 
+            the size of the term subject to characteristic limiting. 
 
-        Passive scalars use always CHTR_REF_STATE == 2.      */
+         Passive scalars use always CHTR_REF_STATE == 2.      */
   /* ------------------------------------------------------------- */
 
     #if CHTR_REF_STATE == 1
@@ -136,15 +159,15 @@ void CharTracingStep(const State_1D *state, int beg, int end, Grid *grid)
     #endif
 
   /* ------------------------------------------------------------- */
-  /*! 4) Compute left and right states in primitive variables. 
-         This step also depends on the value of 
-         ::CHTR_REF_STATE and include:
+  /*! 2d) Compute left and right states in primitive variables. 
+          This step also depends on the value of 
+          ::CHTR_REF_STATE and include:
 
-         - evolve characteristic variable increments by dt/2;
-         - discard contributions from waves not reaching the 
-           interface;
-         - project characteristic differences dwp and dwm onto 
-           right eigenvectors                                      */
+          - evolve characteristic variable increments by dt/2;
+          - discard contributions from waves not reaching the 
+            interface;
+          - project characteristic differences dwp and dwm onto 
+            right eigenvectors                                      */
   /* ------------------------------------------------------------- */
 
     for (k = 0; k < NFLX; k++){ 
@@ -172,7 +195,7 @@ void CharTracingStep(const State_1D *state, int beg, int end, Grid *grid)
     }
 
   /* ------------------------------------------------------- */
-  /*! 5) Add source term to L/R states                       */
+  /*! 2e) Add source term to L/R states                      */
   /* ------------------------------------------------------- */
 
     for (nv = NFLX; nv--;   ){   
@@ -182,7 +205,7 @@ void CharTracingStep(const State_1D *state, int beg, int end, Grid *grid)
     }
 
   /* ------------------------------------------------------- */
-  /*! 6) Repeat construction for passive scalars             */
+  /*! 2f) Repeat construction for passive scalars            */
   /* ------------------------------------------------------- */
 
     #if NVAR != NFLX
@@ -201,28 +224,43 @@ void CharTracingStep(const State_1D *state, int beg, int end, Grid *grid)
        }
      }
     #endif
+  } /* end loop on points */
+
+/*  -------------------------------------------------------
+    3. Assign face-centered magnetic field
+    -------------------------------------------------------  */
+
+#ifdef STAGGERED_MHD
+  for (i = beg-1; i <= end; i++) {
+    stateL->v[i][BXn] = stateR->v[i][BXn] = sweep->bn[i];
   }
+#endif
 
-/*  -------------------------------------------
-      Assign face-centered magnetic field
-    -------------------------------------------  */
+/* --------------------------------------------------------
+   4. Add CR source term 
+   -------------------------------------------------------- */
 
-  #ifdef STAGGERED_MHD
-   for (i = beg-1; i <= end; i++) {
-     state->vR[i][BXn] = state->vL[i][BXn] = state->bn[i];
-   }
+#ifdef PARTICLES
+  #if (PARTICLES_TYPE == COSMIC_RAYS) && (PARTICLES_CR_FEEDBACK == YES)
+  Particles_CR_StatesSource(sweep, 0.5*g_dt, beg, end, grid);
   #endif
+#endif
 
-  CheckPrimStates (state->vm, state->vp, state->v, beg, end);
+  CheckPrimStates (stateL->v, stateR->v-1, stateC->v, beg, end);
+
+/* --------------------------------------------------------
+   5. Evolve cell-center values by dt/2
+   -------------------------------------------------------- */
 
   for (i = beg; i <= end; i++) {
-    vp = state->vp[i];
-    vm = state->vm[i];
-    NVAR_LOOP(nv) state->vh[i][nv] = 0.5*(vp[nv] + vm[nv]);
+    vp = stateL->v[i];
+    vm = stateR->v[i-1];
+    NVAR_LOOP(nv) stateC->v[i][nv] = 0.5*(vp[nv] + vm[nv]);
   }
 #if RECONSTRUCT_4VEL
-  ConvertTo3vel (state->vh, beg, end);
-#endif    
+  ConvertTo3vel (stateC->v, beg, end);
+#endif
+
 }
 #undef CHTR_REF_STATE
 
@@ -239,7 +277,7 @@ void CharTracingStep(const State_1D *state, int beg, int end, Grid *grid)
 #endif
 
 /* ********************************************************************* */
-void CharTracingStep(const State_1D *state, int beg, int end, Grid *grid)
+void CharTracingStep(const Sweep *sweep, int beg, int end, Grid *grid)
 /*
  * Same thing as before, but optimized for linear reconstruction.
  * 
@@ -248,118 +286,142 @@ void CharTracingStep(const State_1D *state, int beg, int end, Grid *grid)
 {
   int    i, j, k, nv;
   double dx, dtdx, scrh;
+  const State *stateC = &(sweep->stateC);
+  const State *stateL = &(sweep->stateL);
+  const State *stateR = &(sweep->stateR);
+
   double dv[NVAR], dw[NVAR];
   double nu_max=1.0, nu_min=-1.0, nu[NFLX];
   double *vc, *vp, *vm, **L, **R, *lambda;
   double dp, dm;
+  double *a2 = stateC->a2;
   PLM_Coeffs plm_coeffs;
   #if GEOMETRY != CARTESIAN
    double betaL[NVAR], betaR[NVAR];
   #endif
   static double **src;
 
-/* --------------------------------------------
-    allocate memory and set pointer shortcuts
-   -------------------------------------------- */
+/* --------------------------------------------------------
+   0. Allocate memory & obtain interpolation coefficients
+   -------------------------------------------------------- */
 
   if (src == NULL) src = ARRAY_2D(NMAX_POINT, NVAR, double);
 
-  #if UNIFORM_CARTESIAN_GRID == NO
-   PLM_CoefficientsGet (&plm_coeffs, g_dir);
-  #endif
+#if UNIFORM_CARTESIAN_GRID == NO
+  PLM_CoefficientsGet (&plm_coeffs, g_dir);
+#endif
 
-  #if CHAR_LIMITING == NO
-   SoundSpeed2 (state->v, state->a2, state->h, beg, end, CELL_CENTER, grid);
-  #endif
+/* --------------------------------------------------------
+   1. Compute preliminary quantities such as sound speed,
+      eigenvectors, etc...
+      CR Flux is computed at time level n and will be
+      added at the end of the function.
+   -------------------------------------------------------- */
 
-  PrimSource  (state, beg, end, state->a2, state->h, src, grid);
+
+#if CHAR_LIMITING == NO
+  SoundSpeed2 (stateC, beg, end, CELL_CENTER, grid);
+  PrimEigenvectors(stateC, beg, end);
+#endif
+  PrimSource  (stateC, src, beg, end, grid);
+#ifdef PARTICLES
+  #if (PARTICLES_TYPE == COSMIC_RAYS) && (PARTICLES_CR_FEEDBACK == YES) 
+  Particles_CR_Flux(stateL, beg, end);
+  Particles_CR_Flux(stateR, beg-1, end-1);
+  #endif
+#endif
+
+/* --------------------------------------------------------
+   2. Sweep along 1D row of zones
+   -------------------------------------------------------- */
+
   for (i = beg; i <= end; i++){    
 
     #if UNIFORM_CARTESIAN_GRID == YES
-     dp = dm = 0.5;
+    dp = dm = 0.5;
     #else
-     dp = plm_coeffs.dp[i]; 
-     dm = plm_coeffs.dm[i];
+    dp = plm_coeffs.dp[i]; 
+    dm = plm_coeffs.dm[i];
     #endif
 
-    dx   = grid[g_dir].dx[i];
+    dx   = grid->dx[g_dir][i];
     dtdx = g_dt/dx;
 
-    vc     = state->v[i];
-    vp     = state->vp[i];
-    vm     = state->vm[i];
-    L      = state->Lp[i];
-    R      = state->Rp[i];
-    lambda = state->lambda[i];
+    vc     = stateC->v[i];
+    vp     = stateL->v[i];
+    vm     = stateR->v[i-1];
+    L      = stateC->Lp[i];
+    R      = stateC->Rp[i];
+    lambda = stateC->lambda[i];
 
-  /* --------------------------------------------------------------
-     1. Compute eigenvectors and eigenvalues if not yet defined
-     -------------------------------------------------------------- */
+  /* --------------------------------------------
+     2a) Compute eigenvectors and eigenvalues if
+         not yet defined
+     -------------------------------------------- */
 
-    #if CHAR_LIMITING == NO
-     PrimEigenvectors (vc, state->a2[i], state->h[i], lambda, L, R);
-    #endif
     for (k = 0; k < NFLX; k++) nu[k] = dtdx*lambda[k];
     nu_max = MAX(nu[1], 0.0); nu_min = MIN(nu[0], 0.0);
 
-  /* ------------------------------------------------------------
-     1a. Geometry
-     ------------------------------------------------------------ */
+  /* --------------------------------------------
+     2b) Geometry
+     -------------------------------------------- */
 
     #if GEOMETRY == CYLINDRICAL
-     if (g_dir == IDIR) {
-       double *xR = grid[IDIR].xr;
-       for (k = NFLX; k--;  ){
-         betaR[k] = betaL[k] = 0.0;
-         scrh = nu[k]*dx;
-         betaR[k] = (nu[k] >  1.e-12 ?  scrh/(6.0*xR[i]   - 3.0*scrh):0.0);
-         betaL[k] = (nu[k] < -1.e-12 ? -scrh/(6.0*xR[i-1] - 3.0*scrh):0.0);
-       }
-       nu_max *= (1.0 - betaR[1]);
-       nu_min *= (1.0 + betaL[0]);
-     }else{
-       for (k = NFLX; k--;  )  betaR[k] = betaL[k] = 0.0;
-     }
+    if (g_dir == IDIR) {
+      double *xR = grid->xr[IDIR];
+      for (k = NFLX; k--;  ){
+        betaR[k] = betaL[k] = 0.0;
+        scrh = nu[k]*dx;
+        betaR[k] = (nu[k] >  1.e-12 ?  scrh/(6.0*xR[i]   - 3.0*scrh):0.0);
+        betaL[k] = (nu[k] < -1.e-12 ? -scrh/(6.0*xR[i-1] - 3.0*scrh):0.0);
+      }
+      nu_max *= (1.0 - betaR[1]);
+      nu_min *= (1.0 + betaL[0]);
+    }else{
+      for (k = NFLX; k--;  )  betaR[k] = betaL[k] = 0.0;
+    }
     #endif
 
-  /* --------------------------------------------------------------
-     2. Obtain characteristic variable increment dw
-     -------------------------------------------------------------- */
+  /* --------------------------------------------
+     2c) Obtain characteristic variable
+         increment dw
+     -------------------------------------------- */
 
     for (nv = NVAR; nv--;  ) dv[nv] = vp[nv] - vm[nv];
     PrimToChar(L, dv, dw);
 
-  /* ----------------------------------------------------------------
-         Since this is somewhat arbitrary we use the value of 
-         ::CHTR_REF_STATE to select one of the following cases:
+  /* ------------------------------------------------------
+     2d)  Since this is somewhat arbitrary we use the value
+          of ::CHTR_REF_STATE to select one of the
+          following cases:
          
          - CHTR_REF_STATE==1: use cell-center value;
            
-         - CHTR_REF_STATE==2: interpolated value at base 
+         - CHTR_REF_STATE==2: interpolated value at base  
                                     time level 
          - CHTR_REF_STATE==3: 
            traditional PPM reference state (fastest wave), minimize 
            the size of the term subject to characteristic limiting. 
 
         Passive scalars use always CHTR_REF_STATE == 2.      
-     ---------------------------------------------------------------- */
+     ------------------------------------------------------ */
 
     #if CHTR_REF_STATE == 1
-     for (nv = NFLX; nv--; ) vp[nv] = vm[nv] = vc[nv];
+    for (nv = NFLX; nv--; ) vp[nv] = vm[nv] = vc[nv];
     #elif CHTR_REF_STATE == 3
-     for (nv = NFLX; nv--; ) {
-       #if GEOMETRY == CARTESIAN
-        vp[nv] = vc[nv] + 0.5*dv[nv]*(1.0 - nu_max);
-        vm[nv] = vc[nv] - 0.5*dv[nv]*(1.0 + nu_min);
-       #else
-        vp[nv] = vc[nv] + dv[nv]*(dp - 0.5*nu_max);
-        vm[nv] = vc[nv] - dv[nv]*(dm + 0.5*nu_min);
-       #endif
-     }
+    for (nv = NFLX; nv--; ) {
+      #if GEOMETRY == CARTESIAN
+      vp[nv] = vc[nv] + 0.5*dv[nv]*(1.0 - nu_max);
+      vm[nv] = vc[nv] - 0.5*dv[nv]*(1.0 + nu_min);
+      #else
+      vp[nv] = vc[nv] + dv[nv]*(dp - 0.5*nu_max);
+      vm[nv] = vc[nv] - dv[nv]*(dm + 0.5*nu_min);
+      #endif
+    }
     #endif
 
   /* --------------------------------------------------------------------
-     4. Compute L/R states in primitive variables:
+     2e) Compute L/R states in primitive variables:
 
          Evolve interface states for dt/2 using characteristic tracing.
          Depending on the choice of the reference state (i.e. 
@@ -377,123 +439,135 @@ void CharTracingStep(const State_1D *state, int beg, int end, Grid *grid)
 
     #ifdef GLM_MHD  /* -- hot fix for backward test compatibility 
                           must review this at some point !! -- */
-     nu_max = nu[1]; nu_min = nu[0];
+    nu_max = nu[1]; nu_min = nu[0];
     #endif
 
     for (k = 0; k < NFLX; k++){
       if (nu[k] >= 0.0) {
         #if GEOMETRY != CARTESIAN
-         nu[k] *= (1.0 - betaR[k]);
+        nu[k] *= (1.0 - betaR[k]);
         #endif
         #if CHTR_REF_STATE == 1
-         dw[k] *= 0.5*(1.0 - nu[k]);
+        dw[k] *= 0.5*(1.0 - nu[k]);
         #elif CHTR_REF_STATE == 2
-         dw[k] *= -0.5*nu[k];
+        dw[k] *= -0.5*nu[k];
         #elif CHTR_REF_STATE == 3
-         dw[k] *= 0.5*(nu_max - nu[k]);
+        dw[k] *= 0.5*(nu_max - nu[k]);
         #endif
         for (nv = 0; nv < NFLX; nv++) vp[nv] += dw[k]*R[nv][k];
       }else{     
         #if GEOMETRY != CARTESIAN
-         nu[k] *= (1.0 + betaL[k]);
+        nu[k] *= (1.0 + betaL[k]);
         #endif
         #if CHTR_REF_STATE == 1
-         dw[k] *= -0.5*(1.0 + nu[k]);
+        dw[k] *= -0.5*(1.0 + nu[k]);
         #elif CHTR_REF_STATE == 2
-         dw[k] *= -0.5*nu[k];
+        dw[k] *= -0.5*nu[k];
         #elif CHTR_REF_STATE == 3
-         dw[k] *= 0.5*(nu_min - nu[k]);
+        dw[k] *= 0.5*(nu_min - nu[k]);
         #endif
         for (nv = 0; nv < NFLX; nv++) vm[nv] += dw[k]*R[nv][k];
       }
     }
 
-  /* -------------------------------------------------------
-     5. Add source term to L/R states
-     ------------------------------------------------------- */
+  /* --------------------------------------------
+     2f) Add source term to L/R states
+     -------------------------------------------- */
 
     for (nv = NFLX; nv--;   ) {
       vp[nv] += 0.5*g_dt*src[i][nv];
       vm[nv] += 0.5*g_dt*src[i][nv];
     }
 
- /* -------------------------------------------------------
-     6. Repeat construction for passive scalars
-    ------------------------------------------------------- */
+ /* ---------------------------------------------
+     2g) Repeat construction for passive scalars
+    --------------------------------------------- */
 
     #if NVAR != NFLX
-     for (nv = NFLX; nv < NVAR; nv++) {
-       #if GEOMETRY == CARTESIAN
-        vp[nv] = vc[nv] + 0.5*dv[nv];
-        vm[nv] = vc[nv] - 0.5*dv[nv];
-       #else
-        vp[nv] = vc[nv] + dv[nv]*dp;
-        vm[nv] = vc[nv] - dv[nv]*dm;
-       #endif
-     }
+    for (nv = NFLX; nv < NVAR; nv++) {
+      #if GEOMETRY == CARTESIAN
+      vp[nv] = vc[nv] + 0.5*dv[nv];
+      vm[nv] = vc[nv] - 0.5*dv[nv];
+      #else
+      vp[nv] = vc[nv] + dv[nv]*dp;
+      vm[nv] = vc[nv] - dv[nv]*dm;
+      #endif
+    }
      
-     nu[0] = dtdx*vc[VXn];
-     #if GEOMETRY == CYLINDRICAL
-      if (g_dir == IDIR) {
-        double *xR = grid[IDIR].xr;
-        betaR[0] = betaL[0] = 0.0;
-        scrh = nu[0]*dx;
-        betaR[0] = (nu[0] >  1.e-12 ?  scrh/(6.0*xR[i]   - 3.0*scrh):0.0);
-        betaL[0] = (nu[0] < -1.e-12 ? -scrh/(6.0*xR[i-1] - 3.0*scrh):0.0);
-      }else{
-        betaR[0] = betaL[0] = 0.0;
-      }
-     #endif
-
-     if (nu[0] >= 0.0){  /* -- scalars all move at the flow speed -- */
-       scrh = -0.5*nu[0];
-       #if GEOMETRY != CARTESIAN
-        scrh *= (1.0 - betaR[0]);
-       #endif
-       for (k = NFLX; k < NVAR; k++) vp[k] += dw[k]*scrh;
-     }else {
-       scrh = -0.5*nu[0];
-       #if GEOMETRY != CARTESIAN
-        scrh *= (1.0 + betaL[0]);
-       #endif
-       for (k = NFLX; k < NVAR; k++) vm[k] += dw[k]*scrh;
+    nu[0] = dtdx*vc[VXn];
+    #if GEOMETRY == CYLINDRICAL
+    if (g_dir == IDIR) {
+      double *xR = grid->xr[IDIR];
+      betaR[0] = betaL[0] = 0.0;
+      scrh = nu[0]*dx;
+       betaR[0] = (nu[0] >  1.e-12 ?  scrh/(6.0*xR[i]   - 3.0*scrh):0.0);
+       betaL[0] = (nu[0] < -1.e-12 ? -scrh/(6.0*xR[i-1] - 3.0*scrh):0.0);
+     }else{
+       betaR[0] = betaL[0] = 0.0;
      }
+    #endif
+
+    if (nu[0] >= 0.0){  /* -- scalars all move at the flow speed -- */
+      scrh = -0.5*nu[0];
+      #if GEOMETRY != CARTESIAN
+       scrh *= (1.0 - betaR[0]);
+      #endif
+      for (k = NFLX; k < NVAR; k++) vp[k] += dw[k]*scrh;
+    }else {
+      scrh = -0.5*nu[0];
+      #if GEOMETRY != CARTESIAN
+       scrh *= (1.0 + betaL[0]);
+      #endif
+      for (k = NFLX; k < NVAR; k++) vm[k] += dw[k]*scrh;
+    }
     #endif
 
   }  /* -- end main loop on grid points -- */
 
-/*  -------------------------------------------
-        Shock flattening (only 1D)
-    -------------------------------------------  */
+/* --------------------------------------------------------
+   3. Apply 1D shock flattening (only 1D)
+   --------------------------------------------------------  */
 
-  #if SHOCK_FLATTENING == ONED
-   Flatten (state, beg, end, grid);
-  #endif
-
-/*  -------------------------------------------
-      Assign face-centered magnetic field
-    -------------------------------------------  */
-
-  #ifdef STAGGERED_MHD
-   for (i = beg-1; i <= end; i++) {
-     state->vR[i][BXn] = state->vL[i][BXn] = state->bn[i];
-   }
-  #endif
+#if SHOCK_FLATTENING == ONED
+  Flatten (sweep, beg, end, grid);
+#endif
 
 /* --------------------------------------------------------
-          evolve cell-center values by dt/2
+   4. Assign face-centered magnetic field
+   --------------------------------------------------------  */
+
+#ifdef STAGGERED_MHD
+  for (i = beg-1; i <= end; i++) {
+   stateL->v[i][BXn] = stateR->v[i][BXn] = sweep->bn[i];
+  }
+#endif
+
+/* --------------------------------------------------------
+   5. Add CR source term 
    -------------------------------------------------------- */
 
-  CheckPrimStates (state->vm, state->vp, state->v, beg, end);
+#ifdef PARTICLES
+#if (PARTICLES_TYPE == COSMIC_RAYS) && (PARTICLES_CR_FEEDBACK == YES)
+  Particles_CR_StatesSource(sweep, 0.5*g_dt, beg, end, grid);
+#endif
+#endif
+
+/* --------------------------------------------------------
+   6. Evolve cell-center values by dt/2
+   -------------------------------------------------------- */
+
+  CheckPrimStates (stateL->v, stateR->v-1, stateC->v, beg, end);
 
   for (i = beg; i <= end; i++){ 
-    vp = state->vp[i];
-    vm = state->vm[i];
-    NVAR_LOOP(nv) state->vh[i][nv] = 0.5*(vp[nv] + vm[nv]);
+    vp = stateL->v[i];
+    vm = stateR->v[i-1];
+    NVAR_LOOP(nv) stateC->v[i][nv] = 0.5*(vp[nv] + vm[nv]);
   }
+
 #if RECONSTRUCT_4VEL
-  ConvertTo3vel (state->vh, beg, end);
-#endif  
+  ConvertTo3vel (stateC->v, beg, end);
+#endif
+
 }
 #undef CHTR_REF_STATE 
 #endif  /* RECONSTRUCTION == LINEAR */

@@ -177,24 +177,8 @@ Real LevelPluto::step(LevelData<FArrayBox>&       a_U,
       // Fraction "a_time" falls between the old and the new coarse times
       Real alpha = (a_time - a_TCoarseOld) / (a_TCoarseNew - a_TCoarseOld);
 
-    // Truncate the fraction to the range [0,1] to remove floating-point
-    // subtraction roundoff effects
-      Real eps = 0.04 * a_dt / m_refineCoarse;
-
-      if (Abs(alpha) < eps)     alpha = 0.0;
-      if (Abs(1.0-alpha) < eps) alpha = 1.0;
-
-      // Current time before old coarse time
-      if (alpha < 0.0)
-        {
-          MayDay::Error( "LevelPluto::step: alpha < 0.0");
-        }
-
-      // Current time after new coarse time
-      if (alpha > 1.0)
-        {
-          MayDay::Error( "LevelPluto::step: alpha > 1.0");
-        }
+      if (alpha > 1.0) alpha = 1.0;
+      if (alpha < 0.0) alpha = 0.0;
 
       // Interpolate ghost cells from next coarser level using both space
       // and time interpolation
@@ -214,7 +198,7 @@ Real LevelPluto::step(LevelData<FArrayBox>&       a_U,
 
   // The grid structure
   Grid *grid;
-  static Time_Step Dts;
+  static timeStep Dts;
   Real inv_dt;
   
   #ifdef GLM_MHD
@@ -271,19 +255,17 @@ Real LevelPluto::step(LevelData<FArrayBox>&       a_U,
     
     grid = m_structs_grid[dit].getGrid();
  
-    IBEG = grid[IDIR].lbeg; IEND = grid[IDIR].lend;
-    JBEG = grid[JDIR].lbeg; JEND = grid[JDIR].lend;
-    KBEG = grid[KDIR].lbeg; KEND = grid[KDIR].lend;
+    IBEG = grid->lbeg[IDIR]; IEND = grid->lend[IDIR];
+    JBEG = grid->lbeg[JDIR]; JEND = grid->lend[JDIR];
+    KBEG = grid->lbeg[KDIR]; KEND = grid->lend[KDIR];
 
-    NX1 = grid[IDIR].np_int;
-    NX2 = grid[JDIR].np_int;
-    NX3 = grid[KDIR].np_int;
+    NX1 = grid->np_int[IDIR];
+    NX2 = grid->np_int[JDIR];
+    NX3 = grid->np_int[KDIR];
 
-    NX1_TOT = grid[IDIR].np_tot;
-    NX2_TOT = grid[JDIR].np_tot;
-    NX3_TOT = grid[KDIR].np_tot;
- 
-    SetRBox();  /* RBox structures must be redefined for each patch */
+    NX1_TOT = grid->np_tot[IDIR];
+    NX2_TOT = grid->np_tot[JDIR];
+    NX3_TOT = grid->np_tot[KDIR];
 
     g_dt   = a_dt;
     g_time = a_time;
@@ -297,8 +279,8 @@ Real LevelPluto::step(LevelData<FArrayBox>&       a_U,
     // reset time step coefficients 
     if (Dts.cmax == NULL) Dts.cmax = ARRAY_1D(NMAX_POINT, double);
     int id;
-    Dts.inv_dta = 1.e-18;
-    Dts.inv_dtp = 1.e-18;
+    Dts.invDt_hyp = 1.e-18;
+    Dts.invDt_par = 1.e-18;
     Dts.dt_cool = 1.e18;
     Dts.cfl     = a_cfl;
     Where(-1, grid); /* -- store grid for subsequent calls -- */
@@ -307,7 +289,7 @@ Real LevelPluto::step(LevelData<FArrayBox>&       a_U,
     m_patchPluto->advanceStep (curU, curUtmp, curdV, split_tags, flags, flux,
                                &Dts, curBox, grid);
  
-    inv_dt = Dts.inv_dta + 2.0*Dts.inv_dtp;
+    inv_dt = Dts.invDt_hyp + 2.0*Dts.invDt_par;
     maxWaveSpeed = Max(maxWaveSpeed, inv_dt); // Now the inverse of the timestep
 
     minDtCool = Min(minDtCool, Dts.dt_cool/a_cfl);
@@ -347,33 +329,35 @@ Real LevelPluto::step(LevelData<FArrayBox>&       a_U,
     for(DataIterator dit = m_U.dataIterator(); dit.ok(); ++dit){
       a_U[dit].copy(m_U[dit]);
     }
-   }
+  }
 
-  // Find the minimum of dt's over this level
-  Real local_dtNew = 1. / maxWaveSpeed;
-  local_dtNew = Min(local_dtNew,minDtCool);
+ // Find the minimum of dt's over this level
   Real dtNew;
+ {
+  CH_TIME("conclude::getDt");
 
-  {
-    CH_TIME("conclude::getDt");
- #ifdef CH_MPI
-  #if (TIME_STEPPING == RK2) && (COOLING == NO)
-  if (g_intStage == 1) {
+  Real local_dtNew = 1. / maxWaveSpeed;
+  #if (TIME_STEPPING == RK2) && (COOLING != NO)
+   if (g_intStage == 2) local_dtNew = minDtCool;
+  #else
+   local_dtNew = Min(local_dtNew,minDtCool);
   #endif
-   int result = MPI_Allreduce(&local_dtNew, &dtNew, 1, MPI_CH_REAL,
-                                  MPI_MIN, Chombo_MPI::comm);
-   if(result != MPI_SUCCESS){ //bark!!!
-      MayDay::Error("sorry, but I had a communcation error on new dt");
-   }
-  #if (TIME_STEPPING == RK2) && (COOLING == NO)
-  } else {
-   dtNew = local_dtNew;
-  }
+  dtNew = local_dtNew;
+
+  #ifdef CH_MPI
+   #if (TIME_STEPPING == RK2) && (COOLING == NO)
+    if (g_intStage == 1) {
+   #endif
+     int result = MPI_Allreduce(&local_dtNew, &dtNew, 1, MPI_CH_REAL,
+                                    MPI_MIN, Chombo_MPI::comm);
+     if(result != MPI_SUCCESS){ //bark!!!
+        MayDay::Error("sorry, but I had a communcation error on new dt");
+     }
+   #if (TIME_STEPPING == RK2) && (COOLING == NO)
+    }
+   #endif
   #endif
- #else
-   dtNew = local_dtNew;
- #endif
-  }
+ }
 
   CH_STOP(timeConclude);
 
@@ -398,7 +382,7 @@ void LevelPluto::setGridLevel()
    {
       // The current box
       Box curBox = m_grids.get(dit());
-      struct GRID* grid = m_structs_grid[dit].getGrid();
+      Grid *grid = m_structs_grid[dit].getGrid();
 
       #if GEOMETRY != CARTESIAN 
        FArrayBox& curdV = m_dV[dit()];    
@@ -408,7 +392,9 @@ void LevelPluto::setGridLevel()
        
       m_patchPluto->setGrid(curBox, grid, curdV);           
        
-      for (int idir = 0; idir < SpaceDim; idir++) dlMinLoc = Min(dlMinLoc,grid[idir].dl_min);   
+      for (int idir = 0; idir < SpaceDim; idir++) {
+        dlMinLoc = Min(dlMinLoc,grid->dl_min[idir]);
+      }
    }
 
 #if (GEOMETRY == CARTESIAN) || (GEOMETRY == CYLINDRICAL)

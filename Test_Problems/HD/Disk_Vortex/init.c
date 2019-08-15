@@ -58,6 +58,20 @@ void Init (double *us, double x1, double x2, double x3)
 }
 
 /* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
+
+/* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 
  *
@@ -67,16 +81,15 @@ void Analysis (const Data *d, Grid *grid)
   int    i,j,k,nv;
   static int first_call = 1;
   double v[NVAR];
-  double *R, *phi, *dVR, *dVphi, *dR, *dphi, vol;
+  double *R, *phi, *dR, *dphi, vol;
   double **vR, **vphi;
   double E=0.0, w, pw, wmin, pwmin;
   double Ltot, Etot, wtot, pwtot;
   static double voltot;
   FILE *fp;
 
-  R   = grid[IDIR].x;  phi   = grid[JDIR].x;
-  dVR = grid[IDIR].dV; dVphi = grid[JDIR].dV;
-  dR  = grid[IDIR].dx; dphi  = grid[JDIR].dx;
+  R   = grid->x[IDIR];  phi   = grid->x[JDIR];
+  dR  = grid->dx[IDIR]; dphi  = grid->dx[JDIR];
 
 /* ---------------------------------------------------------
          compute total volume once at the beginning
@@ -84,7 +97,7 @@ void Analysis (const Data *d, Grid *grid)
 
   if (first_call){
     voltot = 0.0;
-    DOM_LOOP(k,j,i) voltot += dVR[i]*dVphi[j];
+    DOM_LOOP(k,j,i) voltot += grid->dV[k][j][i];
     #ifdef PARALLEL
      MPI_Allreduce (&voltot, &vol, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
      MPI_Barrier (MPI_COMM_WORLD);
@@ -101,7 +114,7 @@ void Analysis (const Data *d, Grid *grid)
   Etot = Ltot = wtot = pwtot = 0.0;
   wmin = pwmin = 1.e20;
   DOM_LOOP(k,j,i){
-    vol = dVR[i]*dVphi[j]/voltot;
+    vol = grid->dV[k][j][i]/voltot;
 
     for (nv = NVAR; nv--;   ) v[nv] = d->Vc[nv][k][j][i];
 
@@ -207,7 +220,7 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
   int    i, j, k, nv;
   double *R, v[256];
 
-  R = grid[IDIR].x;
+  R = grid->x[IDIR];
 
   if (side == X1_BEG){
 

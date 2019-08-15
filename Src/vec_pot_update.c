@@ -40,7 +40,7 @@
  
   \param [in,out] d   pointer to PLUTO Data structure
   \param [in] vp      pointer to an EMF structure, used only with CT
-  \param [in] state   pointer to State_1D structure containing the 
+  \param [in] sweep   pointer to Sweep structure containing the 
                       electric field components (cell-centered MHD)
   \param [in] grid    pointer to an array of Grid structures
  
@@ -78,7 +78,7 @@
 #if (PHYSICS == MHD || PHYSICS == RMHD) && (UPDATE_VECTOR_POTENTIAL == YES)
 /* ********************************************************************* */
 void VectorPotentialUpdate (const Data *d, const void *vp, 
-                            const State_1D *state, const Grid *grid)
+                            const Sweep *sweep, const Grid *grid)
 /*!
  *
  *********************************************************************** */
@@ -177,7 +177,7 @@ void VectorPotentialUpdate (const Data *d, const void *vp,
   {
     double **f;
 
-    f = state->flux;
+    f = sweep->flux;
     if (g_dir == IDIR){
 
       IDOM_LOOP(i){

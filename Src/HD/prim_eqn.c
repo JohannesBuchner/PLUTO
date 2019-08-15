@@ -22,7 +22,7 @@
   implements the source term part.
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   April 02, 2015
+  \date   Feb 28, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -68,8 +68,7 @@ void PrimRHS (double *v, double *dv, double cs2, double h, double *Adv)
 }
 
 /* ********************************************************************* */
-void PrimSource (const State_1D *state, int beg, int end,
-                 double *a2, double *h, double **src, Grid *grid)
+void PrimSource (const State *state, double **src, int beg, int end, Grid *grid)
 /*!
  * Compute source terms of the HD equations in primitive variables.
  *
@@ -83,13 +82,12 @@ void PrimSource (const State_1D *state, int beg, int end,
  *  For instance, in polar or cylindrical coordinates, curvilinear source
  *  terms are included during the radial sweep only.
  * 
- * \param [in]  state pointer to a State_1D structure;
- * \param [in]  beg   initial index of computation;
- * \param [in]  end   final   index of computation;
- * \param [in]  a2    array of sound speed; 
- * \param [in]  h     array of enthalpies (not needed in MHD);
- * \param [out] src   array of source terms;
- * \param [in]  grid  pointer to a Grid structure.
+ * \param [in]  gas   pointer to a Sweep structure
+ * \param [out] src   array of source terms
+ * \param [in]  beg   initial index of computation
+ * \param [in]  end   final   index of computation
+ * \param [in]  grid  pointer to Grid structure
+ *
  * \return This function has no return value.
  *
  * \note This function does not work in spherical coordinates yet. 
@@ -98,7 +96,7 @@ void PrimSource (const State_1D *state, int beg, int end,
   int    nv, i, j, k;
   double tau, dA_dV, th;
   double hscale; /* scale factor */
-  double *v, *vp, *A, *dV, r_inv, ct;
+  double *v, *vp, r_inv, ct;
   double *x1,  *x2,  *x3;
   double *x1p, *x2p, *x3p;
   double *dx1, *dx2, *dx3;
@@ -106,7 +104,7 @@ void PrimSource (const State_1D *state, int beg, int end,
   double g[3], scrh;
 
 #if ROTATING_FRAME == YES
-  print1 ("! PrimSource(): does not work with rotations\n");
+  print ("! PrimSource(): does not work with rotations\n");
   QUIT_PLUTO(1);
 #endif
 
@@ -116,25 +114,20 @@ void PrimSource (const State_1D *state, int beg, int end,
 
   if (phi_p == NULL) phi_p = ARRAY_1D(NMAX_POINT, double);
 
-  #if GEOMETRY == CYLINDRICAL
-   x1 = grid[IDIR].xgc; x1p = grid[IDIR].xr; dx1 = grid[IDIR].dx;
-   x2 = grid[JDIR].xgc; x2p = grid[JDIR].xr; dx2 = grid[JDIR].dx;
-   x3 = grid[KDIR].xgc; x3p = grid[KDIR].xr; dx3 = grid[KDIR].dx;
-  #else  
-   x1 = grid[IDIR].x; x1p = grid[IDIR].xr; dx1 = grid[IDIR].dx;
-   x2 = grid[JDIR].x; x2p = grid[JDIR].xr; dx2 = grid[JDIR].dx;
-   x3 = grid[KDIR].x; x3p = grid[KDIR].xr; dx3 = grid[KDIR].dx;
-  #endif
+#if GEOMETRY == CYLINDRICAL
+  x1 = grid->xgc[IDIR]; x1p = grid->xr[IDIR]; dx1 = grid->dx[IDIR];
+  x2 = grid->xgc[JDIR]; x2p = grid->xr[JDIR]; dx2 = grid->dx[JDIR];
+  x3 = grid->xgc[KDIR]; x3p = grid->xr[KDIR]; dx3 = grid->dx[KDIR];
+#else  
+  x1 = grid->x[IDIR]; x1p = grid->xr[IDIR]; dx1 = grid->dx[IDIR];
+  x2 = grid->x[JDIR]; x2p = grid->xr[JDIR]; dx2 = grid->dx[JDIR];
+  x3 = grid->x[KDIR]; x3p = grid->xr[KDIR]; dx3 = grid->dx[KDIR];
+#endif
 
-  A  = grid[g_dir].A;
-  dV = grid[g_dir].dV;
   hscale  = 1.0;
-
   i = g_i; j = g_j; k = g_k;
 
-/* ----------------------------------------------------------
-     initialize all elements of src to zero
-   ---------------------------------------------------------- */
+/* -- Initialize all elements of src to zero -- */
 
   memset((void *)src[0], '\0',NMAX_POINT*NVAR*sizeof(double));
   
@@ -146,7 +139,7 @@ void PrimSource (const State_1D *state, int beg, int end,
 
   if (g_dir == IDIR) {
     for (i = beg; i <= end; i++){
-      v = state->v[i]; 
+      v     = state->v[i]; 
       tau   = 1.0/v[RHO];
       dA_dV = 1.0/x1[i];
 
@@ -156,7 +149,7 @@ void PrimSource (const State_1D *state, int beg, int end,
        src[i][iVPHI] = -v[iVR]*v[iVPHI]*dA_dV;
       #endif
       #if EOS == IDEAL
-       src[i][PRS] = a2[i]*src[i][RHO];
+       src[i][PRS] = state->a2[i]*src[i][RHO];
       #endif
     }
   }
@@ -165,8 +158,7 @@ void PrimSource (const State_1D *state, int beg, int end,
 
   if (g_dir == IDIR) {
     for (i = beg; i <= end; i++){
-      v = state->v[i]; 
-
+      v     = state->v[i]; 
       tau   = 1.0/v[RHO];
       dA_dV = 1.0/x1[i];
       src[i][RHO]  = -v[RHO]*v[VXn]*dA_dV;
@@ -182,7 +174,7 @@ void PrimSource (const State_1D *state, int beg, int end,
       #endif
 
       #if EOS == IDEAL
-       src[i][PRS] = a2[i]*src[i][RHO];
+       src[i][PRS] = state->a2[i]*src[i][RHO];
       #endif
     }
   } else if (g_dir == JDIR) {
@@ -197,7 +189,7 @@ void PrimSource (const State_1D *state, int beg, int end,
 
 #elif GEOMETRY == SPHERICAL 
 
-  print1 ("! PrimSource: not implemented in Spherical geometry\n");
+  print ("! PrimSource: not implemented in Spherical geometry\n");
   QUIT_PLUTO(1);
   
 #endif
@@ -307,21 +299,21 @@ void PrimSource (const State_1D *state, int beg, int end,
   
   #if (defined FARGO) && !(defined SHEARINGBOX)
    #if GEOMETRY == POLAR || GEOMETRY == SPHERICAL
-    print1 ("! Time Stepping works only in Cartesian or cylindrical coords\n");
-    print1 ("! Use RK instead\n");
+    print ("! Time Stepping works only in Cartesian or cylindrical coords\n");
+    print ("! Use RK instead\n");
     QUIT_PLUTO(1);
    #endif
 
    double **wA, *dx, *dz;
    wA = FARGO_GetVelocity();
    if (g_dir == IDIR){
-     dx = grid[IDIR].dx;
+     dx = grid->dx[IDIR];
      for (i = beg; i <= end; i++){
        v = state->v[i];
        src[i][VX2] -= 0.5*v[VX1]*(wA[k][i+1] - wA[k][i-1])/dx[i];
      }
    }else if (g_dir == KDIR){
-     dz = grid[KDIR].dx;
+     dz = grid->dx[KDIR];
      for (k = beg; k <= end; k++){
        v = state->v[k];
        src[k][VX2] -= 0.5*v[VX3]*(wA[k+1][i] - wA[k-1][i])/dz[k];

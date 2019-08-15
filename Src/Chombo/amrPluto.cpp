@@ -123,7 +123,7 @@ void amrPluto(int argc, char *argv[], char *ini_file, Cmd_Line *cmd_line)
   Real size=0.0;
   
   Runtime runtime;
-  Grid    grid[3];
+  Grid    grid;
   RuntimeSetup  (&runtime, cmd_line, ini_file);
   RuntimeSet (&runtime);
 
@@ -136,16 +136,16 @@ void amrPluto(int argc, char *argv[], char *ini_file, Cmd_Line *cmd_line)
   pout() << endl << "> Generating grid..." << endl << endl;
   int nghost = GetNghost();
   for (int idim = 0; idim < DIMENSIONS; idim++) {
-    grid[idim].nghost  = nghost;
-    grid[idim].np_int  = grid[idim].np_int_glob = runtime.npoint[idim];
-    grid[idim].np_tot  = grid[idim].np_tot_glob = runtime.npoint[idim] + 2*nghost;
-    grid[idim].beg     = grid[idim].gbeg = grid[idim].lbeg = nghost;
-    grid[idim].end     = grid[idim].gend = grid[idim].lend 
-                       = (grid[idim].lbeg - 1) + grid[idim].np_int;
-    grid[idim].lbound  = runtime.left_bound[idim];
-    grid[idim].rbound  = runtime.right_bound[idim];
+    grid.nghost[idim]  = nghost;
+    grid.np_int[idim]  = grid.np_int_glob[idim] = runtime.npoint[idim];
+    grid.np_tot[idim]  = grid.np_tot_glob[idim] = runtime.npoint[idim] + 2*nghost;
+    grid.beg[idim]     = grid.gbeg[idim] = grid.lbeg[idim] = nghost;
+    grid.end[idim]     = grid.gend[idim] = grid.lend[idim] 
+                       = (grid.lbeg[idim] - 1) + grid.np_int[idim];
+    grid.lbound[idim]  = runtime.left_bound[idim];
+    grid.rbound[idim]  = runtime.right_bound[idim];
   }
-  SetGrid (&runtime, grid);
+  SetGrid (&runtime, &grid);
   
   // VERBOSITY
   
@@ -223,10 +223,10 @@ void amrPluto(int argc, char *argv[], char *ini_file, Cmd_Line *cmd_line)
   pout() << endl << endl;
   pout() << "> AMR: " << endl << endl;
   pout() << "  Number of levels:      " << maxLevel << endl;
-  pout() << "  Equivalent Resolution: " << grid[IDIR].np_int*totLevels;
+  pout() << "  Equivalent Resolution: " << grid.np_int[IDIR]*totLevels;
   D_EXPAND(                                                  , 
-           pout() << " x " << grid[JDIR].np_int*totLevels;   ,
-           pout() << " x " << grid[KDIR].np_int*totLevels;)
+           pout() << " x " << grid.np_int[JDIR]*totLevels;   ,
+           pout() << " x " << grid.np_int[KDIR]*totLevels;)
   pout() << endl;
   pout() << "  Number of procs:       " << nprocs << endl << endl;
 
@@ -503,16 +503,6 @@ void print (const char *fmt, ...)
  ********************************************************************* */
 {
   char buffer[256];
-  va_list args;
-  va_start (args, fmt);
-  vsprintf (buffer,fmt, args);
-  pout() << buffer;
-}
-void print1 (const char *fmt, ...)
-{
-  char buffer[256];
-
-  if (prank != 0) return;
   va_list args;
   va_start (args, fmt);
   vsprintf (buffer,fmt, args);

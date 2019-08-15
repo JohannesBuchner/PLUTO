@@ -25,9 +25,9 @@
     max     = MAX(dB, max);
   }
   D_EXPAND(
-    tot[n] /= (double)grid[IDIR].np_int_glob;  ,
-    tot[n] /= (double)grid[JDIR].np_int_glob;  ,
-    tot[n] /= (double)grid[KDIR].np_int_glob;
+    tot[n] /= (double)grid->np_int_glob[IDIR];  ,
+    tot[n] /= (double)grid->np_int_glob[JDIR];  ,
+    tot[n] /= (double)grid->np_int_glob[KDIR];
   )
 
   #ifdef PARALLEL

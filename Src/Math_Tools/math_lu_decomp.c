@@ -34,7 +34,7 @@ int LUDecompose (double **a, int n, int *indx, double *d)
       if ((temp = fabs (a[i][j])) > big)
         big = temp;
     if (big == 0.0) {
-/*      print1 ("! Singular matrix in routine LUDecompose - (i=%d, j=%d)",i,j); */
+/*      print ("! Singular matrix in routine LUDecompose - (i=%d, j=%d)",i,j); */
       return (0);
     }
     vv[i] = 1.0 / big;
@@ -76,6 +76,7 @@ int LUDecompose (double **a, int n, int *indx, double *d)
     }
   }
   FreeArray1D(vv);
+  g_usedMemory -= sizeof(double)*n;
   return (1); /* -- success -- */
 }
 #undef TINY
@@ -123,6 +124,50 @@ void LUBackSubst (double **a, int n, int *indx, double b[])
     for (j = i + 1; j < n; j++) sum -= a[i][j]*b[j];
     b[i] = sum / a[i][i];
   }
+}
+
+/* ********************************************************************* */
+void MatrixInverse (double **A, double **Ainv, int n)
+/*!
+ * Find the inverse of a matrix.
+ *
+ *********************************************************************** */
+{
+  int    i, j, *indx;
+  double d, *col; 
+  
+  indx = ARRAY_1D(n, int);
+  col  = ARRAY_1D(n, double);
+  
+  LUDecompose (A,n,indx,&d); 
+  for(j = 0; j < n;j++) {
+    for(i = 0; i < n; i++) col[i]=0.0; 
+    col[j] = 1.0;
+    LUBackSubst(A,n,indx,col); 
+    for(i = 0; i < n; i++) Ainv[i][j]=col[i];
+  }
+  FreeArray1D(indx);
+  FreeArray1D(col);
+  g_usedMemory -= (sizeof(int) + sizeof(double))*n;
+}
+
+/* ********************************************************************* */
+void MatrixMultiply (double **A, double **B, double **C, int n)
+/*!
+ * Multiply two matrices, C = A.B
+ *
+ *********************************************************************** */
+{
+  int i,j,k;
+  
+  for (i = 0; i < n; i++){    
+  for (j = 0; j < n; j++){    
+    C[i][j] = 0.0;
+    for (k = 0; k < n; k++){
+      C[i][j] += A[i][k]*B[k][j];
+    }
+  }}
+  
 }
 
 /* ********************************************************************* */

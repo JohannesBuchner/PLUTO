@@ -7,147 +7,245 @@
   centroid of volume, etc..) that depend on the geometry.
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   Dec 12, 2013
+  \date   March 13, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
 /* ********************************************************************* */
-void MakeGeometry (Grid *GXYZ)
+void MakeGeometry (Grid *grid)
 /*!
  *
- * \param [in,out] GXYZ  Pointer to an array of Grid structures;
+ * \param [in,out] grid  Pointer to an array of Grid structures;
  *
  *********************************************************************** */
 {
-  int     i, j, k, idim, ngh, ileft;
-  int     iright;
-  int     iend, jend, kend;
-  double  xiL, xiR, dxi, dvol;
-  double  x, dx, xr, xl;
-  double  y, dy, yr, yl;
-  struct  GRID *GG;
+  int     i, j, k, idim;
+  int     iend = grid->lend[IDIR] + grid->nghost[IDIR];
+  int     jend = grid->lend[JDIR] + grid->nghost[JDIR];
+  int     kend = grid->lend[KDIR] + grid->nghost[KDIR];
+  int     nx1_tot = grid->np_tot[IDIR];
+  int     nx2_tot = grid->np_tot[JDIR];
+  int     nx3_tot = grid->np_tot[KDIR];
+  double  dVr, dmu, xL, xR;
 
-  iend = GXYZ[0].lend + GXYZ[0].nghost;
-  jend = GXYZ[1].lend + GXYZ[1].nghost;
-  kend = GXYZ[2].lend + GXYZ[2].nghost;
+  double *x1 = grid->x[IDIR], *dx1 = grid->dx[IDIR];
+  double *x2 = grid->x[JDIR], *dx2 = grid->dx[JDIR];
+  double *x3 = grid->x[KDIR], *dx3 = grid->dx[KDIR];
 
-/*  --------------------------------------------------------------
-     Memory allocation. All values are defined at the cell center 
-     with the exception of the area element which is defined on a
-     staggered mesh and therefore starts at [-1].
-    ----------------------------------------------------------- */
+  double *x1p = grid->xr[IDIR], *x1m = grid->xl[IDIR];
+  double *x2p = grid->xr[JDIR], *x2m = grid->xl[JDIR];
+  double *x3p = grid->xr[KDIR], *x3m = grid->xl[KDIR];
 
-  for (idim = 0; idim < 3; idim++) {
-    (GXYZ + idim)->A       = ARRAY_1D (GXYZ[idim].np_tot+1, double)+1;
-    (GXYZ + idim)->xgc     = ARRAY_1D (GXYZ[idim].np_tot, double);
-    (GXYZ + idim)->dV      = ARRAY_1D (GXYZ[idim].np_tot, double);
-    (GXYZ + idim)->r_1     = ARRAY_1D (GXYZ[idim].np_tot, double);
-    (GXYZ + idim)->ct      = ARRAY_1D (GXYZ[idim].np_tot, double);
-    (GXYZ + idim)->inv_dx  = ARRAY_1D (GXYZ[idim].np_tot, double);
-    (GXYZ + idim)->inv_dxi = ARRAY_1D (GXYZ[idim].np_tot, double);
-  }
+  double ***Ax1, ***Ax2, ***Ax3;
 
-/* ------------------------------------------------------------
-    Define area (A), volume element (dV) and cell geometrical
-    centers for each direction.
-    
-    Conventions:
-    - G->dx: spacing (always > 0)
-    - G->x:  cell-center. Can be > 0 or < 0
-    - G->xgc: geometrical cell center.
-    ----------------------------------------------------------- */  
+/* --------------------------------------------------------------
+   0. Allocate memory for the Grid structue.
+      All values are defined at the cell center 
+      with the exception of the area element which is defined on a
+      staggered mesh and therefore starts at [-1].
+   ----------------------------------------------------------- */
 
-/* ------------------------------------------------------------
-                     X1 (IDIR) Direction
-   ------------------------------------------------------------ */
- 
-  GG = GXYZ;
-  for (i = 0; i <= iend; i++) {
+  grid->dV      = ARRAY_3D(nx3_tot, nx2_tot, nx1_tot, double);
+  grid->A[IDIR] = ArrayBox( 0, nx3_tot-1,  0, nx2_tot-1, -1, nx1_tot-1);
+  grid->A[JDIR] = ArrayBox( 0, nx3_tot-1, -1, nx2_tot-1,  0, nx1_tot-1);
+  grid->A[KDIR] = ArrayBox(-1, nx3_tot-1,  0, nx2_tot-1,  0, nx1_tot-1);
 
-    dx  = GG->dx[i];
-    x   = GG->x[i];
-    xr  = x + 0.5*dx;
-    xl  = x - 0.5*dx;
-
-    #if GEOMETRY == CARTESIAN
-     GG->A[i]    = 1.0;
-     if (i == 0) GG->A[-1] = 1.0;
-     GG->dV[i]  = dx;
-     GG->xgc[i] = x;
-    #elif GEOMETRY == CYLINDRICAL || GEOMETRY == POLAR
-     GG->A[i]   = fabs(xr); 
-     if (i == 0) GG->A[-1] = fabs(xl);
-     GG->dV[i]  = fabs(x)*dx;
-     GG->xgc[i] = x + dx*dx/(12.0*x); 
-     GG->r_1[i] = 1.0/x;
-    #elif GEOMETRY == SPHERICAL
-     GG->A[i]   = xr*xr;
-     if (i == 0) GG->A[-1] = xl*xl;
-
-     GG->dV[i]  = fabs(xr*xr*xr - xl*xl*xl)/3.0;
-     GG->xgc[i] = x + 2.0*x*dx*dx/(12.0*x*x + dx*dx);
-     GG->r_1[i] = 1.0/x;
-    #endif
-  }
-
-/* ------------------------------------------------------------
-                    X2 (JDIR) Direction
-   ------------------------------------------------------------ */
-
-  GG = GXYZ + 1;
-  for (j = 0; j <= jend; j++) {
-
-    dx  = GG->dx[j];
-    x   = GG->x[j];
-    xr  = x + 0.5*dx;
-    xl  = x - 0.5*dx;
-    #if GEOMETRY != SPHERICAL
-     GG->A[j]   = 1.0;
-     if (j == 0) GG->A[-1] = 1.0;
-     GG->dV[j]  = dx;    
-     GG->xgc[j] = x;
-    
-    #else
-     GG->A[j]   = fabs(sin(xr));
-     if (j == 0) GG->A[-1] = fabs(sin(xl));
-     GG->dV[j]  = fabs(cos(xl) - cos(xr));
-
-     GG->xgc[j]  = (sin(xr) - sin(xl) + xl*cos(xl) - xr*cos(xr));
-     GG->xgc[j] /= cos(xl) - cos(xr);
-     GG->ct[j]   = 1.0/tan(x);  /* (sin(xr) - sin(xl))/(cos(xl) - cos(xr)); */
-    #endif
-  }
-
-/* ------------------------------------------------------------
-                    X3 (KDIR) Direction
-   ------------------------------------------------------------ */
+  grid->dx_dl[IDIR] = ARRAY_2D(nx2_tot, nx1_tot, double);
+  grid->dx_dl[JDIR] = ARRAY_2D(nx2_tot, nx1_tot, double);
+  grid->dx_dl[KDIR] = ARRAY_2D(nx2_tot, nx1_tot, double);
   
-  GG = GXYZ + 2;
-  for (k = 0; k <= kend; k++) {
-    dx  = GG->dx[k];
-    x   = GG->x[k];
-    xr  = x + 0.5*dx;
-    xl  = x - 0.5*dx;
-
-    GG->A[k]   = 1.0;
-    if (k == 0) GG->A[-1] = 1.0;
-    GG->dV[k]  = dx;
-    GG->xgc[k] = x;
+  grid->rt  = ARRAY_1D(grid->np_tot[IDIR], double);
+  grid->sp  = ARRAY_1D(grid->np_tot[JDIR], double);
+  grid->s   = ARRAY_1D(grid->np_tot[JDIR], double);
+  grid->dmu = ARRAY_1D(grid->np_tot[JDIR], double);
+  for (idim = 0; idim < 3; idim++) {
+    grid->xgc[idim]     = ARRAY_1D(grid->np_tot[idim], double);
+    grid->inv_dx[idim]  = ARRAY_1D(grid->np_tot[idim], double);
+    grid->inv_dxi[idim] = ARRAY_1D(grid->np_tot[idim], double);
   }
 
+/* ----------------------------------------------------------
+   1a. Compute positions arrays in the X1 (IDIR) direction
+   ---------------------------------------------------------- */
+
+  for (i = 0; i <= iend; i++){
+    xL = x1m[i];
+    xR = x1p[i];
+    #if GEOMETRY == CARTESIAN
+    grid->xgc[IDIR][i] = x1[i];
+    grid->rt[i]        = x1[i];
+    #elif GEOMETRY == CYLINDRICAL || GEOMETRY == POLAR
+    grid->xgc[IDIR][i] = x1[i] + dx1[i]*dx1[i]/(12.0*x1[i]); 
+    grid->rt[i]        = x1[i];
+    #elif GEOMETRY == SPHERICAL
+    grid->xgc[IDIR][i] = x1[i] + 2.0*x1[i]*dx1[i]*dx1[i]/
+                                (12.0*x1[i]*x1[i] + dx1[i]*dx1[i]);
+    grid->rt[i]  = (xR*xR*xR - xL*xL*xL)/(xR*xR - xL*xL)/1.5;
+    #endif
+  }
+
+/* ----------------------------------------------------------
+   1b. Compute positions arrays in the X2 (JDIR) direction
+   ---------------------------------------------------------- */
+
+  for (j = 0; j <= jend; j++){
+    xL = x2m[j];
+    xR = x2p[j];
+
+    #if GEOMETRY != SPHERICAL
+    grid->xgc[JDIR][j] = x2[j];
+    #else
+    grid->xgc[JDIR][j]  = sin(xR) - sin(xL)+ xL*cos(xL) - xR*cos(xR);
+    grid->xgc[JDIR][j] /= cos(xL) - cos(xR);
+    grid->sp[j]         = fabs(sin(xR));
+    grid->s[j]          = fabs(sin(x2[j]));
+    grid->dmu[j]        = fabs(cos(xL) - cos(xR));
+    #endif
+  }
+
+/* ------------------------------------------------------------
+   1c. Compute positions arrays in the X3 (KDIR) direction
+   ------------------------------------------------------------ */
+
+  for (k = 0; k <= kend; k++){
+    grid->xgc[KDIR][k] = x3[k];
+  }
+
+/* ------------------------------------------------------------
+   2. Compute volumes 
+   ------------------------------------------------------------ */
+
+  for (k = 0; k <= kend; k++){
+  for (j = 0; j <= jend; j++){
+  for (i = 0; i <= iend; i++){
+    #if GEOMETRY == CARTESIAN
+    grid->dV[k][j][i]  = D_EXPAND(dx1[i], *dx2[j], *dx3[k]);  /* = dx*dy*dz */
+    #elif GEOMETRY == CYLINDRICAL
+    dVr = fabs(x1[i])*dx1[i];
+    grid->dV[k][j][i]  = D_EXPAND(dVr, *dx2[j], *1.0);        /* = |r|*dr*dz */
+    #elif GEOMETRY == POLAR
+    dVr = fabs(x1[i])*dx1[i];
+    grid->dV[k][j][i]  = D_EXPAND(dVr, *dx2[j], *dx3[k]);     /* = |r|*dr*dphi*dz */
+    #elif GEOMETRY == SPHERICAL
+    dVr = fabs(x1p[i]*x1p[i]*x1p[i] - x1m[i]*x1m[i]*x1m[i])/3.0;
+    dmu = fabs(cos(x2m[j]) - cos(x2p[j]));
+    grid->dV[k][j][i]  = D_EXPAND(dVr, *dmu, *dx3[k]);        /* = dVr*dmu*dphi*/
+    #endif
+  }}}
+
+/* ------------------------------------------------------------
+   3a. Compute area in the x1-direction
+   ------------------------------------------------------------ */
+
+  Ax1 = grid->A[IDIR];
+  Ax2 = grid->A[JDIR];
+  Ax3 = grid->A[KDIR];
+
+  for (k =  0; k <= kend; k++){
+  for (j =  0; j <= jend; j++){
+  for (i = -1; i <= iend; i++){
+    #if GEOMETRY == CARTESIAN
+    Ax1[k][j][i] = D_EXPAND(1.0, *dx2[j], *dx3[k]);         /* = dy*dz */ 
+    #elif GEOMETRY == CYLINDRICAL
+    if (i == -1) {
+      Ax1[k][j][i] = D_EXPAND(fabs(x1m[0]), *dx2[j], *1.0); /* = rp*dz */
+    }else{
+      Ax1[k][j][i] = D_EXPAND(fabs(x1p[i]), *dx2[j], *1.0); /* = rp*dz */
+    }
+    #elif GEOMETRY == POLAR
+    if (i == -1) {
+      Ax1[k][j][i] = D_EXPAND(fabs(x1m[0]), *dx2[j], *dx3[k]); /* = rp*dphi*dz */
+    }else{
+      Ax1[k][j][i] = D_EXPAND(fabs(x1p[i]), *dx2[j], *dx3[k]); /* = rp*dphi*dz */
+    }
+    #elif GEOMETRY == SPHERICAL
+    dmu = fabs(cos(x2m[j]) - cos(x2p[j]));
+    if (i == -1) {
+      Ax1[k][j][i] = D_EXPAND(x1m[0]*x1m[0], *dmu, *dx3[k]); /* = rp^2*dmu*dphi */
+    }else{
+      Ax1[k][j][i] = D_EXPAND(x1p[i]*x1p[i], *dmu, *dx3[k]); /* = rp^2*dmu*dphi */
+    }
+    #endif
+  }}}
+
+/* ------------------------------------------------------------
+   3b. Compute area in the x2-direction
+   ------------------------------------------------------------ */
+
+  for (k =  0; k <= kend; k++){
+  for (j = -1; j <= jend; j++){
+  for (i =  0; i <= iend; i++){
+    #if GEOMETRY == CARTESIAN
+    Ax2[k][j][i] = D_EXPAND(dx1[i], *1.0, *dx3[k]);        /* = dx*dz */
+    #elif GEOMETRY == CYLINDRICAL
+    Ax2[k][j][i] = D_EXPAND(fabs(x1[i]), *dx1[i], *1.0);   /* = r*dr */
+    #elif GEOMETRY == POLAR
+    Ax2[k][j][i] = D_EXPAND(dx1[i], *1.0, *dx3[k]);        /* = dr*dz */    
+    #elif GEOMETRY == SPHERICAL
+    if (j == -1){
+      Ax2[k][j][i] = D_EXPAND(x1[i]*dx1[i], *fabs(sin(x2m[0])), *dx3[k]); /* = r*dr*sin(thp)*dphi */
+    }else{
+      Ax2[k][j][i] = D_EXPAND(x1[i]*dx1[i], *fabs(sin(x2p[j])), *dx3[k]); /* = r*dr*sin(thp)*dphi */
+    }
+    #endif
+  }}}
+
+/* ------------------------------------------------------------
+   3c. Compute area in the x3-direction
+   ------------------------------------------------------------ */
+
+  for (k = -1; k <= kend; k++){
+  for (j =  0; j <= jend; j++){
+  for (i =  0; i <= iend; i++){
+    #if GEOMETRY == CARTESIAN
+    Ax3[k][j][i] = D_EXPAND(dx1[i], *dx2[j], *1.0);          /* = dx*dy */ 
+    #elif GEOMETRY == CYLINDRICAL
+    Ax3[k][j][i] = 1.0;   /* No 3rd direction in cylindrical coords */
+    #elif GEOMETRY == POLAR
+    Ax3[k][j][i] = D_EXPAND(x1[i]*dx1[i], *dx2[j], *1.0);   /* = r*dr*dphi */        
+    #elif GEOMETRY == SPHERICAL
+    Ax3[k][j][i] = D_EXPAND(x1[i]*dx1[i], *dx2[j], *1.0);   /* = r*dr*dth */        
+    #endif
+  }}}
+
+/* ------------------------------------------------------------
+   4a. Compute dx/dl in the x1-direction
+   ------------------------------------------------------------ */
+
+  for (k =  0; k <= kend; k++){
+  for (j =  0; j <= jend; j++){
+  for (i =  0; i <= iend; i++){
+    #if GEOMETRY == CARTESIAN
+    grid->dx_dl[IDIR][j][i] = 1.0;
+    grid->dx_dl[JDIR][j][i] = 1.0;
+    grid->dx_dl[KDIR][j][i] = 1.0;
+    #elif GEOMETRY == CYLINDRICAL
+    grid->dx_dl[IDIR][j][i] = 1.0;
+    grid->dx_dl[JDIR][j][i] = 1.0;
+    #elif GEOMETRY == POLAR
+    grid->dx_dl[IDIR][j][i] = 1.0;
+    grid->dx_dl[JDIR][j][i] = 1.0/x1[i];
+    grid->dx_dl[KDIR][j][i] = 1.0;
+    #elif GEOMETRY == SPHERICAL
+    grid->dx_dl[IDIR][j][i] = 1.0;
+    grid->dx_dl[JDIR][j][i] = 1.0/grid->rt[i];
+    grid->dx_dl[KDIR][j][i] = dx2[j]/(grid->rt[i]*grid->dmu[j]);
+    #endif
+  }}}
+  
 /* ---------------------------------------------------------
-    compute and store the reciprocal of cell spacing
-    between interfaces (inv_dx) and cell centers (inv_dxi)
+   5. Compute and store the reciprocal of cell spacing
+      between interfaces (inv_dx) and cell centers (inv_dxi)
    --------------------------------------------------------- */
 
   for (idim = 0; idim < DIMENSIONS; idim++){
-    for (i = 0; i < GXYZ[idim].np_tot; i++) {
-      GXYZ[idim].inv_dx[i] = 1.0/(GXYZ[idim].dx[i]);
+    for (i = 0; i < grid->np_tot[idim]; i++) {
+      grid->inv_dx[idim][i] = 1.0/(grid->dx[idim][i]);
     }
 
-    for (i = 0; i < GXYZ[idim].np_tot-1; i++) {
-      GXYZ[idim].inv_dxi[i] = 2.0/(GXYZ[idim].dx[i] + GXYZ[idim].dx[i+1]);
+    for (i = 0; i < grid->np_tot[idim]-1; i++) {
+      grid->inv_dxi[idim][i] = 2.0/(grid->dx[idim][i] + grid->dx[idim][i+1]);
     }
   }  
 }
@@ -162,7 +260,7 @@ double Length_1 (int i, int j, int k, Grid *grid)
  *
  ************************************************************************ */
 {
-  return (grid[0].dx[i]);
+  return (grid->dx[IDIR][i]);
 }
 
 /* ********************************************************************** */
@@ -175,11 +273,11 @@ double Length_2 (int i, int j, int k, Grid *grid)
  *
  ************************************************************************ */
 {
-  #if GEOMETRY == CARTESIAN || GEOMETRY == CYLINDRICAL
-   return (grid[1].dx[j]);
-  #elif GEOMETRY == POLAR ||  GEOMETRY == SPHERICAL
-   return (fabs(grid[0].xgc[i])*grid[1].dx[j]);
-  #endif
+#if GEOMETRY == CARTESIAN || GEOMETRY == CYLINDRICAL
+  return (grid->dx[JDIR][j]);
+#elif GEOMETRY == POLAR ||  GEOMETRY == SPHERICAL
+  return (fabs(grid->xgc[IDIR][i])*grid->dx[JDIR][j]);
+#endif
 }
 
 /* ********************************************************************** */
@@ -192,13 +290,13 @@ double Length_3 (int i, int j, int k, Grid *grid)
  *
  ************************************************************************ */
 {
-  #if GEOMETRY == CARTESIAN || GEOMETRY == POLAR
-   return (grid[2].dx[k]);
-  #elif GEOMETRY == CYLINDRICAL
-   return (fabs(grid[0].xgc[i])*grid[2].dx[k]);
-  #elif GEOMETRY == SPHERICAL
-   return (fabs(grid[0].xgc[i]*sin(grid[1].xgc[j]))*grid[2].dx[k]);
-  #endif
+#if GEOMETRY == CARTESIAN || GEOMETRY == POLAR
+  return grid->dx[KDIR][k];
+#elif GEOMETRY == CYLINDRICAL
+  return fabs(grid->xgc[IDIR][i])*grid->dx[KDIR][k];
+#elif GEOMETRY == SPHERICAL
+  return fabs(grid->xgc[IDIR][i]*sin(grid->xgc[JDIR][j]))*grid->dx[KDIR][k];
+#endif
 }
 
 /* ******************************************************************* */
@@ -218,12 +316,12 @@ double *GetInverse_dl (const Grid *grid)
 {
 #if GEOMETRY == CARTESIAN || GEOMETRY == CYLINDRICAL
 
-  return grid[g_dir].inv_dx;
+  return grid->inv_dx[g_dir];
 
 #elif GEOMETRY == POLAR
 
   if (g_dir != JDIR){
-    return grid[g_dir].inv_dx;
+    return grid->inv_dx[g_dir];
   }else{
     int    j;
     double r_1;
@@ -236,8 +334,8 @@ double *GetInverse_dl (const Grid *grid)
       inv_dl = ARRAY_1D(NX2_TOT, double);
      #endif
     }
-    r_1 = grid[IDIR].r_1[g_i];
-    JTOT_LOOP(j) inv_dl[j] = grid[JDIR].inv_dx[j]*r_1;
+    r_1 = 1.0/grid->x[IDIR][g_i];
+    JTOT_LOOP(j) inv_dl[j] = grid->inv_dx[JDIR][j]*r_1;
     return inv_dl;
   }
 
@@ -258,16 +356,16 @@ double *GetInverse_dl (const Grid *grid)
   }
 
   if (g_dir == IDIR){
-    return grid[IDIR].inv_dx;
+    return grid->inv_dx[IDIR];
   }else if (g_dir == JDIR) {
-    r_1 = grid[IDIR].r_1[g_i];
-    JTOT_LOOP(j) inv_dl2[j] = grid[JDIR].inv_dx[j]*r_1;
+    r_1 = 1.0/grid->x[IDIR][g_i];
+    JTOT_LOOP(j) inv_dl2[j] = grid->inv_dx[JDIR][j]*r_1;
     return inv_dl2;
   }else if (g_dir == KDIR){
-    r_1 = grid[IDIR].r_1[g_i];
-    s   = grid[JDIR].x[g_j];
+    r_1 = 1.0/grid->x[IDIR][g_i];
+    s   = grid->x[JDIR][g_j];
     s   = sin(s);
-    KTOT_LOOP(k) inv_dl3[k] = grid[KDIR].inv_dx[k]*r_1/s;
+    KTOT_LOOP(k) inv_dl3[k] = grid->inv_dx[KDIR][k]*r_1/s;
     return inv_dl3;
   }
 

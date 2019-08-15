@@ -57,13 +57,21 @@ void Init (double *us, double x1, double x2, double x3)
     us[VX2] = 0.99;
   }   
 
-  #if USE_FOUR_VELOCITY == YES
-   scrh = 1.0/sqrt(1.0 - us[VX1]*us[VX1] - us[VX2]*us[VX2]);
-   us[VX1] *= scrh;
-   us[VX2] *= scrh;
-  #endif
-
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 

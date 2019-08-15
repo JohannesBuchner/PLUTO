@@ -98,7 +98,7 @@ void SB_CorrectFluxes  (Data_Arr, double, double, Grid *);
 void SB_CorrectEMF (EMF *, Data_Arr, Grid *);
 #endif
 int  SB_JSHIFT (int);
-void SB_SaveFluxes (State_1D *, Grid *);
+void SB_SaveFluxes (Sweep *, Grid *);
 void SB_SetBoundaryVar(double ***, RBox *, int, double, Grid *);
 void SB_ShiftBoundaryVar(double ***, RBox *, int, double, Grid *);
 void SB_FillBoundaryGhost(double ***, RBox *, int, int, Grid *);

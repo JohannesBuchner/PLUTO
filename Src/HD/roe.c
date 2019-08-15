@@ -18,7 +18,7 @@
   characteristic decomposition reproduces the Roe matrix.
 
   On input, it takes left and right primitive state vectors 
-  \c state->vL and \c state->vR at zone edge \c i+1/2;
+  \c stateL->v and \c stateR->v at zone edge \c i+1/2;
   On output, return flux and pressure vectors at the same interface 
   \c i+1/2 (note that the \c i refers to \c i+1/2).
   
@@ -30,7 +30,7 @@
         by E.F. Toro (Chapter 11)
         
   \authors A. Mignone (mignone@ph.unito.it)
-  \date    Dec 10, 2013
+  \date    Oct 12, 2016
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include"pluto.h"
@@ -39,12 +39,12 @@
 #define CHECK_ROE_MATRIX  NO
 
 /* ********************************************************************* */
-void Roe_Solver (const State_1D *state, int beg, int end, 
+void Roe_Solver (const Sweep *sweep, int beg, int end, 
                  double *cmax, Grid *grid)
 /*!
  * Solve the Riemann problem using the Roe solver.
  *
- * \param[in,out] state   pointer to State_1D structure
+ * \param[in,out] sweep   pointer to Sweep structure
  * \param[in]     beg     initial grid index
  * \param[out]    end     final grid index
  * \param[out]    cmax    1D array of maximum characteristic speeds
@@ -53,6 +53,14 @@ void Roe_Solver (const State_1D *state, int beg, int end,
  *********************************************************************** */
 {
   int   nv, i, j, k, nn;
+
+  const State   *stateL = &(sweep->stateL);
+  const State   *stateR = &(sweep->stateR);
+
+  double **fL = stateL->flux, **fR = stateR->flux;
+  double *a2L = stateL->a2,   *a2R = stateR->a2;
+  double  *pL = stateL->prs,   *pR = stateR->prs;
+
   double  scrh;
   double  um[NFLX], vel2;
   double  a2, a, h;
@@ -63,7 +71,6 @@ void Roe_Solver (const State_1D *state, int beg, int end,
   double s, c, hl, hr;
 #endif
   double *ql, *qr, *uL, *uR;
-  static double  **fL, **fR, *pL, *pR, *a2L, *a2R;
 
   double bmin, bmax, scrh1;
   double Us[NFLX];
@@ -75,15 +82,6 @@ void Roe_Solver (const State_1D *state, int beg, int end,
    gmm1_inv  = 1.0/gmm1;
   #endif
 
-  if (fL == NULL){
-    fL  = ARRAY_2D(NMAX_POINT, NFLX, double);
-    fR  = ARRAY_2D(NMAX_POINT, NFLX, double);
-    pR  = ARRAY_1D(NMAX_POINT, double);
-    pL  = ARRAY_1D(NMAX_POINT, double);
-    a2R = ARRAY_1D(NMAX_POINT, double);
-    a2L = ARRAY_1D(NMAX_POINT, double);
-  }
-
   for (i = NFLX; i--;  ) {
   for (j = NFLX; j--;  ) {
     Rc[i][j] = 0.0;
@@ -93,16 +91,16 @@ void Roe_Solver (const State_1D *state, int beg, int end,
      compute sound speed & fluxes at zone interfaces
    ---------------------------------------------------- */
 
-  SoundSpeed2 (state->vL, a2L, NULL, beg, end, FACE_CENTER, grid);
-  SoundSpeed2 (state->vR, a2R, NULL, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (stateL, beg, end, FACE_CENTER, grid);
+  SoundSpeed2 (stateR, beg, end, FACE_CENTER, grid);
 
-  Flux (state->uL, state->vL, a2L, fL, pL, beg, end);
-  Flux (state->uR, state->vR, a2R, fR, pR, beg, end);
+  Flux (stateL, beg, end);
+  Flux (stateR, beg, end);
 
   for (i = beg; i <= end; i++)  {
 
-    uR = state->uR[i];
-    uL = state->uL[i];
+    uR = stateR->u[i];
+    uL = stateL->u[i];
 
 #if SHOCK_FLATTENING == MULTID   
 
@@ -116,26 +114,25 @@ void Roe_Solver (const State_1D *state, int beg, int end,
        in the Mach reflection test.
       --------------------------------------------- */
 
-    if ((state->flag[i] & FLAG_HLL) || (state->flag[i+1] & FLAG_HLL)){        
-      HLL_Speed (state->vL, state->vR, a2L, a2R, 
-                 &bmin - i, &bmax - i, i, i);
+    if ((sweep->flag[i] & FLAG_HLL) || (sweep->flag[i+1] & FLAG_HLL)){        
+      HLL_Speed (stateL, stateR, &bmin - i, &bmax - i, i, i);
       a     = MAX(fabs(bmin), fabs(bmax));
       cmax[i] = a;
       bmin  = MIN(0.0, bmin);
       bmax  = MAX(0.0, bmax);
       scrh  = 1.0/(bmax - bmin);
       for (nv = NFLX; nv--; ){
-        state->flux[i][nv]  = bmin*bmax*(uR[nv] - uL[nv])
+        sweep->flux[i][nv]  = bmin*bmax*(uR[nv] - uL[nv])
                            +  bmax*fL[i][nv] - bmin*fR[i][nv];
-        state->flux[i][nv] *= scrh;
+        sweep->flux[i][nv] *= scrh;
       }
-      state->press[i] = (bmax*pL[i] - bmin*pR[i])*scrh;
+      sweep->press[i] = (bmax*pL[i] - bmin*pR[i])*scrh;
       continue;
     }
 #endif
 
-    ql = state->vL[i];
-    qr = state->vR[i];
+    ql = stateL->v[i];
+    qr = stateR->v[i];
 
   /*  ----  Define Wave Jumps  ----  */
 
@@ -301,11 +298,11 @@ void Roe_Solver (const State_1D *state, int beg, int end,
        bmax = MAX(0.0, lambda[1]);
        scrh1 = 1.0/(bmax - bmin);
        for (nv = NFLX; nv--;   ){
-        state->flux[i][nv]  = bmin*bmax*(uR[nv] - uL[nv])
+        sweep->flux[i][nv]  = bmin*bmax*(uR[nv] - uL[nv])
                           +   bmax*fL[i][nv] - bmin*fR[i][nv];
-        state->flux[i][nv] *= scrh1;
+        sweep->flux[i][nv] *= scrh1;
        }
-       state->press[i] = (bmax*pL[i] - bmin*pR[i])*scrh1;
+       sweep->press[i] = (bmax*pL[i] - bmin*pR[i])*scrh1;
        continue;
      } 
     #endif
@@ -323,8 +320,8 @@ void Roe_Solver (const State_1D *state, int beg, int end,
        if (nv == MXn) scrh += pR[i] - pL[i];
        if (fabs(scrh) > 1.e-6){
          print ("! Matrix condition not satisfied %d, %12.6e\n", nv, scrh);
-         Show(state->vL, i);
-         Show(state->vR, i);
+         Show(sweep->vL, i);
+         Show(sweep->vR, i);
          exit(1);
        }
      }
@@ -346,13 +343,13 @@ void Roe_Solver (const State_1D *state, int beg, int end,
     }
 
     for (nv = NFLX; nv--;   ) {
-      state->flux[i][nv] = fL[i][nv] + fR[i][nv];
+      sweep->flux[i][nv] = fL[i][nv] + fR[i][nv];
       for (k  = NFLX; k-- ;   ) {
-        state->flux[i][nv] -= alambda[k]*eta[k]*Rc[nv][k];
+        sweep->flux[i][nv] -= alambda[k]*eta[k]*Rc[nv][k];
       }
-      state->flux[i][nv] *= 0.5;
+      sweep->flux[i][nv] *= 0.5;
     }
-    state->press[i] = 0.5*(pL[i] + pR[i]);
+    sweep->press[i] = 0.5*(pL[i] + pR[i]);
   }
 }
 #undef ROE_AVERAGE        

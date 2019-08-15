@@ -1,8 +1,8 @@
 #include"pluto.h"
 
 /* ********************************************************************** */
-void AUSMp_Solver (const State_1D *state, int beg, int end, 
-            real *cmax, Grid *grid)
+void AUSMp_Solver (const Sweep *sweep, int beg, int end, 
+                   double *cmax, Grid *grid)
 /*!
  * Solve Riemann problem for the Euler equations using the AUSM+ 
  *     scheme given in 
@@ -12,36 +12,32 @@ void AUSMp_Solver (const State_1D *state, int beg, int end,
  *
  * LAST_MODIFIED
  *
- *   July 17th 2006, by Andrea Mignone  (mignone@to.astro.it)
+ *   Oct 11, 2016 by Andrea Mignone  (mignone@to.astro.it)
  *
  ************************************************************************ */
 {
 #if EOS == IDEAL
   int  i, nv;
-  real aL, ML, MpL, PpL, asL2, asL, atL;
-  real aR, MR, MmR, PmR, asR2, asR, atR;
-  real a, m, p, mp, mm;
-  real *vL, *vR, *uL, *uR;
-  real alpha = 3.0/16.0, beta = 0.125;
-  static real  **fl, **fr, **ul, **ur;
 
-  if (fl == NULL){
-    fl = ARRAY_2D(NMAX_POINT, NFLX, double);
-    fr = ARRAY_2D(NMAX_POINT, NFLX, double);
-    ul = ARRAY_2D(NMAX_POINT, NVAR, double);
-    ur = ARRAY_2D(NMAX_POINT, NVAR, double);
-  }
+  const State   *stateL = &(sweep->stateL);
+  const State   *stateR = &(sweep->stateR);
+  double **fL = stateL->flux, **fR = stateR->flux;
+  double *a2L = stateL->a2,   *a2R = stateR->a2;
+  double  *pL = stateL->prs,   *pR = stateR->prs;
 
-  PrimToCons (state->vL, ul, beg, end);
-  PrimToCons (state->vR, ur, beg, end);
+  double aL, ML, MpL, PpL, asL2, asL, atL;
+  double aR, MR, MmR, PmR, asR2, asR, atR;
+  double a, m, p, mp, mm;
+  double *vL, *vR, *uL, *uR;
+  double alpha = 3.0/16.0, beta = 0.125;
 
   for (i = beg; i <= end; i++)  {
 
-    vL = state->vL[i];
-    vR = state->vR[i];
+    vL = stateL->v[i];
+    vR = stateR->v[i];
 
-    uL = ul[i];
-    uR = ur[i];
+    uL = stateL->u[i];
+    uR = stateR->u[i];
 
     aL = sqrt(g_gamma*vL[PRS]/vL[RHO]);
     aR = sqrt(g_gamma*vR[PRS]/vR[RHO]);
@@ -96,12 +92,12 @@ void AUSMp_Solver (const State_1D *state, int beg, int end,
                      Compute fluxes 
      ------------------------------------------------------------- */
 
-    state->press[i] = PpL*vL[PRS] + PmR*vR[PRS];
-    state->flux[i][RHO]        = a*(mp*uL[RHO] + mm*uR[RHO]);
-    EXPAND(state->flux[i][MX1] = a*(mp*uL[MX1] + mm*uR[MX1]); ,
-           state->flux[i][MX2] = a*(mp*uL[MX2] + mm*uR[MX2]); ,
-           state->flux[i][MX3] = a*(mp*uL[MX3] + mm*uR[MX3]); )
-    state->flux[i][ENG]        = a*(mp*(uL[ENG] + vL[PRS]) + mm*(uR[ENG] + vR[PRS]));
+    sweep->press[i] = PpL*vL[PRS] + PmR*vR[PRS];
+    sweep->flux[i][RHO]        = a*(mp*uL[RHO] + mm*uR[RHO]);
+    EXPAND(sweep->flux[i][MX1] = a*(mp*uL[MX1] + mm*uR[MX1]); ,
+           sweep->flux[i][MX2] = a*(mp*uL[MX2] + mm*uR[MX2]); ,
+           sweep->flux[i][MX3] = a*(mp*uL[MX3] + mm*uR[MX3]); )
+    sweep->flux[i][ENG]        = a*(mp*(uL[ENG] + vL[PRS]) + mm*(uR[ENG] + vR[PRS]));
  
   /*  ----  get max eigenvalue  ----  */
 
@@ -112,7 +108,7 @@ void AUSMp_Solver (const State_1D *state, int beg, int end,
 
   }
 #else
-  print1 ("! AUSMp_Solver: not defined for this EOS\n");
+  print ("! AUSMp_Solver: not defined for this EOS\n");
   QUIT_PLUTO(1);
 #endif /* EOS == IDEAL */
 }

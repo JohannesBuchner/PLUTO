@@ -235,14 +235,6 @@ Real AMRLevelPluto::advance()
   // we don't need the flux in the simple hyperbolic case...
   LevelData<FArrayBox> flux[SpaceDim];
 
-// Make sure m_time >= tCoarserOld to avoid negative alpha during levelPluto.step
-// Thus if tm = tc*(1-epsilon) we set tm = tc
-
-  if ( m_time < tCoarserOld && 
-       fabs(m_time - tCoarserOld) < 1.e-12*tCoarserOld){
-    m_time = tCoarserOld;
-  }
-
   g_intStage = 1;
 
   // Advance the solve one timestep
@@ -259,10 +251,11 @@ Real AMRLevelPluto::advance()
                             m_dt,
                             m_cfl);
 
- #if (TIME_STEPPING == RK2)
+#if (TIME_STEPPING == RK2)
   g_intStage = 2;
   Real DtCool; // The predictor returns the advective/diffusive timestep
                // The corrector returns the cooling timestep
+
   DtCool = m_levelPluto.step(m_UNew,
                             flux,
                             *finerFR,
@@ -276,12 +269,13 @@ Real AMRLevelPluto::advance()
                             m_dt,
                             m_cfl);
 
-  newDt = Min(newDt,DtCool);
- #endif
+  #if (COOLING != NO)
+   newDt = Min(newDt,DtCool);
+  #endif
+#endif
 
-  // Update the time and store the new timestep
-  m_time += m_dt;
-  Real returnDt = m_cfl * newDt;
+  m_time += m_dt;                  // Update m_time                                       
+  Real returnDt = m_cfl * newDt;   // Store the new timestep
 
   m_dtNew = returnDt;
 
@@ -503,7 +497,7 @@ void AMRLevelPluto::regrid(const Vector<Box>& a_newGrids)
 	m_UOld[dit()].copy(m_UNew[dit()]);
   }
 
-  // Reshape state with new grids
+  // Reshape sweep with new grids
   IntVect ivGhost = m_numGhost*IntVect::Unit;
   m_UNew.define(m_grids,m_numStates,ivGhost);
 
@@ -518,7 +512,7 @@ void AMRLevelPluto::regrid(const Vector<Box>& a_newGrids)
     m_fineInterp.interpToFine(m_UNew,amrGodCoarserPtr->m_UNew);
   }
 
-  // Copy from old state
+  // Copy from old sweep
   m_UOld.copyTo(m_UOld.interval(),
                 m_UNew,
                 m_UNew.interval());
@@ -553,7 +547,7 @@ void AMRLevelPluto::initialGrid(const Vector<Box>& a_newGrids)
     }
   }
 
-  // Define old and new state data structures
+  // Define old and new sweep data structures
   IntVect ivGhost = m_numGhost*IntVect::Unit;
   m_UNew.define(m_grids,m_numStates,ivGhost);
   m_UOld.define(m_grids,m_numStates,ivGhost);
@@ -790,7 +784,7 @@ void AMRLevelPluto::readCheckpointHeader(HDF5Handle& a_handle)
   }
 
   // Get the component names
-  std::string stateName;
+  std::string sweepName;
   char compStr[60];
   for (int comp = 0; comp < m_numStates; ++comp)
   {
@@ -800,10 +794,10 @@ void AMRLevelPluto::readCheckpointHeader(HDF5Handle& a_handle)
       MayDay::Error("AMRLevelPluto::readCheckpointHeader: checkpoint file does not have enough component names");
     }
 
-    stateName = header.m_string[compStr];
-    if (stateName != m_ConsStateNames[comp])
+    sweepName = header.m_string[compStr];
+    if (sweepName != m_ConsStateNames[comp])
     {
-      MayDay::Error("AMRLevelPluto::readCheckpointHeader: state_name in checkpoint does not match solver");
+      MayDay::Error("AMRLevelPluto::readCheckpointHeader: sweep_name in checkpoint does not match solver");
     }
   }
 }
@@ -988,7 +982,7 @@ void AMRLevelPluto::readCheckpointLevel(HDF5Handle& a_handle)
     pout() << endl;
   }
 
-  // Reshape state with new grids
+  // Reshape sweep with new grids
   m_UNew.define(m_grids,m_numStates);
   const int dataStatus = read<FArrayBox>(a_handle,
                                          m_UNew,
@@ -997,7 +991,7 @@ void AMRLevelPluto::readCheckpointLevel(HDF5Handle& a_handle)
 
   if (dataStatus != 0)
   {
-    MayDay::Error("AMRLevelPluto::readCheckpointLevel: file does not contain state data");
+    MayDay::Error("AMRLevelPluto::readCheckpointLevel: file does not contain sweep data");
   }
 
   m_UOld.define(m_grids,m_numStates);

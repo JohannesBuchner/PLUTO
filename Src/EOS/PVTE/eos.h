@@ -4,8 +4,8 @@
   \brief PVTE EoS header file.
 
   Contains basic macro definitions, function prototypes and structure 
-  definition used by the PVTE_LAW equation of state.
-  In this module, two equations of state are used:
+  definition used by the PVTE_LAW equation of sweep.
+  In this module, two equations of sweep are used:
   \f[
   \left\{\begin{array}{lcll}
   p &=&\DS \frac{\rho T}{{\rm K}\mu(\vec{X})} &\qquad\rm{(thermal)}\,,
@@ -67,7 +67,7 @@
 /* ///////////////////////////////////////////////////////////////////// */
 #ifndef T_CUT_RHOE
  #define T_CUT_RHOE  10.0  /**< Sets the lowest cut-off temperature used in 
-                                the PVTE_LAW equation of state.
+                                the PVTE_LAW equation of sweep.
                                 Zones with temperature below T_CUT_RHOE
                                 will be reset to this value and the internal
                                 energy will be redefined accordingly. */

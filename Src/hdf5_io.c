@@ -28,7 +28,7 @@
   \authors C. Zanni (zanni@oato.inaf.it)\n
            A. Mignone (mignone@ph.unito.it)
            G. Musicanisi (g.muscianisi@cineca.it)\n
-  \date    May 22, 2014
+  \date   Feb 28, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -75,11 +75,10 @@ void WriteHDF5 (Output *output, Grid *grid)
   char *coords = "/cell_coords/X /cell_coords/Y /cell_coords/Z ";
   char *cname[] = {"X", "Y", "Z"};
   char xmfext[8];
-  int  rank, nd, nv, ns, nc, ngh, ii, jj, kk;
+  int  rank, nd, nr, nv, ns, nc, ngh, ii, jj, kk;
   int n1p, n2p, n3p, nprec;
-  Grid *wgrid[3];
   FILE *fxmf;
- 
+
 /* ----------------------------------------------------------------
                  compute coordinates just once
    ---------------------------------------------------------------- */
@@ -87,16 +86,16 @@ void WriteHDF5 (Output *output, Grid *grid)
   if (node_coords == NULL) {
     double x1, x2, x3;
 
-    n1p = NX1 + (grid[IDIR].rbound != 0);
-    n2p = NX2 + (grid[JDIR].rbound != 0);
-    n3p = NX3 + (grid[KDIR].rbound != 0);
+    n1p = NX1 + (grid->rbound[IDIR] != 0);
+    n2p = NX2 + (grid->rbound[JDIR] != 0);
+    n3p = NX3 + (grid->rbound[KDIR] != 0);
 
     node_coords = ARRAY_4D(3, n3p, n2p, n1p, float);
     cell_coords = ARRAY_4D(3, NX3, NX2, NX1, float);
     
-    for (kk = 0; kk < n3p; kk++) {  x3 = grid[KDIR].xl[KBEG+kk];
-    for (jj = 0; jj < n2p; jj++) {  x2 = grid[JDIR].xl[JBEG+jj];
-    for (ii = 0; ii < n1p; ii++) {  x1 = grid[IDIR].xl[IBEG+ii];
+    for (kk = 0; kk < n3p; kk++) {  x3 = grid->xl[KDIR][KBEG+kk];
+    for (jj = 0; jj < n2p; jj++) {  x2 = grid->xl[JDIR][JBEG+jj];
+    for (ii = 0; ii < n1p; ii++) {  x1 = grid->xl[IDIR][IBEG+ii];
 
       node_coords[JDIR][kk][jj][ii] = 0.0;
       node_coords[KDIR][kk][jj][ii] = 0.0;
@@ -120,14 +119,14 @@ void WriteHDF5 (Output *output, Grid *grid)
                  node_coords[KDIR][kk][jj][ii] = (float)(x1*cos(x2));)
        #endif
       #else
-       print1 ("! HDF5_IO: Unknown geometry\n");
+       print ("! HDF5_IO: Unknown geometry\n");
        QUIT_PLUTO(1);
       #endif
     }}}
 
-    for (kk = 0; kk < NX3; kk++) {  x3 = grid[KDIR].x[KBEG+kk];
-    for (jj = 0; jj < NX2; jj++) {  x2 = grid[JDIR].x[JBEG+jj];
-    for (ii = 0; ii < NX1; ii++) {  x1 = grid[IDIR].x[IBEG+ii];
+    for (kk = 0; kk < NX3; kk++) {  x3 = grid->x[KDIR][KBEG+kk];
+    for (jj = 0; jj < NX2; jj++) {  x2 = grid->x[JDIR][JBEG+jj];
+    for (ii = 0; ii < NX1; ii++) {  x1 = grid->x[IDIR][IBEG+ii];
 
       cell_coords[JDIR][kk][jj][ii] = 0.0;
       cell_coords[KDIR][kk][jj][ii] = 0.0;
@@ -151,7 +150,7 @@ void WriteHDF5 (Output *output, Grid *grid)
                  cell_coords[KDIR][kk][jj][ii] = (float)(x1*cos(x2));)
        #endif
       #else
-       print1 ("! HDF5_IO: Unknown geometry\n");
+       print ("! HDF5_IO: Unknown geometry\n");
        QUIT_PLUTO(1);
       #endif
     }}}
@@ -162,8 +161,6 @@ void WriteHDF5 (Output *output, Grid *grid)
      Since data is written in reverse order (Z-Y-X) it is
      convenient to define pointers to grid in reverse order
    -------------------------------------------------------------- */
-
-  for (nd = 0; nd < DIMENSIONS; nd++) wgrid[nd] = grid + DIMENSIONS - nd - 1;
 
   #ifdef PARALLEL
    MPI_Barrier (MPI_COMM_WORLD);
@@ -210,28 +207,36 @@ void WriteHDF5 (Output *output, Grid *grid)
   H5Aclose(stratt);
   H5Sclose(strspace);
 
-  for (nd = 0; nd < DIMENSIONS; nd++) dimens[nd] = wgrid[nd]->np_int_glob;
+  for (nd = 0; nd < DIMENSIONS; nd++) {
+    nr = DIMENSIONS-nd-1;
+    dimens[nd] = grid->np_int_glob[nr];
+  }
  
   dataspace = H5Screate_simple(rank, dimens, NULL);
 
   #ifdef PARALLEL 
    for (nd = 0; nd < DIMENSIONS; nd++) {
-     start[nd]  = wgrid[nd]->beg - wgrid[nd]->nghost;
+     nr = DIMENSIONS-nd-1;
+     start[nd]  = grid->beg[nr] - grid->nghost[nr];
      stride[nd] = 1;
-     count[nd]  = wgrid[nd]->np_int;
+     count[nd]  = grid->np_int[nr];
    }
 
    err = H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start, stride, count, NULL);
   #endif
 
-  for (nd = 0; nd < DIMENSIONS; nd++) dimens[nd] = wgrid[nd]->np_tot;
+  for (nd = 0; nd < DIMENSIONS; nd++) {
+    nr = DIMENSIONS-nd-1;
+    dimens[nd] = grid->np_tot[nr];
+  }
 
   memspace = H5Screate_simple(rank,dimens,NULL);
 
   for (nd = 0; nd < DIMENSIONS; nd++){
-    start[nd]  = wgrid[nd]->nghost;
+    nr = DIMENSIONS-nd-1;
+    start[nd]  = grid->nghost[nr];
     stride[nd] = 1;
-    count[nd]  = wgrid[nd]->np_int;
+    count[nd]  = grid->np_int[nr];
   }
   err = H5Sselect_hyperslab(memspace,H5S_SELECT_SET, start, stride, count, NULL);
 
@@ -312,18 +317,20 @@ void WriteHDF5 (Output *output, Grid *grid)
  
      if (!output->dump_var[NVAR+ns] || output->stag_var[NVAR+ns] == -1) continue;
      for (nd = 0; nd < DIMENSIONS; nd++) {
-       dimens[nd] = wgrid[nd]->np_int_glob + (ns == (DIMENSIONS-1-nd));
+       nr = DIMENSIONS-nd-1;
+       dimens[nd] = grid->np_int_glob[nr] + (ns == nr);
      }
      dataspace = H5Screate_simple(rank, dimens, NULL);
 
      #ifdef PARALLEL
       for (nd = 0; nd < DIMENSIONS; nd++) {
-        start[nd]  = wgrid[nd]->beg - wgrid[nd]->nghost;
+        nr = DIMENSIONS-nd-1;
+        start[nd]  = grid->beg[nr] - grid->nghost[nr];
         stride[nd] = 1;
-        count[nd]  = wgrid[nd]->np_int;
-        if (ns == DIMENSIONS-1-nd){
-           if (grid[ns].lbound != 0) count[nd] += 1;
-           else                      start[nd] += 1;
+        count[nd]  = grid->np_int[nr];
+        if (ns == nr){
+           if (grid->lbound[ns] != 0) count[nd] += 1;
+           else                       start[nd] += 1;
         }
       }
       err = H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
@@ -331,15 +338,17 @@ void WriteHDF5 (Output *output, Grid *grid)
      #endif
 
      for (nd = 0; nd < DIMENSIONS; nd++){
-       dimens[nd] = wgrid[nd]->np_tot + (ns==(DIMENSIONS-1-nd));
+       nr = DIMENSIONS-nd-1;
+       dimens[nd] = grid->np_tot[nr] + (ns==nr);
      }
      memspace = H5Screate_simple(rank,dimens,NULL);
 
      for (nd = 0; nd < DIMENSIONS; nd++){
-       start[nd]  = wgrid[nd]->nghost;
+       nr = DIMENSIONS-nd-1;
+       start[nd]  = grid->nghost[nr];
        stride[nd] = 1;
-       count[nd]  = wgrid[nd]->np_int;
-       if (ns == (DIMENSIONS-1-nd) && grid[ns].lbound != 0) {
+       count[nd]  = grid->np_int[nr];
+       if (ns == nr && grid->lbound[ns] != 0) {
          start[nd] -= 1;
          count[nd] += 1;
        }
@@ -387,20 +396,27 @@ void WriteHDF5 (Output *output, Grid *grid)
 
   group = H5Gcreate(file_identifier, "cell_coords", 0); /* Create group "cell_coords" (centered mesh) */ 
    
-  for (nd = 0; nd < DIMENSIONS; nd++) dimens[nd] = wgrid[nd]->np_int_glob;
+  for (nd = 0; nd < DIMENSIONS; nd++) {
+    nr = DIMENSIONS-nd-1;
+    dimens[nd] = grid->np_int_glob[nr];
+  }
   dataspace = H5Screate_simple(rank, dimens, NULL);
 
   #ifdef PARALLEL
    for (nd = 0; nd < DIMENSIONS; nd++) {
-     start[nd]  = wgrid[nd]->beg - wgrid[nd]->nghost;
+     nr = DIMENSIONS-nd-1;
+     start[nd]  = grid->beg[nr] - grid->nghost[nr];
      stride[nd] = 1;
-     count[nd]  = wgrid[nd]->np_int;
+     count[nd]  = grid->np_int[nr];
    }
    err = H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
                              start, stride, count, NULL);
   #endif
 
-  for (nd = 0; nd < DIMENSIONS; nd++) dimens[nd] = wgrid[nd]->np_int;
+  for (nd = 0; nd < DIMENSIONS; nd++){
+    nr = DIMENSIONS-nd-1;
+    dimens[nd] = grid->np_int[nr];
+  }
   memspace = H5Screate_simple(rank,dimens,NULL);
 
 /* ------------------------------------
@@ -435,25 +451,30 @@ void WriteHDF5 (Output *output, Grid *grid)
 
   group = H5Gcreate(file_identifier, "node_coords", 0); /* Create group "node_coords" (node mesh) */
 
-  for (nd = 0; nd < DIMENSIONS; nd++) dimens[nd] = wgrid[nd]->np_int_glob+1;
+  for (nd = 0; nd < DIMENSIONS; nd++){
+    nr = DIMENSIONS-nd-1;
+    dimens[nd] = grid->np_int_glob[nr] + 1;
+  }
 
   dataspace = H5Screate_simple(rank, dimens, NULL);
 
-  #ifdef PARALLEL
-   for (nd = 0; nd < DIMENSIONS; nd++) {
-     start[nd]  = wgrid[nd]->beg - wgrid[nd]->nghost;
-     stride[nd] = 1;
-     count[nd]  = wgrid[nd]->np_int;
-     if (wgrid[nd]->rbound != 0) count[nd] += 1;
-   }
+#ifdef PARALLEL
+  for (nd = 0; nd < DIMENSIONS; nd++) {
+    nr = DIMENSIONS-nd-1;
+    start[nd]  = grid->beg[nr] - grid->nghost[nr];
+    stride[nd] = 1;
+    count[nd]  = grid->np_int[nr];
+    if (grid->rbound[nr] != 0) count[nd] += 1;
+  }
 
-   err = H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
-                             start, stride, count, NULL);
+  err = H5Sselect_hyperslab(dataspace, H5S_SELECT_SET,
+                            start, stride, count, NULL);
   #endif
 
   for (nd = 0; nd < DIMENSIONS; nd++) {
-   dimens[nd] = wgrid[nd]->np_int;
-   if (wgrid[nd]->rbound != 0) dimens[nd] += 1;
+    nr = DIMENSIONS-nd-1;
+    dimens[nd] = grid->np_int[nr];
+    if (grid->rbound[nr] != 0) dimens[nd] += 1;
   }
   memspace = H5Screate_simple(rank,dimens,NULL);
 
@@ -480,13 +501,12 @@ void WriteHDF5 (Output *output, Grid *grid)
     H5Dclose(dataset);
   }
 
- #if MPI_POSIX == NO
+#if MPI_POSIX == NO
   H5Pclose(plist_id_mpiio);
- #endif
+#endif
   H5Sclose(memspace);
   H5Sclose(dataspace);
   H5Gclose(group); /* Close group "node_coords" */
-
   H5Fclose(file_identifier);
 
 /* Create XDMF file to read HDF5 output (Visit or Paraview) */
@@ -512,21 +532,25 @@ void WriteHDF5 (Output *output, Grid *grid)
     fprintf(fxmf, "    <Time Value=\"%12.6e\"/>\n",g_time);
     #if DIMENSIONS == 2
      fprintf(fxmf,"     <Topology TopologyType=\"2DSMesh\" NumberOfElements=\"%d %d\"/>\n",
-             wgrid[0]->np_int_glob+1, wgrid[1]->np_int_glob+1);
+             grid->np_int_glob[JDIR]+1, grid->np_int_glob[IDIR]+1);
      fprintf(fxmf, "     <Geometry GeometryType=\"X_Y\">\n");
      for (nd = 0; nd < DIMENSIONS; nd++) {
        fprintf(fxmf,"       <DataItem Dimensions=\"%d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n",
-              wgrid[0]->np_int_glob+1, wgrid[1]->np_int_glob+1 );
+              grid->np_int_glob[JDIR]+1, grid->np_int_glob[IDIR]+1 );
        fprintf(fxmf, "        %s:/node_coords/%s\n",filename,cname[nd]);
        fprintf(fxmf, "       </DataItem>\n");
      }
     #elif DIMENSIONS == 3
      fprintf(fxmf, "     <Topology TopologyType=\"3DSMesh\" NumberOfElements=\"%d %d %d\"/>\n",
-             wgrid[0]->np_int_glob+1, wgrid[1]->np_int_glob+1, wgrid[2]->np_int_glob+1);
+             grid->np_int_glob[KDIR]+1,
+             grid->np_int_glob[JDIR]+1,
+             grid->np_int_glob[IDIR]+1);
      fprintf(fxmf, "     <Geometry GeometryType=\"X_Y_Z\">\n");
      for (nd = 0; nd < DIMENSIONS; nd++) {
        fprintf(fxmf, "       <DataItem Dimensions=\"%d %d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n",
-               wgrid[0]->np_int_glob+1, wgrid[1]->np_int_glob+1, wgrid[2]->np_int_glob+1 );
+               grid->np_int_glob[KDIR]+1,
+               grid->np_int_glob[JDIR]+1,
+               grid->np_int_glob[IDIR]+1 );
        fprintf(fxmf, "        %s:/node_coords/%s\n",filename,cname[nd]);
        fprintf(fxmf, "       </DataItem>\n");
      }
@@ -538,10 +562,13 @@ void WriteHDF5 (Output *output, Grid *grid)
               output->var_name[nv]);
       #if DIMENSIONS == 2
        fprintf(fxmf, "       <DataItem Dimensions=\"%d %d\" NumberType=\"Float\" Precision=\"%d\" Format=\"HDF\">\n",
-               wgrid[0]->np_int_glob, wgrid[1]->np_int_glob, nprec);
+               grid->np_int_glob[JDIR],
+               grid->np_int_glob[IDIR], nprec);
       #elif DIMENSIONS == 3
        fprintf(fxmf, "       <DataItem Dimensions=\"%d %d %d\" NumberType=\"Float\" Precision=\"%d\" Format=\"HDF\">\n",
-               wgrid[0]->np_int_glob, wgrid[1]->np_int_glob, wgrid[2]->np_int_glob, nprec);
+               grid->np_int_glob[KDIR],
+               grid->np_int_glob[JDIR],
+               grid->np_int_glob[IDIR], nprec);
       #endif
       fprintf(fxmf, "        %s:%s/vars/%s\n",filename,tstepname,output->var_name[nv]);
       fprintf(fxmf, "       </DataItem>\n");
@@ -552,10 +579,12 @@ void WriteHDF5 (Output *output, Grid *grid)
               cname[nd]);
       #if DIMENSIONS == 2
        fprintf(fxmf, "       <DataItem Dimensions=\"%d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n",
-               wgrid[0]->np_int_glob, wgrid[1]->np_int_glob);
+               grid->np_int_glob[JDIR], grid->np_int_glob[IDIR]);
       #elif DIMENSIONS == 3
        fprintf(fxmf, "       <DataItem Dimensions=\"%d %d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n",
-               wgrid[0]->np_int_glob, wgrid[1]->np_int_glob, wgrid[2]->np_int_glob);
+               grid->np_int_glob[KDIR],
+               grid->np_int_glob[JDIR],
+               grid->np_int_glob[IDIR]);
       #endif
       fprintf(fxmf, "        %s:/cell_coords/%s\n",filename,cname[nd]);
       fprintf(fxmf, "       </DataItem>\n");
@@ -573,7 +602,7 @@ void WriteHDF5 (Output *output, Grid *grid)
    MPI_Barrier (MPI_COMM_WORLD);
    if (prank == 0){
      time(&tend);
-     print1 (" [%5.2f sec]",difftime(tend,tbeg));
+     print (" [%5.2f sec]",difftime(tend,tbeg));
    }
   #endif
 }
@@ -603,17 +632,14 @@ void ReadHDF5 (Output *output, Grid *grid)
   hsize_t count[DIMENSIONS];
 
   char filename[128], tstepname[32];
-  int ierr, rank, nd, nv, ns;
-  Grid *wgrid[3];
+  int ierr, rank, nd, nv, ns, nr;
 
 /* --------------------------------------------------------------
      Since data is read in reverse order (Z-Y-X) it is
      convenient to define pointers to grid in reverse order
    -------------------------------------------------------------- */
 
-  for (nd = 0; nd < DIMENSIONS; nd++) wgrid[nd] = grid + DIMENSIONS - nd - 1;
-
-  print1 ("> restarting from file #%d (dbl.h5)\n",output->nfile);
+  print ("> restarting from file #%d (dbl.h5)\n",output->nfile);
   sprintf (filename, "%s/data.%04d.dbl.h5", output->dir, output->nfile);
 
   rank = DIMENSIONS;
@@ -632,7 +658,7 @@ void ReadHDF5 (Output *output, Grid *grid)
   #endif
 
   if (file_identifier < 0){
-    print1 ("! HDF5_READ: file %s does not exist\n");
+    print ("! HDF5_READ: file %s does not exist\n");
     QUIT_PLUTO(1);
   }
 
@@ -656,21 +682,26 @@ void ReadHDF5 (Output *output, Grid *grid)
 
     #ifdef PARALLEL
      for (nd = 0; nd < DIMENSIONS; nd++) {
-       start[nd]  = wgrid[nd]->beg - wgrid[nd]->nghost;
+       nr = DIMENSIONS-nd-1;
+       start[nd]  = grid->beg[nr] - grid->nghost[nr];
        stride[nd] = 1;
-       count[nd]  = wgrid[nd]->np_int;
+       count[nd]  = grid->np_int[nr];
      }
      err = H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start, stride, count, NULL);  
     #endif
 
-    for (nd = 0; nd < DIMENSIONS; nd++) dimens[nd] = wgrid[nd]->np_tot;
+    for (nd = 0; nd < DIMENSIONS; nd++) {
+      nr = DIMENSIONS-nd-1;
+      dimens[nd] = grid->np_tot[nr];
+    } 
 
     memspace = H5Screate_simple(rank,dimens,NULL);
 
     for (nd = 0; nd < DIMENSIONS; nd++){
-      start[nd]  = wgrid[nd]->nghost;
+      nr = DIMENSIONS-nd-1;
+      start[nd]  = grid->nghost[nr];
       stride[nd] = 1;
-      count[nd]  = wgrid[nd]->np_int;
+      count[nd]  = grid->np_int[nr];
     }
 
     err = H5Sselect_hyperslab(memspace,H5S_SELECT_SET, start, stride, count, NULL);
@@ -707,9 +738,10 @@ void ReadHDF5 (Output *output, Grid *grid)
 
      #ifdef PARALLEL
       for (nd = 0; nd < DIMENSIONS; nd++) {
-        start[nd]  = wgrid[nd]->beg - wgrid[nd]->nghost;
+        nr = DIMENSIONS-nd-1;
+        start[nd]  = grid->beg[nr] - grid->nghost[nr];
         stride[nd] = 1;
-        count[nd]  = wgrid[nd]->np_int;
+        count[nd]  = grid->np_int[nr];
         if (ns == DIMENSIONS-1-nd){
            if (grid[ns].lbound != 0) count[nd] += 1;
            else                      start[nd] += 1;
@@ -719,16 +751,19 @@ void ReadHDF5 (Output *output, Grid *grid)
                                 start, stride, count, NULL);
      #endif
  
-     for (nd = 0; nd < DIMENSIONS; nd++)
-       dimens[nd] = wgrid[nd]->np_tot + (ns == (DIMENSIONS-1-nd));
+     for (nd = 0; nd < DIMENSIONS; nd++){
+       nr = DIMENSIONS-nd-1;
+       dimens[nd] = grid->np_tot[nr] + (ns == nr);
+     }
 
      memspace = H5Screate_simple(rank,dimens,NULL);
 
-     for (nd = 0; nd < DIMENSIONS; nd++){ 
-       start[nd]  = wgrid[nd]->nghost;
+     for (nd = 0; nd < DIMENSIONS; nd++){
+       nr = DIMENSIONS-nd-1;
+       start[nd]  = grid->nghost[nr];
        stride[nd] = 1;
-       count[nd]  = wgrid[nd]->np_int;
-       if (ns == DIMENSIONS-1-nd && grid[ns].lbound != 0) {
+       count[nd]  = grid->np_int[nr];
+       if (ns == nr && grid->lbound[ns] != 0) {
          start[nd] -= 1;
          count[nd] += 1;
        }

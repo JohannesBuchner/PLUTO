@@ -67,7 +67,7 @@
 
   \authors E. Striani (edoardo.striani@iaps.inaf.it)\n
            A. Mignone (mignone@ph.unito.it)
-  \date    July 29, 2014
+  \date    March 02, 2017
   
   \b Reference
      - "The PLUTO Code for Adaptive Mesh Computations in
@@ -83,7 +83,6 @@ void Init (double *v, double x, double y, double x3)
 /*
  *********************************************************************** */
 {
-#if 1
   double cs2 = 0.5, b0 = 1.0, l, Psi0;
   double Lx, Ly, kx, ky;
 
@@ -93,22 +92,37 @@ void Init (double *v, double x, double y, double x3)
   v[VX1] = 0.0;
   v[VX2] = 0.0;
 
-  #if PHYSICS == MHD || PHYSICS == RMHD
-   v[BX1] = b0*tanh(y/l);
-   v[BX2] = 0.0;
+#if PHYSICS == MHD || PHYSICS == RMHD
+  v[BX1] = b0*tanh(y/l);
+  v[BX2] = 0.0;
 
-   Lx = g_domEnd[IDIR] - g_domBeg[IDIR]; kx = CONST_PI/Lx;
-   Ly = g_domEnd[JDIR] - g_domBeg[JDIR]; ky = CONST_PI/Ly;
+  Lx = g_domEnd[IDIR] - g_domBeg[IDIR]; kx = CONST_PI/Lx;
+  Ly = g_domEnd[JDIR] - g_domBeg[JDIR]; ky = CONST_PI/Ly;
 
+  Psi0    = g_inputParam[PSI0];
+  v[BX1] += -Psi0*ky*sin(ky*y)*cos(2.0*kx*x);
+  v[BX2] +=  Psi0*2.0*kx*sin(2.0*kx*x)*cos(ky*y);
+  v[BX3]  = 0.0;
 
-   Psi0    = g_inputParam[PSI0];
-   v[BX1] += -Psi0*ky*sin(ky*y)*cos(2.0*kx*x);
-   v[BX2] +=  Psi0*2.0*kx*sin(2.0*kx*x)*cos(ky*y);
-  #endif
+  v[AX1] = 0.0;
+  v[AX2] = 0.0;
+  v[AX3] = Psi0*cos(ky*y)*cos(2.0*kx*x);
 #endif
-
-
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* *********************************************************************** */
@@ -130,17 +144,6 @@ void BackgroundField (double x1, double x2, double x3, double *B0)
 void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid) 
 /* *********************************************************************** */
 {
-  int   i, j, k, nv;
-  double  *x1, *x2, *x3;
-
-  x1 = grid[IDIR].x;
-  x2 = grid[JDIR].x;
-  x3 = grid[KDIR].x;
-
-  if (side == 0) {    /* -- check solution inside domain -- */
-    DOM_LOOP(k,j,i){}
-  }
-
 }
 
 #if BODY_FORCE != NO

@@ -27,16 +27,16 @@
   step and return its maximum over the current sweep.
   
   \b References
-     - "Simulating anisotropic thermal conduction in supernova remnants
-        - I. Numerical methods",
-        Balsara, Tilley, Howk, MNRAS (2008) 386, 627 
      - "The PLUTO Code for Adaptive Mesh Computations in Astrophysical 
         Fluid Dynamics" \n
        Mignone et al, ApJS (2012) 198, 7M
+     - "Simulating anisotropic thermal conduction in supernova remnants
+        - I. Numerical methods",
+        Balsara, Tilley, Howk, MNRAS (2008) 386, 627 
        
   \authors A. Mignone (mignone@ph.unito.it)\n
            T. Matsakos
-  \date    Aug 24, 2015
+  \date    June 20, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -47,38 +47,34 @@
   #define TC_SATURATED_FLUX  YES
 #endif
 
-/*! When set to YES, saturated flux is computed using an upwind 
-    selection rule.
-    When set to NO, staurated flux is treated in the same manner as 
-    the  conduction flux.                                          */ 
-#define HYPERBOLIC_SAT_FLUX YES
-
 /* ********************************************************************* */
-void TC_Flux (double ***T, const State_1D *state,  
-              double **dcoeff, int beg, int end, Grid *grid)
+void TC_Flux (double ***T, const Sweep *sweep,  
+              double *dcoeff, int beg, int end, Grid *grid)
 /*! 
- * Compute the thermal conduction flux, state->par_flx.
+ * Compute the thermal conduction flux, sweep->par_flx.
  *
  * \param [in]     T       3D array containing the dimensionless 
  *                         temperature
- * \param [in,out] state   pointer to a State_1D structure
+ * \param [in,out] sweep   pointer to a Sweep structure
  * \param [out]    dcoeff  the diffusion coefficient needed for computing
  *                         the time step.
- * \param [in]      beg   initial index of computation
- * \param [in]      end   final   index of computation
- * \param [in]      grid  pointer to an array of Grid structures
+ * \param [in]     beg     initial index of computation
+ * \param [in]     end     final   index of computation
+ * \param [in]     grid    pointer to an array of Grid structures
  *
  * \return This function has no return value.                       
  *********************************************************************** */
 {
   int  i, j, k, nv;
-  double bgradT, Bmag, dTmag;
-  double Fc, Fcmag, Fsat, g1 = g_gamma - 1.0;
+  double bgradT, Bmag, Fc_mag, dT_mag;
+  double Fc, Fsat, g1 = g_gamma - 1.0;
   double x1, x2, x3;
-  double alpha, uL, uR, suL, suR, bn;
+  double dvp, dvm, dvl;
+  double alpha, uL, uR, bn;
   double vi[NVAR], kpar=0.0, knor=0.0, phi;
   double bck_fld[3];
-  static double **gradT;
+  double **vc = sweep->vn;
+  static double **gradT, *pp, *pm;
 
 /* -----------------------------------------------------------
    1. Allocate memory, compute temperature gradient in the
@@ -87,32 +83,52 @@ void TC_Flux (double ***T, const State_1D *state,
 
   if (gradT == NULL) {
     gradT = ARRAY_2D(NMAX_POINT, 3, double);
+    pp    = ARRAY_1D(NMAX_POINT, double);
+    pm    = ARRAY_1D(NMAX_POINT, double);
   }
 
   GetGradient (T, gradT, beg, end, grid);
-  if (g_dir == JDIR || g_dir == KDIR) x1 = grid[IDIR].x[g_i];
-  if (g_dir == IDIR || g_dir == KDIR) x2 = grid[JDIR].x[g_j];
-  if (g_dir == IDIR || g_dir == JDIR) x3 = grid[KDIR].x[g_k];
+  if (g_dir == JDIR || g_dir == KDIR) x1 = grid->x[IDIR][g_i];
+  if (g_dir == IDIR || g_dir == KDIR) x2 = grid->x[JDIR][g_j];
+  if (g_dir == IDIR || g_dir == JDIR) x3 = grid->x[KDIR][g_k];
+
+/* --------------------------------------------------------------
+   2. Compute limited slopes in pressure (only for saturated TC)
+   -------------------------------------------------------------- */
+
+#if TC_SATURATED_FLUX == YES  
+  #if (defined CTU) && (THERMAL_CONDUCTION == EXPLICIT)
+  if (g_intStage == 1){             /* Predictor stage of CTU requires */
+    for (i = beg; i <= end+1; i++){ /* 1st order states                */
+      pp[i] = vc[i][PRS];
+      pm[i] = vc[i][PRS];
+    }
+  }else
+  #endif
+  for (i = beg; i <= end+1; i++){
+    dvp = vc[i+1][PRS] - vc[i][PRS];
+    dvm = vc[i][PRS] - vc[i-1][PRS];
+    dvl = VAN_LEER(dvp, dvm);
+    pp[i] = vc[i][PRS] + 0.5*dvl;
+    pm[i] = vc[i][PRS] - 0.5*dvl;
+  }
+#endif
 
 /* ----------------------------------------------- 
-   2. Compute Thermal Conduction Flux (tcflx).
+   3. Compute Thermal Conduction Flux (tcflx).
    ----------------------------------------------- */
 
   for (i = beg; i <= end; i++){
     
-    for (nv = 0; nv < NVAR; nv++) {
-      vi[nv]  = 0.5*(state->vh[i][nv] + state->vh[i+1][nv]);
-    }
+  /* -- 3a. Compute interface values -- */
 
-  /* ------------------------------------------------
-     2a. Obtain the thermal conduction coefficients
-         along (kpar) and across (knor) the field
-         lines. This is done at the cell interface.
-     ------------------------------------------------ */
+    NVAR_LOOP(nv) vi[nv]  = 0.5*(vc[i][nv] + vc[i+1][nv]);    
 
-    if (g_dir == IDIR) x1 = grid[IDIR].xr[i];
-    if (g_dir == JDIR) x2 = grid[JDIR].xr[i];
-    if (g_dir == KDIR) x3 = grid[KDIR].xr[i];
+  /* -- 3b. Get TC coefficients at cell interfaces -- */
+
+    if (g_dir == IDIR) x1 = grid->xr[IDIR][i];
+    if (g_dir == JDIR) x2 = grid->xr[JDIR][i];
+    if (g_dir == KDIR) x3 = grid->xr[KDIR][i];
 
 #if PHYSICS == MHD && BACKGROUND_FIELD == YES
     BackgroundField(x1,x2,x3, bck_fld);
@@ -120,89 +136,56 @@ void TC_Flux (double ***T, const State_1D *state,
            vi[BX2] += bck_fld[1];  ,
            vi[BX3] += bck_fld[2];)
 #endif
-    
+
     TC_kappa(vi, x1, x2, x3, &kpar, &knor, &phi);
-    dTmag  = D_EXPAND(  gradT[i][0]*gradT[i][0], 
-                      + gradT[i][1]*gradT[i][1], 
-                      + gradT[i][2]*gradT[i][2]);
-    dTmag = sqrt(dTmag) + 1.e-12;
+    dT_mag  = D_EXPAND(  gradT[i][0]*gradT[i][0], 
+                       + gradT[i][1]*gradT[i][1], 
+                       + gradT[i][2]*gradT[i][2]);
+    dT_mag = sqrt(dT_mag) + 1.e-12;
 
-  /* ---------------------------------------------------
-     2b. Compute magnitude of saturated flux using
-         a Roe-like average
-     --------------------------------------------------- */
 
-#if TC_SATURATED_FLUX == YES
-  #if HYPERBOLIC_SAT_FLUX == YES
-/*
-     uL = state->vL[i][PRS]/g1; suL = sqrt(uL);
-     uR = state->vR[i][PRS]/g1; suR = sqrt(uR);
-     scrh = 5.0*phi*g1*sqrt(g1/vi[RHO]);
-     csat[i] = scrh*(uR + uL + suR*suL)/(suL + suR);
-     Fsat    = 0.5*scrh*(uL*suL + uR*suR);
-     if      (gradT[i][g_dir] > 0.0) Fsat += 0.5*csat[i]*(uR - uL);
-     else if (gradT[i][g_dir] < 0.0) Fsat -= 0.5*csat[i]*(uR - uL);
+  /* -- 3c. Compute the classical TC flux and diffusion coeff -- */
 
-*/
-    uL = state->vL[i][PRS];
-    uR = state->vR[i][PRS];
-    if      (gradT[i][g_dir] > 0.0) Fsat = 5.0*phi/sqrt(vi[RHO])*uR*sqrt(uR);
-    else if (gradT[i][g_dir] < 0.0) Fsat = 5.0*phi/sqrt(vi[RHO])*uL*sqrt(uL);
-    else                          Fsat = 5.0*phi*vi[PRS]*sqrt(vi[PRS]/vi[RHO]);
-  #else
-    Fsat = 5.0*phi*vi[PRS]*sqrt(vi[PRS]/vi[RHO]);
-  #endif
-#endif  
+#if PHYSICS == HD
 
-  /* ------------------------------------------------------
-     2c. Compute the classical MHD thermal conduction
-         flux Fc and the diffusion coefficient dcoeff.
-     ------------------------------------------------------ */
-
-#if PHYSICS == HD 
-
-    Fc = kpar*gradT[i][g_dir];  /* -- classical thermal conduction flux -- */
-/*
-{
- double x = kpar*dTmag/Fsat;
- double flx_lim  = exp(-x*x);
- state->par_flx[i][ENG] =   flx_lim*Fc 
-                          + (1.0 - flx_lim)*Fsat*gradT[i][g_dir]/dTmag;
- dcoeff[i][ENG] = flx_lim*kpar/vi[RHO]*(g_gamma - 1.0);
-}
-*/
-  #if TC_SATURATED_FLUX == YES
-    alpha                  = Fsat/(Fsat + kpar*dTmag);
-  #else
-    alpha                  = 1.0;
-  #endif  
-    state->tc_flux[i][ENG] = alpha*Fc;
-    dcoeff[i][ENG]         = fabs(alpha*kpar/vi[RHO])*g1;
+    Fc        = kpar*gradT[i][g_dir];  /* Classical thermal conduction flux */
+    Fc_mag    = kpar*dT_mag;          /* Flux magnitude (include all dirs) */
+    dcoeff[i] = fabs(kpar/vi[RHO])*g1; /* Diffusion coefficient */
 
 #elif PHYSICS == MHD
 
     Bmag = EXPAND(vi[BX1]*vi[BX1], + vi[BX2]*vi[BX2], + vi[BX3]*vi[BX3]);
     Bmag = sqrt(Bmag) + 1.e-12;
 
-    bgradT = D_EXPAND(  vi[BX1]*gradT[i][0], 
-                      + vi[BX2]*gradT[i][1], 
-                      + vi[BX3]*gradT[i][2]);
+    bgradT = D_EXPAND(  vi[BX1]*gradT[i][IDIR], 
+                      + vi[BX2]*gradT[i][JDIR], 
+                      + vi[BX3]*gradT[i][KDIR]);
     bgradT /= Bmag;
 
-    bn    = vi[BX1 + g_dir]/Bmag; /* -- unit vector component -- */
-    Fc    = kpar*bgradT*bn + knor*(gradT[i][g_dir] - bn*bgradT);
-    Fcmag = sqrt((kpar*kpar - knor*knor)*bgradT*bgradT + 
-                  knor*knor*dTmag*dTmag);     
+    bn     = vi[BX1 + g_dir]/Bmag; /* -- unit vector component -- */
+    Fc     = kpar*bgradT*bn + knor*(gradT[i][g_dir] - bn*bgradT);
 
-  #if TC_SATURATED_FLUX == YES
-    alpha                  = Fsat/(Fsat + Fcmag);
-  #else
-    alpha                  = 1.0;
-  #endif  
-    state->tc_flux[i][ENG] = alpha*Fc;
-    dcoeff[i][ENG]         = fabs(Fcmag/dTmag*bn*alpha/vi[RHO])*g1;
+    Fc_mag = sqrt(  (kpar*kpar - knor*knor)*bgradT*bgradT
+                   + knor*knor*dT_mag*dT_mag); 
+
+    dcoeff[i] = fabs(Fc_mag/dT_mag*bn/vi[RHO])*g1;
+
 #endif
+
+  /* -- 3d. Compute saturated flux using upwinding -- */
+
+#if TC_SATURATED_FLUX == YES
+    uL       = pp[i];
+    uR       = pm[i+1];
+    if      (Fc > 0.0) Fsat = 5.0*phi/sqrt(vi[RHO])*uR*sqrt(uR);
+    else if (Fc < 0.0) Fsat = 5.0*phi/sqrt(vi[RHO])*uL*sqrt(uL);
+    else               Fsat = 5.0*phi*vi[PRS]*sqrt(vi[PRS]/vi[RHO]);
+
+    alpha      = Fsat/(Fsat + Fc_mag);
+    Fc        *= alpha;
+    dcoeff[i] *= alpha;
+#endif
+
+    sweep->tc_flux[i][ENG] = Fc;
   }
 }
-#undef HYPERBOLIC_SAT_FLUX 
-

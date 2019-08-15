@@ -221,7 +221,8 @@ PRO COLORBAR2, BOTTOM=bottom, CHARSIZE=charsize, COLOR=color, DIVISIONS=division
 ; Annotate the color bar.
 
  TVLCT,r,g,b,/GET
- loadct,0,/silent
+ LOADCT,0,/silent
+
  IF KEYWORD_SET(vertical) THEN BEGIN
 
    IF KEYWORD_SET(right) THEN BEGIN
@@ -230,7 +231,7 @@ PRO COLORBAR2, BOTTOM=bottom, CHARSIZE=charsize, COLOR=color, DIVISIONS=division
           YTICKS=divisions, XSTYLE=1, YSTYLE=9, $
           POSITION=position, COLOR=color, CHARSIZE=charsize, /NOERASE, $
           YTICKFORMAT='(A1)', XTICKFORMAT='(A1)', YTICKLEN=ticklen , $
-          YRANGE=[minrange, maxrange], FONT=font, _EXTRA=extra, YMINOR=minor
+          YRANGE=[minrange, maxrange], FONT=font, YMINOR=minor
 
      AXIS, YAXIS=1, YRANGE=[minrange, maxrange], YTICKFORMAT=format, YTICKS=divisions, $
            YTICKLEN=ticklen, YSTYLE=1, COLOR=color, CHARSIZE=charsize, $
@@ -246,7 +247,7 @@ PRO COLORBAR2, BOTTOM=bottom, CHARSIZE=charsize, COLOR=color, DIVISIONS=division
 
      AXIS, YAXIS=1, YRANGE=[minrange, maxrange], YTICKFORMAT='(A1)', YTICKS=divisions, $
            YTICKLEN=ticklen, YSTYLE=1, COLOR=color, CHARSIZE=charsize, $
-           FONT=font, _EXTRA=extra, YMINOR=minor
+           FONT=font, YMINOR=minor
    ENDELSE
 
  ENDIF ELSE BEGIN

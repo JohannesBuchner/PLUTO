@@ -10,17 +10,19 @@
 ; PURPOSE:   Read a one-dimensional HDF5 file and store its content on a
 ;            non-uniform grid that glues together different blocks at the
 ;            local larger level of refinement available.
-;            Data will be stored sequentially using array concatenation, starting
-;            from the finest level to the base one.
-;            It is normally by PLOAD
+;            Data will be stored sequentially using array concatenation,
+;            starting from the finest level to the base one.
+;            It is normally called by PLOAD
 ;
 ; SYNTAX:    HDF5_1DLOAD, nout, dir, level=level
 ;
 ; KEYWORDS:  silent
 ;
+; LIMITATIONS:  not all variables are defined (e.g. MINEq ions)
+;
 ; LAST MODIFIED
 ;
-;   March 24, 2015 by A. Mignone (mignone@ph.unito.it)
+;   July 28, 2016 by A. Mignone (mignone@ph.unito.it)
 ;
 ;-
 PRO HDF5LOAD_ONED, nout, dir, level=level,silent=silent, x1range=x1range
@@ -29,19 +31,22 @@ PRO HDF5LOAD_ONED, nout, dir, level=level,silent=silent, x1range=x1range
   COMMON PLUTO_VAR
 
 ; ----------------------------------------------
-;  Check keywrods
+;  Check keywords
 ; ----------------------------------------------
 
   IF (NOT KEYWORD_SET(level))  THEN level = 0
   IF (NOT KEYWORD_SET(silent)) THEN silent = 0
 
- 
   qrho  = [0.0] & qpr    = [0.0]
   qtr1  = [0.0] & qtr2   = [0.0] & qtr3  = [0.0]
   qvx   = [0.0] & qvy    = [0.0] & qvz   = [0.0]
   qx_HI = [0.0] & qx_HII = [0.0] & qx_H2 = [0.0]
   qbx   = [0.0] & qby    = [0.0] & qbz   = [0.0]
   xx    = [0.0] 
+
+; ---------------------------------------
+;  Start from highest level
+; ---------------------------------------
 
   HDF5LOAD, nout, dir, level = level, silent=silent, x1range=x1range
   indx = WHERE(AMRBoxes EQ level)
@@ -70,8 +75,13 @@ PRO HDF5LOAD_ONED, nout, dir, level=level,silent=silent, x1range=x1range
 
   AMRBoxesMax = AMRBoxes
   xmax        = x1
+
+; ----------------------------------------
+;  Do all remaining levels
+; ----------------------------------------
+
   FOR n = level-1,0,-1 DO BEGIN
-    PRINT,"> HDF5LOAD_ONED: Building lev ",n
+    IF (NOT KEYWORD_SET(SILENT)) THEN PRINT,"> HDF5LOAD_ONED: Building lev ",n
     HDF5LOAD, nout, dir, level = n, silent=silent, x1range=x1range
     indx = WHERE((AMRBoxes EQ n) AND REBIN(AMRBoxesmax,nx1) EQ n)
     IF (n_elements(rho) GT 0) THEN qrho = [qrho, rho(indx)]

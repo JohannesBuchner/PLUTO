@@ -57,8 +57,8 @@ extern int stack_ptr[AL_MAX_ARRAYS];
   MPI_Barrier(comm);
 
   errcode = MPI_File_open(comm, filename,
-		MPI_MODE_CREATE | MPI_MODE_RDWR | MPI_MODE_UNIQUE_OPEN,
-		MPI_INFO_NULL, &ifp);
+                          MPI_MODE_CREATE | MPI_MODE_RDWR | MPI_MODE_UNIQUE_OPEN,
+                          MPI_INFO_NULL, &ifp);
 
   s->io_offset = 0;
   s->ifp = ifp;
@@ -250,7 +250,7 @@ int AL_Read_array(void *va, int sz_ptr, int istag)
   MPI_Barrier(s->comm);
 
   MPI_File_set_view(ifp, offset, MPI_BYTE, gsub_arr,
-		    "native", MPI_INFO_NULL);
+                    "native", MPI_INFO_NULL);
   MPI_File_read_all(ifp, a, 1, lsub_arr, &status);
   
   MPI_Type_size( s->type, &size);

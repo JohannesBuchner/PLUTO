@@ -26,7 +26,8 @@
   - AL_MPI_DECOMP   [todo]
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   Aug 24, 2015
+          B. Vaidya
+  \date   May 21, 2018
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -79,34 +80,34 @@ void Initialize(int argc, char *argv[], Data *data,
 
   ParseCmdLineArgs (argc, argv, ini_file, cmd_line);
 
-  #ifdef PARALLEL
+#ifdef PARALLEL
 
 /* -- get number of processors -- */
 
-   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 
 /* -- read initialization file -- */
 
-   if (prank == 0) RuntimeSetup (runtime, cmd_line, ini_file);
-   MPI_Bcast (runtime,  sizeof (struct RUNTIME) , MPI_BYTE, 0, MPI_COMM_WORLD);
+  if (prank == 0) RuntimeSetup (runtime, cmd_line, ini_file);
+  MPI_Bcast (runtime,  sizeof (Runtime) , MPI_BYTE, 0, MPI_COMM_WORLD);
 
 /* -- get number of ghost zones and set periodic boundaries -- */
 
-   nghost = GetNghost();
-   MPI_Allreduce (&nghost, &idim, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-   nghost = idim;
+  nghost = GetNghost();
+  MPI_Allreduce (&nghost, &idim, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  nghost = idim;
    
-   for (idim = 0; idim < DIMENSIONS; idim++) {
-     gsize[idim]   = runtime->npoint[idim];
-     ghosts[idim]  = nghost;
-     periods[idim] =    (runtime->left_bound[idim] == PERIODIC ? 1:0)
-                     || (runtime->left_bound[idim] == SHEARING ? 1:0);
-     pardim[idim]  = cmd_line->parallel_dim[idim];
-   }
+  for (idim = 0; idim < DIMENSIONS; idim++) {
+    gsize[idim]   = runtime->npoint[idim];
+    ghosts[idim]  = nghost;
+    periods[idim] =    (runtime->left_bound[idim] == PERIODIC ? 1:0)
+                    || (runtime->left_bound[idim] == SHEARING ? 1:0);
+    pardim[idim]  = cmd_line->parallel_dim[idim];
+  }
 
 /* -- find parallel decomposition mode and number of processors -- */
 
-   decomp_mode = GetDecompMode(cmd_line, procs);
+  decomp_mode = GetDecompMode(cmd_line, procs);
 
 /* ---- double distributed array descriptor ---- */
 
@@ -114,184 +115,183 @@ void Initialize(int argc, char *argv[], Data *data,
   return args: beg, end, lsize, lbeg, lend, gbeg, gend, is_gbeg, is_gend
 */
 
-   AL_Sz_init (MPI_COMM_WORLD, &SZ);
-   AL_Set_type (MPI_DOUBLE, 1, SZ);
-   AL_Set_dimensions (DIMENSIONS, SZ);
-   AL_Set_global_dim (gsize, SZ);
-   AL_Set_ghosts (ghosts, SZ);
-   AL_Set_periodic_dim (periods, SZ);
-   AL_Set_parallel_dim (pardim, SZ);
+  AL_Sz_init (MPI_COMM_WORLD, &SZ);
+  AL_Set_type (MPI_DOUBLE, 1, SZ);
+  AL_Set_dimensions (DIMENSIONS, SZ);
+  AL_Set_global_dim (gsize, SZ);
+  AL_Set_ghosts (ghosts, SZ);
+  AL_Set_periodic_dim (periods, SZ);
+  AL_Set_parallel_dim (pardim, SZ);
 
-   AL_Decompose (SZ, procs, decomp_mode);
-   AL_Get_local_dim (SZ, lsize);
-   AL_Get_bounds (SZ, beg, end, ghosts, AL_C_INDEXES);
-   AL_Get_lbounds (SZ, lbeg, lend, ghosts, AL_C_INDEXES);
-   AL_Get_gbounds (SZ, gbeg, gend, ghosts, AL_C_INDEXES);
-   AL_Is_boundary (SZ, is_gbeg, is_gend);
+  AL_Decompose (SZ, procs, decomp_mode);
+  AL_Get_local_dim (SZ, lsize);
+  AL_Get_bounds (SZ, beg, end, ghosts, AL_C_INDEXES);
+  AL_Get_lbounds (SZ, lbeg, lend, ghosts, AL_C_INDEXES);
+  AL_Get_gbounds (SZ, gbeg, gend, ghosts, AL_C_INDEXES);
+  AL_Is_boundary (SZ, is_gbeg, is_gend);
 
 /* ---- float distributed array descriptor ---- */
 
-   AL_Sz_init (MPI_COMM_WORLD, &SZ_float);
-   AL_Set_type (MPI_FLOAT, 1, SZ_float);
-   AL_Set_dimensions (DIMENSIONS, SZ_float);
-   AL_Set_global_dim (gsize, SZ_float);
-   AL_Set_ghosts (ghosts, SZ_float);
-   AL_Set_periodic_dim (periods, SZ_float);
-   AL_Set_parallel_dim (pardim, SZ_float);
+  AL_Sz_init (MPI_COMM_WORLD, &SZ_float);
+  AL_Set_type (MPI_FLOAT, 1, SZ_float);
+  AL_Set_dimensions (DIMENSIONS, SZ_float);
+  AL_Set_global_dim (gsize, SZ_float);
+  AL_Set_ghosts (ghosts, SZ_float);
+  AL_Set_periodic_dim (periods, SZ_float);
+  AL_Set_parallel_dim (pardim, SZ_float);
 
-   AL_Decompose (SZ_float, procs, decomp_mode);
-   AL_Get_local_dim (SZ_float, lsize);
-   AL_Get_bounds (SZ_float, beg, end, ghosts, AL_C_INDEXES);
-   AL_Get_lbounds (SZ_float, lbeg, lend, ghosts, AL_C_INDEXES);
-   AL_Get_gbounds (SZ_float, gbeg, gend, ghosts, AL_C_INDEXES);
-   AL_Is_boundary (SZ_float, is_gbeg, is_gend);
+  AL_Decompose (SZ_float, procs, decomp_mode);
+  AL_Get_local_dim (SZ_float, lsize);
+  AL_Get_bounds (SZ_float, beg, end, ghosts, AL_C_INDEXES);
+  AL_Get_lbounds (SZ_float, lbeg, lend, ghosts, AL_C_INDEXES);
+  AL_Get_gbounds (SZ_float, gbeg, gend, ghosts, AL_C_INDEXES);
+  AL_Is_boundary (SZ_float, is_gbeg, is_gend);
 
 /* ---- char distributed array descriptor ---- */
 
-   AL_Sz_init (MPI_COMM_WORLD, &SZ_char);
-   AL_Set_type (MPI_CHAR, 1, SZ_char);
-   AL_Set_dimensions (DIMENSIONS, SZ_char);
-   AL_Set_global_dim (gsize, SZ_char);
-   AL_Set_ghosts (ghosts, SZ_char);
-   AL_Set_periodic_dim (periods, SZ_char);
-   AL_Set_parallel_dim (pardim, SZ_char);
+  AL_Sz_init (MPI_COMM_WORLD, &SZ_char);
+  AL_Set_type (MPI_CHAR, 1, SZ_char);
+  AL_Set_dimensions (DIMENSIONS, SZ_char);
+  AL_Set_global_dim (gsize, SZ_char);
+  AL_Set_ghosts (ghosts, SZ_char);
+  AL_Set_periodic_dim (periods, SZ_char);
+  AL_Set_parallel_dim (pardim, SZ_char);
 
-   AL_Decompose (SZ_char, procs, decomp_mode);
-   AL_Get_local_dim (SZ_char, lsize);
-   AL_Get_bounds (SZ_char, beg, end, ghosts, AL_C_INDEXES);
-   AL_Get_lbounds (SZ_char, lbeg, lend, ghosts, AL_C_INDEXES);
-   AL_Get_gbounds (SZ_char, gbeg, gend, ghosts, AL_C_INDEXES);
-   AL_Is_boundary (SZ_char, is_gbeg, is_gend);
+  AL_Decompose (SZ_char, procs, decomp_mode);
+  AL_Get_local_dim (SZ_char, lsize);
+  AL_Get_bounds (SZ_char, beg, end, ghosts, AL_C_INDEXES);
+  AL_Get_lbounds (SZ_char, lbeg, lend, ghosts, AL_C_INDEXES);
+  AL_Get_gbounds (SZ_char, gbeg, gend, ghosts, AL_C_INDEXES);
+  AL_Is_boundary (SZ_char, is_gbeg, is_gend);
 
 /* ---- Float_Vec distributed array descriptor ---- */
 
-   MPI_Type_contiguous (3, MPI_FLOAT, &Float_Vect_type);
-   MPI_Type_commit (&Float_Vect_type);
+  MPI_Type_contiguous (3, MPI_FLOAT, &Float_Vect_type);
+  MPI_Type_commit (&Float_Vect_type);
  
-   AL_Sz_init (MPI_COMM_WORLD, &SZ_Float_Vect);
-   AL_Set_type (MPI_FLOAT, 3, SZ_Float_Vect);
-   AL_Set_dimensions (DIMENSIONS, SZ_Float_Vect);
-   AL_Set_global_dim (gsize, SZ_Float_Vect);
-   AL_Set_ghosts (ghosts, SZ_Float_Vect);
-   AL_Set_periodic_dim (periods, SZ_Float_Vect);
-   AL_Set_parallel_dim (pardim, SZ_Float_Vect);
+  AL_Sz_init (MPI_COMM_WORLD, &SZ_Float_Vect);
+  AL_Set_type (MPI_FLOAT, 3, SZ_Float_Vect);
+  AL_Set_dimensions (DIMENSIONS, SZ_Float_Vect);
+  AL_Set_global_dim (gsize, SZ_Float_Vect);
+  AL_Set_ghosts (ghosts, SZ_Float_Vect);
+  AL_Set_periodic_dim (periods, SZ_Float_Vect);
+  AL_Set_parallel_dim (pardim, SZ_Float_Vect);
 
-   AL_Decompose (SZ_Float_Vect, procs, decomp_mode);
-   AL_Get_local_dim (SZ_Float_Vect, lsize);
-   AL_Get_bounds  (SZ_Float_Vect, beg, end, ghosts, AL_C_INDEXES);
-   AL_Get_lbounds (SZ_Float_Vect, lbeg, lend, ghosts, AL_C_INDEXES);
-   AL_Get_gbounds (SZ_Float_Vect, gbeg, gend, ghosts, AL_C_INDEXES);
-   AL_Is_boundary (SZ_Float_Vect, is_gbeg, is_gend);
+  AL_Decompose (SZ_Float_Vect, procs, decomp_mode);
+  AL_Get_local_dim (SZ_Float_Vect, lsize);
+  AL_Get_bounds  (SZ_Float_Vect, beg, end, ghosts, AL_C_INDEXES);
+  AL_Get_lbounds (SZ_Float_Vect, lbeg, lend, ghosts, AL_C_INDEXES);
+  AL_Get_gbounds (SZ_Float_Vect, gbeg, gend, ghosts, AL_C_INDEXES);
+  AL_Is_boundary (SZ_Float_Vect, is_gbeg, is_gend);
 
-   for (idim = 0; idim < DIMENSIONS; idim++) {
-     grid[idim].nghost      = nghost;
-     grid[idim].np_tot      = lsize[idim] + 2*ghosts[idim];
-     grid[idim].np_int      = lsize[idim];
-     grid[idim].np_tot_glob = runtime->npoint[idim] + 2*ghosts[idim];
-     grid[idim].np_int_glob = runtime->npoint[idim];
-     grid[idim].beg         = beg[idim];
-     grid[idim].end         = end[idim];
-     grid[idim].gbeg        = gbeg[idim];
-     grid[idim].gend        = gend[idim];
-     grid[idim].lbeg        = lbeg[idim];
-     grid[idim].lend        = lend[idim];
-     grid[idim].lbound = runtime->left_bound[idim]*is_gbeg[idim];
-     grid[idim].rbound = runtime->right_bound[idim]*is_gend[idim];
-     grid[idim].nproc  = procs[idim];
-   }
+  for (idim = 0; idim < DIMENSIONS; idim++) {
+    grid->nghost[idim]      = nghost;
+    grid->np_tot[idim]      = lsize[idim] + 2*ghosts[idim];
+    grid->np_int[idim]      = lsize[idim];
+    grid->np_tot_glob[idim] = runtime->npoint[idim] + 2*ghosts[idim];
+    grid->np_int_glob[idim] = runtime->npoint[idim];
+    grid->beg[idim]         = beg[idim];
+    grid->end[idim]         = end[idim];
+    grid->gbeg[idim]        = gbeg[idim];
+    grid->gend[idim]        = gend[idim];
+    grid->lbeg[idim]        = lbeg[idim];
+    grid->lend[idim]        = lend[idim];
+    grid->lbound[idim] = runtime->left_bound[idim]*is_gbeg[idim];
+    grid->rbound[idim] = runtime->right_bound[idim]*is_gend[idim];
+    grid->nproc[idim]  = procs[idim];
+  }
 
 /* -- Find total number of processors & decomposition mode -- */
 
 /*    AL_Get_size(SZ, &nprocs);  Replaced by MPI_Comm_size above */
 
-   #ifdef STAGGERED_MHD
+  #ifdef STAGGERED_MHD
 
 /* ---- x-staggered array descriptor (double) ---- */
 
     #if DIMENSIONS >= 1
-     D_EXPAND(stagdim[IDIR] = AL_TRUE;  ,
-              stagdim[JDIR] = AL_FALSE; , 
-              stagdim[KDIR] = AL_FALSE;)
+    D_EXPAND(stagdim[IDIR] = AL_TRUE;  ,
+             stagdim[JDIR] = AL_FALSE; , 
+             stagdim[KDIR] = AL_FALSE;)
 
-     DIM_LOOP(idim) gsize[idim] = runtime->npoint[idim];
-     gsize[IDIR] += 1;
+    DIM_LOOP(idim) gsize[idim] = runtime->npoint[idim];
+    gsize[IDIR] += 1;
 
-     #ifdef SHEARINGBOX
-      periods[IDIR] = 0;
-     #endif
+    #ifdef SHEARINGBOX
+    periods[IDIR] = 0;
+    #endif
 
-     AL_Sz_init (MPI_COMM_WORLD, &SZ_stagx);
-     AL_Set_type (MPI_DOUBLE, 1, SZ_stagx);
-     AL_Set_dimensions (DIMENSIONS, SZ_stagx);
-     AL_Set_global_dim (gsize, SZ_stagx);
-     AL_Set_ghosts (ghosts, SZ_stagx);
-     AL_Set_staggered_dim(stagdim, SZ_stagx);
-     AL_Set_periodic_dim (periods, SZ_stagx);
-     AL_Set_parallel_dim (pardim, SZ_stagx);
+    AL_Sz_init (MPI_COMM_WORLD, &SZ_stagx);
+    AL_Set_type (MPI_DOUBLE, 1, SZ_stagx);
+    AL_Set_dimensions (DIMENSIONS, SZ_stagx);
+    AL_Set_global_dim (gsize, SZ_stagx);
+    AL_Set_ghosts (ghosts, SZ_stagx);
+    AL_Set_staggered_dim(stagdim, SZ_stagx);
+    AL_Set_periodic_dim (periods, SZ_stagx);
+    AL_Set_parallel_dim (pardim, SZ_stagx);
 
-     AL_Decompose (SZ_stagx, procs, decomp_mode);
-     AL_Get_local_dim (SZ_stagx, lsize);
-     AL_Get_bounds (SZ_stagx, beg, end, ghosts, AL_C_INDEXES);
-     AL_Get_lbounds (SZ_stagx, lbeg, lend, ghosts, AL_C_INDEXES);
-     AL_Get_gbounds (SZ_stagx, gbeg, gend, ghosts, AL_C_INDEXES);
-     AL_Is_boundary (SZ_stagx, is_gbeg, is_gend);
+    AL_Decompose (SZ_stagx, procs, decomp_mode);
+    AL_Get_local_dim (SZ_stagx, lsize);
+    AL_Get_bounds (SZ_stagx, beg, end, ghosts, AL_C_INDEXES);
+    AL_Get_lbounds (SZ_stagx, lbeg, lend, ghosts, AL_C_INDEXES);
+    AL_Get_gbounds (SZ_stagx, gbeg, gend, ghosts, AL_C_INDEXES);
+    AL_Is_boundary (SZ_stagx, is_gbeg, is_gend);
 
-     #ifdef SHEARINGBOX
-      periods[IDIR] = 1;
-     #endif
+    #ifdef SHEARINGBOX
+     periods[IDIR] = 1;
+    #endif
     #endif
 
     #if DIMENSIONS >= 2
-     D_EXPAND(stagdim[IDIR] = AL_FALSE;  ,
-              stagdim[JDIR] = AL_TRUE;   , 
-              stagdim[KDIR] = AL_FALSE;)
+    D_EXPAND(stagdim[IDIR] = AL_FALSE;  ,
+             stagdim[JDIR] = AL_TRUE;   , 
+             stagdim[KDIR] = AL_FALSE;)
 
-     DIM_LOOP(idim) gsize[idim] = runtime->npoint[idim];
-     gsize[JDIR] += 1;
+    DIM_LOOP(idim) gsize[idim] = runtime->npoint[idim];
+    gsize[JDIR] += 1;
 
-     AL_Sz_init (MPI_COMM_WORLD, &SZ_stagy);
-     AL_Set_type (MPI_DOUBLE, 1, SZ_stagy);
-     AL_Set_dimensions (DIMENSIONS, SZ_stagy);
-     AL_Set_global_dim (gsize, SZ_stagy);
-     AL_Set_ghosts (ghosts, SZ_stagy);
-     AL_Set_staggered_dim(stagdim, SZ_stagy);
-     AL_Set_periodic_dim (periods, SZ_stagy);
-     AL_Set_parallel_dim (pardim, SZ_stagy);
+    AL_Sz_init (MPI_COMM_WORLD, &SZ_stagy);
+    AL_Set_type (MPI_DOUBLE, 1, SZ_stagy);
+    AL_Set_dimensions (DIMENSIONS, SZ_stagy);
+    AL_Set_global_dim (gsize, SZ_stagy);
+    AL_Set_ghosts (ghosts, SZ_stagy);
+    AL_Set_staggered_dim(stagdim, SZ_stagy);
+    AL_Set_periodic_dim (periods, SZ_stagy);
+    AL_Set_parallel_dim (pardim, SZ_stagy);
 
-     AL_Decompose (SZ_stagy, procs, decomp_mode);
-     AL_Get_local_dim (SZ_stagy, lsize);
-     AL_Get_bounds  (SZ_stagy, beg, end, ghosts, AL_C_INDEXES);
-     AL_Get_lbounds (SZ_stagy, lbeg, lend, ghosts, AL_C_INDEXES);
-     AL_Get_gbounds (SZ_stagy, gbeg, gend, ghosts, AL_C_INDEXES);
-     AL_Is_boundary (SZ_stagy, is_gbeg, is_gend);
+    AL_Decompose (SZ_stagy, procs, decomp_mode);
+    AL_Get_local_dim (SZ_stagy, lsize);
+    AL_Get_bounds  (SZ_stagy, beg, end, ghosts, AL_C_INDEXES);
+    AL_Get_lbounds (SZ_stagy, lbeg, lend, ghosts, AL_C_INDEXES);
+    AL_Get_gbounds (SZ_stagy, gbeg, gend, ghosts, AL_C_INDEXES);
+    AL_Is_boundary (SZ_stagy, is_gbeg, is_gend);
     #endif
 
     #if DIMENSIONS == 3
-     D_EXPAND(stagdim[IDIR] = AL_FALSE;  ,
-              stagdim[JDIR] = AL_FALSE;  , 
-              stagdim[KDIR] = AL_TRUE;)
+    D_EXPAND(stagdim[IDIR] = AL_FALSE;  ,
+             stagdim[JDIR] = AL_FALSE;  , 
+             stagdim[KDIR] = AL_TRUE;)
 
-     DIM_LOOP(idim) gsize[idim] = runtime->npoint[idim];
-     gsize[KDIR] += 1;
+    DIM_LOOP(idim) gsize[idim] = runtime->npoint[idim];
+    gsize[KDIR] += 1;
 
-     AL_Sz_init (MPI_COMM_WORLD, &SZ_stagz);
-     AL_Set_type (MPI_DOUBLE, 1, SZ_stagz);
-     AL_Set_dimensions (DIMENSIONS, SZ_stagz);
-     AL_Set_global_dim (gsize, SZ_stagz);
-     AL_Set_ghosts (ghosts, SZ_stagz);
-     AL_Set_staggered_dim(stagdim, SZ_stagz);
-     AL_Set_periodic_dim (periods, SZ_stagz);
-     AL_Set_parallel_dim (pardim, SZ_stagz);
+    AL_Sz_init (MPI_COMM_WORLD, &SZ_stagz);
+    AL_Set_type (MPI_DOUBLE, 1, SZ_stagz);
+    AL_Set_dimensions (DIMENSIONS, SZ_stagz);
+    AL_Set_global_dim (gsize, SZ_stagz);
+    AL_Set_ghosts (ghosts, SZ_stagz);
+    AL_Set_staggered_dim(stagdim, SZ_stagz);
+    AL_Set_periodic_dim (periods, SZ_stagz);
+    AL_Set_parallel_dim (pardim, SZ_stagz);
 
-     AL_Decompose (SZ_stagz, procs, decomp_mode);
-     AL_Get_local_dim (SZ_stagz, lsize);
-     AL_Get_bounds  (SZ_stagz, beg, end, ghosts, AL_C_INDEXES);
-     AL_Get_lbounds (SZ_stagz, lbeg, lend, ghosts, AL_C_INDEXES);
-     AL_Get_gbounds (SZ_stagz, gbeg, gend, ghosts, AL_C_INDEXES);
-     AL_Is_boundary (SZ_stagz, is_gbeg, is_gend);
+    AL_Decompose (SZ_stagz, procs, decomp_mode);
+    AL_Get_local_dim (SZ_stagz, lsize);
+    AL_Get_bounds  (SZ_stagz, beg, end, ghosts, AL_C_INDEXES);
+    AL_Get_lbounds (SZ_stagz, lbeg, lend, ghosts, AL_C_INDEXES);
+    AL_Get_gbounds (SZ_stagz, gbeg, gend, ghosts, AL_C_INDEXES);
+    AL_Is_boundary (SZ_stagz, is_gbeg, is_gend);
     #endif
-
-   #endif /* STAGGERED_MHD */
+  #endif /* STAGGERED_MHD */
 
   /* -- find processors coordinates in a Cartesian topology -- */
 
@@ -307,33 +307,33 @@ void Initialize(int argc, char *argv[], Data *data,
       QUIT_PLUTO(1);
     }
     for (idim = 0; idim < DIMENSIONS; idim++) {
-      grid[idim].rank_coord = coords[idim];
+      grid->rank_coord[idim] = coords[idim];
     }
   }
 
-  #else  /* if NOT PARALLEL */
+#else  /* if NOT PARALLEL */
 
 /* -----------------------------------------------------
                Serial Initialization
    ----------------------------------------------------- */
 
-   RuntimeSetup (runtime, cmd_line, ini_file);
-   nghost = GetNghost();
+  RuntimeSetup (runtime, cmd_line, ini_file);
+  nghost = GetNghost();
 
-   for (idim = 0; idim < DIMENSIONS; idim++) {
-     grid[idim].nghost  = nghost;
-     grid[idim].np_int  = grid[idim].np_int_glob = runtime->npoint[idim];
-     grid[idim].np_tot  = grid[idim].np_tot_glob = runtime->npoint[idim] + 2*nghost;
-     grid[idim].beg     = grid[idim].gbeg = grid[idim].lbeg = nghost;
-     grid[idim].end     = grid[idim].gend = grid[idim].lend 
-                        = (grid[idim].lbeg - 1) + grid[idim].np_int;
-     grid[idim].lbound  = runtime->left_bound[idim];
-     grid[idim].rbound  = runtime->right_bound[idim];
-     grid[idim].nproc   = 1;
-   }
-   nprocs = 1;
+  for (idim = 0; idim < DIMENSIONS; idim++) {
+    grid->nghost[idim]  = nghost;
+    grid->np_int[idim]  = grid->np_int_glob[idim] = runtime->npoint[idim];
+    grid->np_tot[idim]  = grid->np_tot_glob[idim] = runtime->npoint[idim] + 2*nghost;
+    grid->beg[idim]     = grid->gbeg[idim] = grid->lbeg[idim] = nghost;
+    grid->end[idim]     = grid->gend[idim] = grid->lend[idim] 
+                        = (grid->lbeg[idim] - 1) + grid->np_int[idim];
+    grid->lbound[idim]  = runtime->left_bound[idim];
+    grid->rbound[idim]  = runtime->right_bound[idim];
+    grid->nproc[idim]   = 1;
+  }
+  nprocs = 1;
 
-  #endif
+#endif
 
   RuntimeSet (runtime);
 
@@ -341,19 +341,19 @@ void Initialize(int argc, char *argv[], Data *data,
     Set output directory and log file
    ---------------------------------------------------- */
 
-  SetLogFile  (runtime->output_dir, cmd_line);
+  SetLogFile  (runtime->log_dir, cmd_line);
   ShowConfig  (argc, argv, ini_file);
 
 /* ---------------------------------------------------
                 Grid Generation
    --------------------------------------------------- */
 
-  print1 ("\n> Generating grid...\n\n");
+  print ("\n> Generating grid...\n\n");
   SetGrid (runtime, grid);
   Where (-1, grid);     /* -- store grid inside the "Where" 
                               function for subsequent calls -- */
   if (cmd_line->makegrid == YES) {
-    print1 ("\n> Done < \n");
+    print ("\n> Done < \n");
     QUIT_PLUTO(0);
   }
 
@@ -365,19 +365,20 @@ void Initialize(int argc, char *argv[], Data *data,
   g_time           = 0.0;
   g_maxMach        = 0.0;
   g_maxRiemannIter = 0;
+  g_nprocs         = nprocs;
   g_usedMemory     = 0;
+  
+  IBEG = grid->lbeg[IDIR]; IEND = grid->lend[IDIR];
+  JBEG = grid->lbeg[JDIR]; JEND = grid->lend[JDIR];
+  KBEG = grid->lbeg[KDIR]; KEND = grid->lend[KDIR];
 
-  IBEG = grid[IDIR].lbeg; IEND = grid[IDIR].lend;
-  JBEG = grid[JDIR].lbeg; JEND = grid[JDIR].lend;
-  KBEG = grid[KDIR].lbeg; KEND = grid[KDIR].lend;
+  NX1 = grid->np_int[IDIR];
+  NX2 = grid->np_int[JDIR];
+  NX3 = grid->np_int[KDIR];
 
-  NX1 = grid[IDIR].np_int;
-  NX2 = grid[JDIR].np_int;
-  NX3 = grid[KDIR].np_int;
-
-  NX1_TOT = grid[IDIR].np_tot; 
-  NX2_TOT = grid[JDIR].np_tot;
-  NX3_TOT = grid[KDIR].np_tot;
+  NX1_TOT = grid->np_tot[IDIR]; 
+  NX2_TOT = grid->np_tot[JDIR];
+  NX3_TOT = grid->np_tot[KDIR];
 
 /* ---------------------------------------
      Get the maximum number of points 
@@ -386,12 +387,6 @@ void Initialize(int argc, char *argv[], Data *data,
 
   NMAX_POINT = MAX(NX1_TOT, NX2_TOT);
   NMAX_POINT = MAX(NMAX_POINT, NX3_TOT);
-
-/* ---------------------------------------------
-    Define the RBox structures.
-   --------------------------------------------- */
-
-  SetRBox();
 
 /* --------------------------------------------------------------------
      Find the minimum physical cell length for each direction
@@ -414,16 +409,16 @@ void Initialize(int argc, char *argv[], Data *data,
      
   }}}
 
-  #ifdef PARALLEL
-   MPI_Allreduce (dxmin, dxming, 3, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-   dxmin[IDIR] = dxming[IDIR];
-   dxmin[JDIR] = dxming[JDIR];
-   dxmin[KDIR] = dxming[KDIR];
-  #endif
+#ifdef PARALLEL
+  MPI_Allreduce (dxmin, dxming, 3, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+  dxmin[IDIR] = dxming[IDIR];
+  dxmin[JDIR] = dxming[JDIR];
+  dxmin[KDIR] = dxming[KDIR];
+#endif
 
-  grid[IDIR].dl_min = dxmin[IDIR];
-  grid[JDIR].dl_min = dxmin[JDIR];
-  grid[KDIR].dl_min = dxmin[KDIR];
+  grid->dl_min[IDIR] = dxmin[IDIR];
+  grid->dl_min[JDIR] = dxmin[JDIR];
+  grid->dl_min[KDIR] = dxmin[KDIR];
 
 /* --------------------------------------------------------------
     Define geometrical coefficients for linear interpolation
@@ -431,9 +426,9 @@ void Initialize(int argc, char *argv[], Data *data,
    
   PLM_CoefficientsSet (grid);   /* -- these may be needed by
                                       shock flattening algorithms */
-  #if RECONSTRUCTION == PARABOLIC
-   PPM_CoefficientsSet (grid);  
-  #endif
+#if RECONSTRUCTION == PARABOLIC
+  PPM_CoefficientsSet (grid);  
+#endif
 
 /* --------------------------------------------------------------
     Copy user defined parameters into global array g_inputParam 
@@ -445,29 +440,62 @@ void Initialize(int argc, char *argv[], Data *data,
           Allocate memory for 3D data arrays
    ------------------------------------------------------------ */
 
-  print1 ("\n> Memory allocation\n");
+  print ("\n> Memory allocation\n");
   data->Vc = ARRAY_4D(NVAR, NX3_TOT, NX2_TOT, NX1_TOT, double);
   data->Uc = ARRAY_4D(NX3_TOT, NX2_TOT, NX1_TOT, NVAR, double); 
 
-  #ifdef STAGGERED_MHD
-   data->Vs = ARRAY_1D(DIMENSIONS, double ***);
-   D_EXPAND(
-     data->Vs[BX1s] = ArrayBox( 0, NX3_TOT-1, 0, NX2_TOT-1,-1, NX1_TOT-1); ,
-     data->Vs[BX2s] = ArrayBox( 0, NX3_TOT-1,-1, NX2_TOT-1, 0, NX1_TOT-1); ,
-     data->Vs[BX3s] = ArrayBox(-1, NX3_TOT-1, 0, NX2_TOT-1, 0, NX1_TOT-1);)
-  #endif  
+#ifdef STAGGERED_MHD
+  data->Vs = ARRAY_1D(DIMENSIONS, double ***);
+  D_EXPAND(
+    data->Vs[BX1s] = ArrayBox( 0, NX3_TOT-1, 0, NX2_TOT-1,-1, NX1_TOT-1); ,
+    data->Vs[BX2s] = ArrayBox( 0, NX3_TOT-1,-1, NX2_TOT-1, 0, NX1_TOT-1); ,
+    data->Vs[BX3s] = ArrayBox(-1, NX3_TOT-1, 0, NX2_TOT-1, 0, NX1_TOT-1);
+  )
 
-  #if UPDATE_VECTOR_POTENTIAL == YES 
-   D_EXPAND(                                                  ,
-     data->Ax3 = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);  , 
-     data->Ax1 = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);  
-     data->Ax2 = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);  
-   )
-  #endif
+  data->Ex1 = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
+  data->Ex2 = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
+  data->Ex3 = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
 
-  #if RESISTIVITY != NO
-   data->J = ARRAY_4D(3,NX3_TOT, NX2_TOT, NX1_TOT, double);
+  data->emf = malloc(sizeof(EMF));
+  CT_Allocate (data->emf);
+#endif  
+
+/* ------------------------------------------------------------
+    Allocate memory for vector potential.
+   ------------------------------------------------------------ */
+
+#if UPDATE_VECTOR_POTENTIAL == YES || ASSIGN_VECTOR_POTENTIAL == YES
+  data->Ax3 = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);   
+  data->Ax1 = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);  
+  data->Ax2 = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);  
+#endif
+
+#if RESISTIVITY || HALL_MHD
+  data->J = ARRAY_4D(3,NX3_TOT, NX2_TOT, NX1_TOT, double);
+#endif
+
+#if THERMAL_CONDUCTION
+  data->Tc = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
+#endif
+
+#if FORCED_TURB == YES
+  data->Ft = malloc(sizeof(ForcedTurb));
+#endif
+
+#ifdef PARTICLES
+  data->PHead = NULL;
+  data->pstr  = NULL;
+  #if PARTICLES_TYPE == COSMIC_RAYS
+  data->Ecr = ARRAY_4D(3, NX3_TOT, NX2_TOT, NX1_TOT, double);
+  data->Fcr = ARRAY_4D(4, NX3_TOT, NX2_TOT, NX1_TOT, double);
+  data->Jcr = ARRAY_4D(3, NX3_TOT, NX2_TOT, NX1_TOT, double);
+  data->qcr = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, double);
   #endif
+  #if PARTICLES_TYPE == DUST
+  data->Vdust = ARRAY_4D(3, NX3_TOT, NX2_TOT, NX1_TOT, double);
+  data->Fdust = ARRAY_4D(3, NX3_TOT, NX2_TOT, NX1_TOT, double);
+  #endif
+#endif
 
   data->flag = ARRAY_3D(NX3_TOT, NX2_TOT, NX1_TOT, unsigned char);
 
@@ -475,46 +503,69 @@ void Initialize(int argc, char *argv[], Data *data,
     Initialize tables needed for EOS 
    ------------------------------------------------------------ */
   
-  #if EOS == PVTE_LAW && NIONS == 0
-   #if TV_ENERGY_TABLE == YES
-    MakeInternalEnergyTable();
-   #else
-    MakeEV_TemperatureTable();
-   #endif
-   MakePV_TemperatureTable();
+#if EOS == PVTE_LAW && NIONS == 0
+  #if TV_ENERGY_TABLE == YES
+  MakeInternalEnergyTable();
+  #else
+  MakeEV_TemperatureTable();
   #endif
+  MakePV_TemperatureTable();
+#endif
 
 /* ------------------------------------------------------------
-              Assign initial conditions
+    Assign initial conditions.
+    We also compute the average orbital velocity in case
+    output requires writing the residual.
    ------------------------------------------------------------ */
 
   Startup (data, grid);
+#ifdef PARTICLES
+  if (cmd_line->restart == NO) Particles_Set(data, grid); 
+#endif
+#ifdef FARGO
+  FARGO_ComputeVelocity(data, grid);
+#endif
 
-/* ------------------------------------------------------------ 
-    Set output attributes (names, images, number of outputs...)
-   ------------------------------------------------------------ */
+/* --------------------------------------------------------
+    Set output attributes (names, images, number of
+    outputs...)
+   -------------------------------------------------------- */
 
   SetOutput (data, runtime);
+#ifdef PARTICLES
+  Particles_SetOutput(data, runtime);
+#endif
+  ChangeOutputVar();
 
-/* -----------------------------------
+/* --------------------------------------------------------
       print normalization units
-   ----------------------------------- */
+   -------------------------------------------------------- */
 
   ShowUnits();  
 
-  print1 ("> Number of processors: %d\n",nprocs);
-  D_EXPAND(print1 ("> Typical proc size:    %d",grid[IDIR].np_int);  ,
-           print1 (" X %d", grid[JDIR].np_int);                      ,
-           print1 (" X %d", grid[KDIR].np_int);)
-  print1 ("\n");
-  #ifdef PARALLEL
-   print1 ("> Parallel Directions: ");
-   D_EXPAND(if (pardim[IDIR]) print1 (" X1");  ,
-            if (pardim[JDIR]) print1 ("/X2");  ,
-            if (pardim[KDIR]) print1 ("/X3");)
-   print1 ("\n");
-  #endif   
-  if (cmd_line->show_dec) ShowDomainDecomposition (nprocs, grid);
+  print ("> Number of processors: %d\n",nprocs);
+  D_EXPAND(
+           print ("> Proc size:            %d",grid->np_int[IDIR]);  ,
+           print (" X %d", grid->np_int[JDIR]);                      ,
+           print (" X %d", grid->np_int[KDIR]);)
+  print ("\n");
+#ifdef PARALLEL
+  print ("> Parallel Directions: ");
+  D_EXPAND(if (pardim[IDIR]) print (" X1");  ,
+           if (pardim[JDIR]) print ("/X2");  ,
+           if (pardim[KDIR]) print ("/X3");)
+  print ("\n");
+#endif
+
+/* --------------------------------------------------------
+   Enable writing of grid information to be read by
+   gnuplot. This is done for educational purposes only.
+   -------------------------------------------------------- */
+
+#if !(defined CHOMBO) && (defined GNUPLOT)
+  GnuplotSetting(grid);
+#endif
+
 }
 
 #ifdef PARALLEL

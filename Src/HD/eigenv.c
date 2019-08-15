@@ -25,20 +25,19 @@
   variables is stored in the vector w = L.v
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   April 02, 2015
+  \date   Feb 13, 2018
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
 
 /* ********************************************************************* */
-void MaxSignalSpeed (double **v, double *cs2, double *cmin, double *cmax,
+void MaxSignalSpeed (const State *state, double *cmin, double *cmax,
                      int beg, int end)
 /*!
  * Compute the maximum and minimum characteristic velocities for the
- * HD equation from the vector of primitive variables v.
+ * HD equations from the vector of primitive variables state->v.
  *
- * \param [in]  v     1-D array of primitive variables
- * \param [in]  cs2   1-D array containing the square of the sound speed
+ * \param [in]  state  pointer to a State structure
  * \param [out] cmin  1-D array containing the leftmost characteristic
  * \param [out] cmin  1-D array containing the rightmost characteristic
  * \param [in]  beg   starting index of computation
@@ -48,6 +47,8 @@ void MaxSignalSpeed (double **v, double *cs2, double *cmin, double *cmax,
 {
   int    i;
   double a;
+  double **v  = state->v;
+  double *cs2 = state->a2;
 
   for (i = beg; i <= end; i++) {
     #if HAVE_ENERGY
@@ -88,22 +89,19 @@ void Eigenvalues(double **v, double *csound2, double **lambda, int beg, int end)
 }
 
 /* ********************************************************************* */
-void  PrimEigenvectors (double *q, double cs2, double h, double *lambda,
-                        double **LL, double **RR)
+void  PrimEigenvectors (const State *state, int beg, int end)
 /*!
  * Provide left and right eigenvectors and corresponding
  * eigenvalues for the primitive form of the HD equations
  * (adiabatic, pvte & isothermal cases).
  *
- * \param [in]       q  vector of primitive variables
- * \param [in]     cs2  sound speed squared
- * \param [in]       h  enthalpy
- * \param [out] lambda  eigenvalues
- * \param [out]     LL  matrix containing left primitive eigenvectors (rows)
- * \param [out]     RR  matrix containing right primitive eigenvectors (columns)
+ * \param [in]  state  pointer to a State structure
+ * \param [in]  beg    starting index of computation
+ * \param [in]  end    final   index of computation
  *
- * \note It is highly recommended that LL and RR be initialized to
- *       zero *BEFORE* since only non-zero entries are treated here.
+ * \note It is highly recommended that state->LL and state->RR 
+ *       be initialized to zero *BEFORE* since only non-zero entries 
+ *       are treated here.
  *
  *  Wave names and their order are defined as enumeration constants in
  *  mod_defs.h.
@@ -119,161 +117,169 @@ void  PrimEigenvectors (double *q, double cs2, double h, double *lambda,
  *
  *********************************************************************** */
 {
-  int      i, j, k;
-  double   rhocs, rho_cs, cs;
+  int     i, j, k;
+  double  rhocs, rho_cs, cs;
+  double  cs2, *q, **LL, **RR, *lambda;
 #if CHECK_EIGENVECTORS == YES
   double Aw1[NFLX], Aw0[NFLX], AA[NFLX][NFLX], a;
 #endif
 
-  cs = sqrt(cs2);
+  for (i = beg; i <= end; i++){
+    q      = state->v[i];
+    cs2    = state->a2[i];
+    LL     = state->Lp[i];
+    RR     = state->Rp[i];
+    lambda = state->lambda[i];
 
-  rhocs  = q[RHO]*cs;
-  rho_cs = q[RHO]/cs;
-
-/* ------------------------------------------------------
-   1. Compute RIGHT eigenvectors 
-   ------------------------------------------------------ */
-
-  lambda[0]  = q[VXn] - cs;  /*  lambda = u - c   */
-  RR[RHO][0] =  0.5*rho_cs;
-  RR[VXn][0] = -0.5;
-#if HAVE_ENERGY
-  RR[PRS][0] =  0.5*rhocs;
-#endif
-
-  lambda[1]  = q[VXn] + cs;  /*  lambda = u + c   */  
-  RR[RHO][1] = 0.5*rho_cs;
-  RR[VXn][1] = 0.5; 
-#if HAVE_ENERGY
-  RR[PRS][1] = 0.5*rhocs;
-#endif
-
-
-  for (k = 2; k < NFLX; k++) lambda[k] = q[VXn];  /*  lambda = u   */
-
-#if HAVE_ENERGY
-  EXPAND(RR[RHO][2] = 1.0;  ,
-         RR[VXt][3] = 1.0;  ,
-         RR[VXb][4] = 1.0;)
-#elif EOS == ISOTHERMAL
-  EXPAND(                   ,
-         RR[VXt][2] = 1.0;  ,
-         RR[VXb][3] = 1.0;)
-#endif
-
-/* ------------------------------------------------------
-   2. Compute LEFT eigenvectors 
-   ------------------------------------------------------ */
-
-  LL[0][VXn] = -1.0;  
-#if HAVE_ENERGY
-  LL[0][PRS] =  1.0/rhocs;
-#elif EOS == ISOTHERMAL
-  LL[0][RHO] =  1.0/rhocs;
-#endif
-
-  LL[1][VXn] = 1.0;  
-#if HAVE_ENERGY
-  LL[1][PRS] = 1.0/rhocs;
-#elif EOS == ISOTHERMAL
-  LL[1][RHO] = 1.0/rhocs;
-#endif
-
-#if HAVE_ENERGY
-  EXPAND(LL[2][RHO] = 1.0; ,
-         LL[3][VXt] = 1.0; ,
-         LL[4][VXb] = 1.0;)
-
-  LL[2][PRS] = -1.0/cs2;
-#elif EOS == ISOTHERMAL
-  EXPAND(                  ,
-         LL[2][VXt] = 1.0; ,
-         LL[3][VXb] = 1.0;)
-#endif
-
-/* ------------------------------------------------------------
-   3. If required, verify eigenvectors consistency by
-
-    1) checking that A = L.Lambda.R, where A is
-       the Jacobian dF/dU
-    2) verify orthonormality, L.R = R.L = I
-   ------------------------------------------------------------ */
-
-#if CHECK_EIGENVECTORS == YES
-{
-  static double **A, **ALR;
-  double dA;
-
-  if (A == NULL){
-    A   = ARRAY_2D(NFLX, NFLX, double);
-    ALR = ARRAY_2D(NFLX, NFLX, double);
-    #if COMPONENTS != 3
-     print1 ("! PrimEigenvectors(): eigenvector check requires 3 components\n");
-    #endif
-  }
-  #if COMPONENTS != 3
-   return;
-  #endif
-
- /* --------------------------------------
-     Construct the Jacobian analytically
-    -------------------------------------- */
-
-  for (i = 0; i < NFLX; i++){
-  for (j = 0; j < NFLX; j++){
-    A[i][j] = ALR[i][j] = 0.0;
-  }}
-
+    cs = sqrt(cs2);
+  
+    rhocs  = q[RHO]*cs;
+    rho_cs = q[RHO]/cs;
+  
+  /* ------------------------------------------------------
+     1. Compute RIGHT eigenvectors 
+     ------------------------------------------------------ */
+  
+    lambda[0]  = q[VXn] - cs;  /*  lambda = u - c   */
+    RR[RHO][0] =  0.5*rho_cs;
+    RR[VXn][0] = -0.5;
   #if HAVE_ENERGY
-   A[RHO][RHO] = q[VXn]    ; A[RHO][VXn] = q[RHO];
-   A[VXn][VXn] = q[VXn]    ; A[VXn][PRS] = 1.0/q[RHO];
-   A[VXt][VXt] = q[VXn]    ;  
-   A[VXb][VXb] = q[VXn]    ;  
-   A[PRS][VXn] = cs2*q[RHO]; A[PRS][PRS] =  q[VXn];
-  #elif EOS == ISOTHERMAL
-   A[RHO][RHO] = q[VXn]; A[RHO][VXn] = q[RHO];
-   A[VXn][VXn] = q[VXn];
-   A[VXn][RHO] = cs2/q[RHO];
-   A[VXt][VXt] = q[VXn];
-   A[VXb][VXb] = q[VXn];
+    RR[PRS][0] =  0.5*rhocs;
   #endif
-
-  for (i = 0; i < NFLX; i++){
-  for (j = 0; j < NFLX; j++){
-    ALR[i][j] = 0.0;
-    for (k = 0; k < NFLX; k++) ALR[i][j] += RR[i][k]*lambda[k]*LL[k][j];
-  }}
-
-  for (i = 0; i < NFLX; i++){
-  for (j = 0; j < NFLX; j++){
-    dA = ALR[i][j] - A[i][j];
-    if (fabs(dA) > 1.e-8){
-      print ("! PrimEigenvectors: eigenvectors not consistent\n");
-      print ("! A[%d][%d] = %16.9e, R.Lambda.L[%d][%d] = %16.9e\n",
-                i,j, A[i][j], i,j,ALR[i][j]);
-      print ("! cs2 = %12.6e\n",cs2);
-      print ("\n\n A = \n");   ShowMatrix(A, NFLX, 1.e-8);
-      print ("\n\n R.Lambda.L = \n"); ShowMatrix(ALR, NFLX, 1.e-8);
-      QUIT_PLUTO(1);
+  
+    lambda[1]  = q[VXn] + cs;  /*  lambda = u + c   */  
+    RR[RHO][1] = 0.5*rho_cs;
+    RR[VXn][1] = 0.5; 
+  #if HAVE_ENERGY
+    RR[PRS][1] = 0.5*rhocs;
+  #endif
+ 
+    for (k = 2; k < NFLX; k++) lambda[k] = q[VXn];  /*  lambda = u   */
+  
+  #if HAVE_ENERGY
+    EXPAND(RR[RHO][2] = 1.0;  ,
+           RR[VXt][3] = 1.0;  ,
+           RR[VXb][4] = 1.0;)
+  #elif EOS == ISOTHERMAL
+    EXPAND(                   ,
+           RR[VXt][2] = 1.0;  ,
+           RR[VXb][3] = 1.0;)
+  #endif
+  
+  /* ------------------------------------------------------
+     2. Compute LEFT eigenvectors 
+     ------------------------------------------------------ */
+  
+    LL[0][VXn] = -1.0;  
+  #if HAVE_ENERGY
+    LL[0][PRS] =  1.0/rhocs;
+  #elif EOS == ISOTHERMAL
+    LL[0][RHO] =  1.0/rho_cs;
+  #endif
+  
+    LL[1][VXn] = 1.0;  
+  #if HAVE_ENERGY
+    LL[1][PRS] = 1.0/rhocs;
+  #elif EOS == ISOTHERMAL
+    LL[1][RHO] = 1.0/rho_cs;
+  #endif
+  
+  #if HAVE_ENERGY
+    EXPAND(LL[2][RHO] = 1.0; ,
+           LL[3][VXt] = 1.0; ,
+           LL[4][VXb] = 1.0;)
+  
+    LL[2][PRS] = -1.0/cs2;
+  #elif EOS == ISOTHERMAL
+    EXPAND(                  ,
+           LL[2][VXt] = 1.0; ,
+           LL[3][VXb] = 1.0;)
+  #endif
+  
+  /* ------------------------------------------------------------
+     3. If required, verify eigenvectors consistency by
+  
+      1) checking that A = L.Lambda.R, where A is
+         the Jacobian dF/dU
+      2) verify orthonormality, L.R = R.L = I
+     ------------------------------------------------------------ */
+  
+  #if CHECK_EIGENVECTORS == YES
+  {
+    static double **A, **ALR;
+    double dA;
+  
+    if (A == NULL){
+      A   = ARRAY_2D(NFLX, NFLX, double);
+      ALR = ARRAY_2D(NFLX, NFLX, double);
+      #if COMPONENTS != 3
+       print ("! PrimEigenvectors(): eigenvector check requires 3 components\n");
+      #endif
     }
-  }}  
-
-/* -- check orthornomality -- */
-
-  for (i = 0; i < NFLX; i++){
-  for (j = 0; j < NFLX; j++){
-    a = 0.0;
-    for (k = 0; k < NFLX; k++) a += LL[i][k]*RR[k][j];
-    if ( (i == j && fabs(a-1.0) > 1.e-8) ||
-         (i != j && fabs(a)>1.e-8) ) {
-      print ("! PrimEigenvectors: Eigenvectors not orthogonal\n");
-      print ("!   i,j = %d, %d  %12.6e \n",i,j,a);
-      print ("!   g_dir: %d\n",g_dir);
-      QUIT_PLUTO(1);
-    }
-  }}
-}
+    #if COMPONENTS != 3
+     return;
+    #endif
+  
+   /* --------------------------------------
+       Construct the Jacobian analytically
+      -------------------------------------- */
+  
+    for (i = 0; i < NFLX; i++){
+    for (j = 0; j < NFLX; j++){
+      A[i][j] = ALR[i][j] = 0.0;
+    }}
+  
+    #if HAVE_ENERGY
+     A[RHO][RHO] = q[VXn]    ; A[RHO][VXn] = q[RHO];
+     A[VXn][VXn] = q[VXn]    ; A[VXn][PRS] = 1.0/q[RHO];
+     A[VXt][VXt] = q[VXn]    ;  
+     A[VXb][VXb] = q[VXn]    ;  
+     A[PRS][VXn] = cs2*q[RHO]; A[PRS][PRS] =  q[VXn];
+    #elif EOS == ISOTHERMAL
+     A[RHO][RHO] = q[VXn]; A[RHO][VXn] = q[RHO];
+     A[VXn][VXn] = q[VXn];
+     A[VXn][RHO] = cs2/q[RHO];
+     A[VXt][VXt] = q[VXn];
+     A[VXb][VXb] = q[VXn];
+    #endif
+  
+    for (i = 0; i < NFLX; i++){
+    for (j = 0; j < NFLX; j++){
+      ALR[i][j] = 0.0;
+      for (k = 0; k < NFLX; k++) ALR[i][j] += RR[i][k]*lambda[k]*LL[k][j];
+    }}
+  
+    for (i = 0; i < NFLX; i++){
+    for (j = 0; j < NFLX; j++){
+      dA = ALR[i][j] - A[i][j];
+      if (fabs(dA) > 1.e-8){
+        print ("! PrimEigenvectors: eigenvectors not consistent\n");
+        print ("! A[%d][%d] = %16.9e, R.Lambda.L[%d][%d] = %16.9e\n",
+                  i,j, A[i][j], i,j,ALR[i][j]);
+        print ("! cs2 = %12.6e\n",cs2);
+        print ("\n\n A = \n");   ShowMatrix(A, NFLX, 1.e-8);
+        print ("\n\n R.Lambda.L = \n"); ShowMatrix(ALR, NFLX, 1.e-8);
+        QUIT_PLUTO(1);
+      }
+    }}  
+  
+  /* -- check orthornomality -- */
+  
+    for (i = 0; i < NFLX; i++){
+    for (j = 0; j < NFLX; j++){
+      a = 0.0;
+      for (k = 0; k < NFLX; k++) a += LL[i][k]*RR[k][j];
+      if ( (i == j && fabs(a-1.0) > 1.e-8) ||
+           (i != j && fabs(a)>1.e-8) ) {
+        print ("! PrimEigenvectors: Eigenvectors not orthogonal\n");
+        print ("!   i,j = %d, %d  %12.6e \n",i,j,a);
+        print ("!   g_dir: %d\n",g_dir);
+        QUIT_PLUTO(1);
+      }
+    }}
+  }
 #endif
+  } /* End loop i = beg, end */
 }
 /* ********************************************************************* */
 void ConsEigenvectors (double *u, double *v, double a2, 
@@ -298,7 +304,7 @@ void ConsEigenvectors (double *u, double *v, double a2,
   double H, a, gt_1, vmag2;
 
   #if EOS == PVTE_LAW
-   print1( "! ConsEigenvectors: cannot be used presently\n");
+   print( "! ConsEigenvectors: cannot be used presently\n");
    QUIT_PLUTO(1);  
   #endif
 

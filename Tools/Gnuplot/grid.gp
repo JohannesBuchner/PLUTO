@@ -14,6 +14,12 @@
 # Last Modified:  23 Apr, 2014 by A. Mignone (mignone@ph.unito.it)
 # 
 
+print "THIS FILE IS BECOMING OBSOLETE AND SHOULD"
+print "REPLACED BY A SCRIPT DIRECTLY WRITTEN BY THE"
+print "CODE"
+
+
+
 set term push    # remembers the current terminal setting
 set term unknown
 

@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['userdefboundary',['UserDefBoundary',['../_h_d_2_jet_2init_8c.html#a871556305428fad692c67884bcb270bd',1,'UserDefBoundary(const Data *d, RBox *box, int side, Grid *grid):&#160;init.c'],['../_h_d_2_mach___reflection_2init_8c.html#a871556305428fad692c67884bcb270bd',1,'UserDefBoundary(const Data *d, RBox *box, int side, Grid *grid):&#160;init.c'],['../_h_d_2_viscosity_2_taylor___couette_2init_8c.html#a871556305428fad692c67884bcb270bd',1,'UserDefBoundary(const Data *d, RBox *box, int side, Grid *grid):&#160;init.c'],['../_m_h_d_2_jet_2init_8c.html#a871556305428fad692c67884bcb270bd',1,'UserDefBoundary(const Data *d, RBox *box, int side, Grid *grid):&#160;init.c'],['../_m_h_d_2_rotor_2init_8c.html#a871556305428fad692c67884bcb270bd',1,'UserDefBoundary(const Data *d, RBox *box, int side, Grid *grid):&#160;init.c'],['../_m_h_d_2_shearing___box_2init_8c.html#a871556305428fad692c67884bcb270bd',1,'UserDefBoundary(const Data *d, RBox *box, int side, Grid *grid):&#160;init.c'],['../_m_h_d_2_torus_2init_8c.html#a871556305428fad692c67884bcb270bd',1,'UserDefBoundary(const Data *d, RBox *box, int side, Grid *grid):&#160;init.c']]]
+  ['tc_5fkappa',['TC_kappa',['../_shearing___box_2tc__kappa_8c.html#a5c19f8bcfbe2e52441affa6ead23b70f',1,'tc_kappa.c']]],
+  ['tc_5fkappa_2ec',['tc_kappa.c',['../_shearing___box_2tc__kappa_8c.html',1,'']]]
 ];

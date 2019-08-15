@@ -49,7 +49,7 @@ printf ("%f %f  nx = %d, ny = %d\n",(xmax-xmin)/dx,(ymax-ymin)/dy,nx,ny);
 
   fp = fopen("H_TAB_I.A","r");
   if (fp == NULL){
-    print1 ("! File not found\n");
+    print ("! File not found\n");
     QUIT_PLUTO(1);
   }
 

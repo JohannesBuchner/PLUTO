@@ -47,7 +47,7 @@
   
   
   \author A. Mignone (mignone@ph.unito.it)
-  \date   June 11, 2015
+  \date   Fen 28, 2017
 
   \b References
      - "High-order conservative reconstruction schemes for finite
@@ -65,30 +65,37 @@
 
 #if CHAR_LIMITING == NO
 /* ********************************************************************** */
-void States (const State_1D *state, int beg, int end, Grid *grid)
+void States (const Sweep *sweep, int beg, int end, Grid *grid)
 /*!
  * 
- * \param [in]      state pointer to State_1D structure
- * \param [in]      beg   initial index of computation
- * \param [in]      end   final   index of computation
- * \param [in]      grid  pointer to an array of Grid structures
+ * \param [in]  sweep   pointer to Sweep structure
+ * \param [in]  beg     initial index of computation
+ * \param [in]  end     final   index of computation
+ * \param [in]  grid    pointer to an array of Grid structures
  *
  ************************************************************************ */
 {
   int   i, nv;
-  double dv, **v;
-  double dvp, cp, *wp, *hp, **vp;
-  double dvm, cm, *wm, *hm, **vm;
+  const State *stateC = &(sweep->stateC);
+  const State *stateL = &(sweep->stateL);
+  const State *stateR = &(sweep->stateR);
+  double **v  = stateC->v;
+  double **vp = stateL->v;
+  double **vm = stateR->v-1;
+  double **up = stateL->u;
+  double **um = stateR->u-1;
+
+  double dv;
+  double dvp, cp, *wp, *hp;
+  double dvm, cm, *wm, *hm;
   PPM_Coeffs ppm_coeffs;
   PLM_Coeffs plm_coeffs;
   
-/* ---------------------------------------------------------
+  DEBUG_FUNC_BEG("States");
+  
+/* --------------------------------------------------------
    0. Set pointers, compute geometrical coefficients
-   --------------------------------------------------------- */
-
-  v  = state->v;
-  vm = state->vm;
-  vp = state->vp;
+   -------------------------------------------------------- */
 
   PPM_CoefficientsGet(&ppm_coeffs, g_dir);
   #if SHOCK_FLATTENING == MULTID
@@ -98,18 +105,18 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
   hp = ppm_coeffs.hp;
   hm = ppm_coeffs.hm;
 
-/* ---------------------------------------
+/* --------------------------------------------------------
    1b. Need to reconstruct 4-velocity ?
-   --------------------------------------- */
+   -------------------------------------------------------- */
      
 #if RECONSTRUCT_4VEL
-  ConvertTo4vel (state->v, beg-2, end+2);
+  ConvertTo4vel (v, beg-2, end+2);
 #endif
 
-/* ---------------------------------------------------------
+/* --------------------------------------------------------
    2a. Define unlimited left and right interface values and
        make sure they lie between adjacent cell averages.
-   --------------------------------------------------------- */
+   -------------------------------------------------------- */
 
   #if PPM_ORDER == 3 || PPM_ORDER == 5
    for (i = beg; i <= end; i++) {
@@ -151,14 +158,14 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
    for (i = beg; i <= end; i++) VAR_LOOP(nv) vm[i][nv] = vp[i-1][nv];
   #endif
 
-/* ---------------------------------------------------------
-   2b. Apply parabolic limiter: no new extrema should appear
-       in the parabola defined by vp, vm and v.
-   --------------------------------------------------------- */
+/* --------------------------------------------------------
+   2b. Apply parabolic limiter: no new extrema should
+       appear in the parabola defined by vp, vm and v.
+   -------------------------------------------------------- */
 
   for (i = beg; i <= end; i++) {
 #if SHOCK_FLATTENING == MULTID    
-    if (state->flag[i] & FLAG_MINMOD) {
+    if (sweep->flag[i] & FLAG_MINMOD) {
       wp = plm_coeffs.wp;
       wm = plm_coeffs.wm;
       VAR_LOOP(nv) {
@@ -204,25 +211,25 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
    -------------------------------------------------------- */
 
   #if SHOCK_FLATTENING == YES
-   Flatten (state, beg, end, grid);
+   Flatten (sweep, beg, end, grid);
   #endif
 
-/* -------------------------------------------
+/* --------------------------------------------------------
    4.  Assign face-centered magnetic field
-   -------------------------------------------  */
+   -------------------------------------------------------- */
 
-  #ifdef STAGGERED_MHD
-   for (i = beg-1; i <= end; i++) {
-     state->vR[i][BXn] = state->vL[i][BXn] = state->bn[i];
-   }
-  #endif
+#ifdef STAGGERED_MHD
+  for (i = beg-1; i <= end; i++) {
+    vp[i][BXn] = vm[i+1][BXn] = sweep->bn[i];
+  }
+#endif
 
 /* --------------------------------------------------------
    5. Evolve L/R states and center value by dt/2
    -------------------------------------------------------- */
-
+   
 #if TIME_STEPPING == CHARACTERISTIC_TRACING
-  CharTracingStep (state, beg, end, grid);
+  CharTracingStep (sweep, beg, end, grid);
 #endif
 
 /* --------------------------------------------------------
@@ -230,17 +237,19 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
    -------------------------------------------------------- */
 
 #if RECONSTRUCT_4VEL
-  ConvertTo3vel (state->v, beg-2, end+2);
-  ConvertTo3vel (state->vp, beg, end);
-  ConvertTo3vel (state->vm, beg, end);  
+  ConvertTo3vel (v, beg-2, end+2);
+  ConvertTo3vel (vp, beg, end);
+  ConvertTo3vel (vm, beg, end);  
 #endif
 
-/* ----------------------------------------------
+/* --------------------------------------------------------
    7. Obtain L/R states in conservative variables
-   ---------------------------------------------- */
+   -------------------------------------------------------- */
 
-  PrimToCons (state->vp, state->up, beg, end);
-  PrimToCons (state->vm, state->um, beg, end);
+  PrimToCons (vp, up, beg, end);
+  PrimToCons (vm, um, beg, end);
+
+  DEBUG_FUNC_END("States");
 }
 #endif /* CHAR_LIMITING == NO */
 
@@ -256,20 +265,31 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
 
 #define PARABOLIC_LIM  1
 /* ********************************************************************* */
-void States (const State_1D *state, int beg, int end, Grid *grid)
+void States (const Sweep *sweep, int beg, int end, Grid *grid)
 /*
  *
  *********************************************************************** */
 {
   int    i, j, k, nv, S=1;
+  const State *stateC = &(sweep->stateC);
+  const State *stateL = &(sweep->stateL);
+  const State *stateR = &(sweep->stateR);
+  double **v  = stateC->v;
+  double **vp = stateL->v;
+  double **vm = stateR->v-1;
+  double **up = stateL->u;
+  double **um = stateR->u-1;
+
   double dtdx, dx, dx2;
-  double dp, cp, dvp[NVAR], dwp[NVAR], dwp1[NVAR], *wp, *hp, **vp;
-  double dm, cm, dvm[NVAR], dwm[NVAR], dwm1[NVAR], *wm, *hm, **vm;
-  double dv,  **v, **L, **R, *lambda;
+  double dp, cp, dvp[NVAR], dwp[NVAR], dwp1[NVAR], *wp, *hp;
+  double dm, cm, dvm[NVAR], dwm[NVAR], dwm1[NVAR], *wm, *hm;
+  double dv,  **L, **R, *lambda;
   double tau, a0, a1, w0, w1;
   static double  **dvF, **vppm4;
   PPM_Coeffs ppm_coeffs;
   PLM_Coeffs plm_coeffs;
+
+  DEBUG_FUNC_BEG("States");
 
 /* ---------------------------------------------
    0. Allocate memory and set pointer shortcuts,
@@ -280,12 +300,9 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
     dvF   = ARRAY_2D(NMAX_POINT, NVAR, double);
     vppm4 = ARRAY_2D(NMAX_POINT,NVAR,double);
   } 
-  v  = state->v;
-  vp = state->vp;
-  vm = state->vm;
 
 #if RECONSTRUCT_4VEL
-   ConvertTo4vel (state->v, beg-2, end+2);
+   ConvertTo4vel (v, beg-2, end+2);
 #endif
 
   PPM_CoefficientsGet(&ppm_coeffs, g_dir);
@@ -304,7 +321,7 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
   #if RECONSTRUCTION == PARABOLIC
    S = 2;
   #endif
-  SoundSpeed2 (state->v, state->a2, state->h, beg, end, CELL_CENTER, grid);
+  SoundSpeed2 (stateC, beg, end, CELL_CENTER, grid);
 
   for (i = beg-S; i <= end+S-1; i++){    
     NVAR_LOOP(nv) dvF[i][nv] = v[i+1][nv] - v[i][nv];
@@ -315,7 +332,7 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
    ----------------------------------------------------------- */
 
   #if RECONSTRUCTION == PARABOLIC && PPM_ORDER != 4
-   print1 ("! States(): characteristic PPM interpolation requires PPM_ORDER = 4\n");
+   print ("! States(): characteristic PPM interpolation requires PPM_ORDER = 4\n");
    QUIT_PLUTO(1);
   #endif
   for (i = beg-1; i <= end; i++) {
@@ -330,9 +347,10 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
    2. Begin main spatial loop
    -------------------------------------------------------------- */
 
+  PrimEigenvectors(stateC, beg, end);
   for (i = beg; i <= end; i++){    
 
-    dx   = grid[g_dir].dx[beg];
+    dx   = grid->dx[g_dir][beg];
     dx2  = dx*dx;
     dtdx = g_dt/dx;
 
@@ -340,17 +358,16 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
      2a. Compute eigenvectors at cell center
      ------------------------------------------------------------------ */
 
-    L      = state->Lp[i];
-    R      = state->Rp[i];
-    lambda = state->lambda[i];
+    L      = stateC->Lp[i];
+    R      = stateC->Rp[i];
+    lambda = stateC->lambda[i];
 
-    PrimEigenvectors(v[i], state->a2[i], state->h[i], lambda, L, R);
     #if NVAR != NFLX
      for (k = NFLX; k < NVAR; k++) lambda[k] = v[i][VXn]; 
     #endif
 
 #if SHOCK_FLATTENING == MULTID    
-    if (state->flag[i] & FLAG_MINMOD) {
+    if (sweep->flag[i] & FLAG_MINMOD) {
       for (nv = 0; nv < NVAR; nv++){
         dp = dvF[i][nv]  *plm_coeffs.wp[i];
         dm = dvF[i-1][nv]*plm_coeffs.wm[i];
@@ -359,7 +376,7 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
         vm[i][nv] = v[i][nv] - dv*plm_coeffs.dm[i];
       }
       #if PHYSICS == RHD || PHYSICS == RMHD
-       VelocityLimiter (v[i], vp[i], vm[i]);
+      VelocityLimiter (v[i], vp[i], vm[i]);
       #endif
       continue;
     }
@@ -392,12 +409,12 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
 
     #if RECONSTRUCTION == PARABOLIC
     
-  /* -- write states in terms of differences -- */
+  /* -- Write states in terms of differences -- */
 
-     VAR_LOOP(nv) {
-       dvp[nv] = vppm4[i][nv]   - v[i][nv];  
-       dvm[nv] = vppm4[i-1][nv] - v[i][nv];
-     }
+    NVAR_LOOP(nv) {
+      dvp[nv] = vppm4[i][nv]   - v[i][nv];  
+      dvm[nv] = vppm4[i-1][nv] - v[i][nv];
+    }
 
   /* -- Project to characteristic spcae -- */
 
@@ -407,8 +424,9 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
      PrimToChar(L, dvF[i-1], dwm1);
      PrimToChar(L, dvF[i  ], dwp1);
 
-    /* -- Enforce monotonicity by constraining interface
-          values to lie between adjacent cell averages   -- */
+    /* -- Enforce monotonicity by constraining interface values to lie
+          between adjacent cell averages. Same as Eq. [45] in Mignone
+          JCP (2014) 270, rewritten by subtracting Q_i from both sides.  -- */
 
      for (k = 0; k < NVAR; k++){
        dwp[k] = MINMOD(dwp[k],  dwp1[k]);
@@ -420,7 +438,7 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
      cm = (hm[i] + 1.0)/(hp[i] - 1.0);
      cp = (hp[i] + 1.0)/(hm[i] - 1.0);
 
-    /* -- parabolic limiter using characteristics or primitive -- */
+    /* -- Parabolic limiter using characteristics or primitive -- */
 
      #if PARABOLIC_LIM == 0 || PARABOLIC_LIM == 2
       for (k = 0; k < NVAR; k++){
@@ -505,37 +523,39 @@ void States (const State_1D *state, int beg, int end, Grid *grid)
    3. Assign face-centered magnetic field
    -------------------------------------------  */
 
-  #ifdef STAGGERED_MHD
-   for (i = beg-1; i <= end; i++) {
-     state->vR[i][BXn] = state->vL[i][BXn] = state->bn[i];
-   }
-  #endif
+#ifdef STAGGERED_MHD
+  for (i = beg-1; i <= end; i++) {
+    stateL->v[i][BXn] = stateR->v[i][BXn] = sweep->bn[i];
+  }
+#endif
 
 /* --------------------------------------------------------
    5. Evolve L/R states and center value by dt/2
    -------------------------------------------------------- */
 
-  #if TIME_STEPPING == CHARACTERISTIC_TRACING
-   CharTracingStep(state, beg, end, grid);
-  #endif
+#if TIME_STEPPING == CHARACTERISTIC_TRACING
+  CharTracingStep(sweep, beg, end, grid);
+#endif
 
 /* --------------------------------------------------------
    6. Convert back to 3-velocity
    -------------------------------------------------------- */
 
 #if RECONSTRUCT_4VEL
-  ConvertTo3vel (state->v, beg-2, end+2);
-  ConvertTo3vel (state->vp, beg, end);
-  ConvertTo3vel (state->vm, beg, end);  
+  ConvertTo3vel (v, beg-2, end+2);
+  ConvertTo3vel (vp, beg, end);
+  ConvertTo3vel (vm, beg, end);  
 #endif
 
-/* ----------------------------------------------
+/* -----------------------------------------------
    7. Obtain L/R states in conservative variables
-   ---------------------------------------------- */
+   ----------------------------------------------- */
 
-  PrimToCons (state->vp, state->up, beg, end);
-  PrimToCons (state->vm, state->um, beg, end);
+  PrimToCons (vp, up, beg, end);
+  PrimToCons (vm, um, beg, end);
+  
+  DEBUG_FUNC_END("States");
+
 }
 #undef PARABOLIC_LIM
 #endif /* CHAR_LIMITING == YES */
-

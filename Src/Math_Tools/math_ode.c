@@ -93,7 +93,7 @@ void ODE_Solve(double *y0, int nvar, double xbeg, double xend,
       }
           
     }else{
-      print1 ("! ODE_Solve: integration method unknown\n");
+      print ("! ODE_Solve: integration method unknown\n");
       QUIT_PLUTO(1);
     }
   }

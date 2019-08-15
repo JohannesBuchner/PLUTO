@@ -62,6 +62,20 @@ void Init (double *v, double x1, double x2, double x3)
 
   g_smallPressure = v[PRS]/500.0;
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 
@@ -88,7 +102,7 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
       VAR_LOOP(nv) vout[nv] = d->Vc[nv][k][j][2*IBEG-i-1];
       vout[VX2] *= -1.0;
 
-      r = grid[JDIR].x[j];
+      r = grid->x[JDIR][j];
       VAR_LOOP(nv)
         d->Vc[nv][k][j][i] = vout[nv] + (vjet[nv] - vout[nv])*Profile(r,nv);
     }
@@ -102,7 +116,7 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
       VAR_LOOP(nv) vout[nv] = d->Vc[nv][k][2*JBEG-j-1][i];
       vout[VX2] *= -1.0;
 
-      r = grid[IDIR].x[i];
+      r = grid->x[IDIR][i];
       for (nv = 0; nv < NVAR; nv++) 
         d->Vc[nv][k][j][i] = vout[nv] + (vjet[nv] - vout[nv])*Profile(r,nv);
     }

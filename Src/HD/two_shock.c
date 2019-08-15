@@ -6,28 +6,21 @@
   Solve the Riemann problem for the Euler equations of gasdynamics
   using the two-shock approximation.
   
-      Reference:    
-   - On input, it takes left and right primitive state
-     vectors state->vL and state->vR at zone edge i+1/2;
-     On output, return flux and pressure vectors at the
-     same interface.
+  - On input, it takes left and right primitive state
+    vectors stateL->v and stateR->v at zone edge i+1/2;
+    On output, return flux and pressure vectors at the
+    same interface.
  
-   - Also, compute maximum wave propagation speed (cmax) 
-     for  explicit time step computation
-   
+  - Also, compute maximum wave propagation speed (cmax) 
+    for  explicit time step computation   
  
-  LAST_MODIFIED
- 
-    April 4th 2006, by Andrea Mignone  (mignone@to.astro.it)
- 
-   
   \b Reference:
    -  "FLASH: an Adaptive Mesh Hydrodynamics Code for Modeling
       Astrophysical Thermonuclear Flashes"
       Fryxell et al, ApJS(2000) 131:273 (pages 292-294)
         
   \authors A. Mignone (mignone@ph.unito.it)
-  \date    July 5, 2015
+  \date    Jan 26, 2017
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -37,7 +30,7 @@
 #define small_rho     1.e-9
 
 /* ***************************************************************************** */
-void TwoShock_Solver (const State_1D *state, int beg, int end, 
+void TwoShock_Solver (const Sweep *sweep, int beg, int end, 
                       double *cmax, Grid *grid)
 /*!
  *
@@ -46,27 +39,20 @@ void TwoShock_Solver (const State_1D *state, int beg, int end,
 #if EOS == IDEAL
   int i, iter, nv;
 
-  double   vxl, taul, cl, *ql;
-  double   vxr, taur, cr, *qr;
-  double   zs, taus, cs, *qs;
-  double   pstar, ustar, rho_star, cstar;
-  double   sigma, lambda_s, lambda_star, zeta, dp;
-  double   g1_g, scrh1, scrh2, scrh3, scrh4;
-  static double  **ws, **us;
-  static double **fL, **fR, *pL, *pR, *a2L, *a2R;
-  double *uL, *uR;
+  static State stateS;
+  const State   *stateL = &(sweep->stateL);
+  const State   *stateR = &(sweep->stateR);
 
-  if (ws == NULL){
-    ws = ARRAY_2D(NMAX_POINT, NVAR, double);  
-    us = ARRAY_2D(NMAX_POINT, NVAR, double);  
+  double  vxl, taul, cl, *ql;
+  double  vxr, taur, cr, *qr;
+  double  zs, taus, cs, *qs;
+  double  pstar, ustar, rho_star, cstar;
+  double  sigma, lambda_s, lambda_star, zeta, dp;
+  double  g1_g, scrh1, scrh2, scrh3, scrh4;
+  double  *uL, *uR;
 
-    fL = ARRAY_2D(NMAX_POINT, NFLX, double);  
-    fR = ARRAY_2D(NMAX_POINT, NFLX, double);  
-    pL = ARRAY_1D(NMAX_POINT, double);  
-    pR = ARRAY_1D(NMAX_POINT, double);  
-
-    a2L = ARRAY_1D(NMAX_POINT, double);  
-    a2R = ARRAY_1D(NMAX_POINT, double);  
+  if (stateS.v == NULL){
+    StateStructAllocate (&stateS);
   }
 
 /*  ---------------------------------------------------------------
@@ -76,16 +62,16 @@ void TwoShock_Solver (const State_1D *state, int beg, int end,
   g1_g = 0.5*(g_gamma + 1.0)/g_gamma;
   for (i = beg; i <= end; i++) {
 
-    uL = state->uL[i];
-    uR = state->uR[i];
+    uL = stateL->u[i];
+    uR = stateR->u[i];
 
 #if SHOCK_FLATTENING == MULTID   
-    if ((state->flag[i] & FLAG_HLL) || (state->flag[i+1] & FLAG_HLL)){        
-      a2L[i] = g_gamma*state->vL[i][PRS]/state->vL[i][RHO];
-      a2R[i] = g_gamma*state->vR[i][PRS]/state->vR[i][RHO];
-      HLL_Speed (state->vL, state->vR, a2L, a2R, &cl - i, &cr - i, i, i);
-      Flux (state->uL, state->vL, a2L, fL, pL, i, i);
-      Flux (state->uR, state->vR, a2R, fR, pR, i, i);
+    if ((sweep->flag[i] & FLAG_HLL) || (sweep->flag[i+1] & FLAG_HLL)){        
+      stateL->a2[i] = g_gamma*stateL->v[i][PRS]/stateL->v[i][RHO];
+      stateR->a2[i] = g_gamma*stateR->v[i][PRS]/stateR->v[i][RHO];
+      HLL_Speed (stateL, stateR, &cl - i, &cr - i, i, i);
+      Flux (stateL, i, i);
+      Flux (stateR, i, i);
 
       cs    = MAX(fabs(cl), fabs(cr));
       cmax[i] = cs;
@@ -93,17 +79,17 @@ void TwoShock_Solver (const State_1D *state, int beg, int end,
       cr    = MAX(0.0, cr);
       scrh1  = 1.0/(cr - cl);
       for (nv = NFLX; nv--; ){
-        state->flux[i][nv]  = cl*cr*(uR[nv] - uL[nv])
-                           +  cr*fL[i][nv] - cl*fR[i][nv];
-        state->flux[i][nv] *= scrh1;
+        sweep->flux[i][nv]  = cl*cr*(uR[nv] - uL[nv])
+                           +  cr*stateL->flux[i][nv] - cl*stateR->flux[i][nv];
+        sweep->flux[i][nv] *= scrh1;
       }
-      state->press[i] = (cr*pL[i] - cl*pR[i])*scrh1;
+      sweep->press[i] = (cr*stateL->prs[i] - cl*stateR->prs[i])*scrh1;
       continue;
     }
 #endif
   
-    qr = state->vR[i];
-    ql = state->vL[i];
+    qr = stateR->v[i];
+    ql = stateL->v[i];
       
     cl = sqrt(g_gamma*ql[PRS]*ql[RHO]);
     cr = sqrt(g_gamma*qr[PRS]*qr[RHO]);
@@ -156,9 +142,7 @@ void TwoShock_Solver (const State_1D *state, int beg, int end,
            pstar,dp, scrh1, scrh2, scrh3, scrh4);
       }
 */
-    }
-
-/*            End iterating           */
+    } /* -- End iteration -- */
 
     scrh3 = ql[VXn] - (pstar - ql[PRS])/vxl;
     scrh4 = qr[VXn] + (pstar - qr[PRS])/vxr;
@@ -177,7 +161,7 @@ void TwoShock_Solver (const State_1D *state, int beg, int end,
       zs    = vxr;
       qs    = qr;
     }
-        
+
     rho_star = taus - (pstar - qs[PRS])/(zs*zs);
     rho_star = MAX(small_rho,1.0/rho_star);
     cstar    = sqrt(g_gamma*pstar/rho_star);
@@ -188,48 +172,56 @@ void TwoShock_Solver (const State_1D *state, int beg, int end,
       lambda_s    = lambda_star = zs*taus  - sigma*qs[VXn];
     }      
 
-  /* -- Now find solution -- */
+  /* -- Now find solution in primitive variables -- */
 
     if (lambda_star > 0.0){
       
-      ws[i][RHO] = rho_star;
-      ws[i][VXn] = ustar;  
-      ws[i][PRS] = pstar;
+      stateS.v[i][RHO] = rho_star;
+      stateS.v[i][VXn] = ustar;  
+      stateS.v[i][PRS] = pstar;
                 
     } else if (lambda_s < 0.0){
       
-      ws[i][RHO] = qs[RHO];
-      ws[i][VXn] = qs[VXn];
-      ws[i][PRS] = qs[PRS];
+      stateS.v[i][RHO] = qs[RHO];
+      stateS.v[i][VXn] = qs[VXn];
+      stateS.v[i][PRS] = qs[PRS];
 
     } else {  /*   linearly interpolate rarefaction fan  */
 
       scrh1 = MAX(lambda_s - lambda_star, lambda_s + lambda_star);
+      scrh1 = MAX(1.e-12,scrh1); /* AM (26/01/2017): avoid division by 0.0 at
+                                    sonic rarefactions when
+                                    lambda_s = lambda_star = 0.0 */
       zeta  = 0.5*(1.0 + (lambda_s + lambda_star)/scrh1);
 
-      ws[i][RHO] = zeta*rho_star + (1.0 - zeta)*qs[RHO];
-      ws[i][VXn] = zeta*ustar    + (1.0 - zeta)*qs[VXn];
-      ws[i][PRS] = zeta*pstar    + (1.0 - zeta)*qs[PRS];
+      stateS.v[i][RHO] = zeta*rho_star + (1.0 - zeta)*qs[RHO];
+      stateS.v[i][VXn] = zeta*ustar    + (1.0 - zeta)*qs[VXn];
+      stateS.v[i][PRS] = zeta*pstar    + (1.0 - zeta)*qs[PRS];
     }  
         
   /* -- transverse velocities are advected --  */
 
-    EXPAND(                    , 
-           ws[i][VXt] = qs[VXt]; ,  
-           ws[i][VXb] = qs[VXb];)
+    EXPAND(                             , 
+           stateS.v[i][VXt] = qs[VXt]; ,  
+           stateS.v[i][VXb] = qs[VXb];)
 
   /* -- compute flux -- */
 
-    PrimToCons (ws, us, i, i);
-    scrh2 = g_gamma*ws[i][PRS]/ws[i][RHO];
-    Flux (us, ws, &scrh2 - i, state->flux, state->press, i, i);
-    cstar = sqrt(scrh2);
+    PrimToCons (stateS.v, stateS.u, i, i);
+    stateS.a2[i] = g_gamma*stateS.v[i][PRS]/stateS.v[i][RHO];
+    Flux (&stateS, i,i);
+    for (nv = 0; nv < NFLX; nv++) {
+      sweep->flux[i][nv] = stateS.flux[i][nv];
+    }
+    sweep->press[i] = stateS.prs[i];
+    
+    cstar = sqrt(stateS.a2[i]);
 
   /* -- compute max speed -- */
 
-    scrh1 = fabs(ws[i][VXn])/cstar;
+    scrh1 = fabs(stateS.v[i][VXn])/cstar;
     g_maxMach = MAX(scrh1, g_maxMach);
-    scrh1 = fabs(ws[i][VXn]) + cstar;
+    scrh1 = fabs(stateS.v[i][VXn]) + cstar;
     cmax[i] = scrh1;
   
   /* -- Add artificial viscosity -- */
@@ -237,15 +229,15 @@ void TwoShock_Solver (const State_1D *state, int beg, int end,
 #ifdef ARTIFICIAL_VISC
     scrh1 = ARTIFICIAL_VISC*(MAX(0.0, ql[VXn] - qr[VXn]));
     for (nv = 0; nv < NFLX; nv++) {
-      state->flux[i][nv] += scrh1*(uL[nv] - uR[nv]);
+      sweep->flux[i][nv] += scrh1*(uL[nv] - uR[nv]);
     }
-#endif    
-    
+#endif
+
   }
 
   
 #else
-  print1 ("! TwoShock_Solver: not defined for this EOS\n");
+  print ("! TwoShock_Solver: not defined for this EOS\n");
   QUIT_PLUTO(1);
 #endif /* EOS == IDEAL */
 }

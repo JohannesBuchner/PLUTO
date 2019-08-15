@@ -62,7 +62,7 @@ void Init (double *us, double x1, double x2, double x3)
   us[AX2] = 0.0;
   us[AX3] = cos(y) + 0.5*cos(2.0*x);
 
- #if DIMENSIONS == 3 
+ #if DIMENSIONS == 3
  {
    double c0 = 0.8;
    us[VX2] = - sin(z);
@@ -81,7 +81,24 @@ void Init (double *us, double x1, double x2, double x3)
 
   }
   #endif
+
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
+
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 

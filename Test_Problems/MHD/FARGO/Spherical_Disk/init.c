@@ -105,6 +105,20 @@ void Init (double *us, double x1, double x2, double x3)
   #endif
   g_smallPressure = 1.e-9;
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 
@@ -115,15 +129,14 @@ void Analysis (const Data *d, Grid *grid)
   int    i,j,k,nv;
   static int first_call = 1;
   double v[NVAR];
-  double *r, *th, *dVr, *dVth, *dVphi, vol;
+  double *r, *th, vol;
   double pm, kin;
   double pmtot, Tmtot;
   static double voltot;
   FILE *fp;
 
-  r   = grid[IDIR].x;
-  th  = grid[JDIR].x;
-  dVr = grid[IDIR].dV; dVth = grid[JDIR].dV; dVphi = grid[KDIR].dV;
+  r   = grid->x[IDIR];
+  th  = grid->x[JDIR];
 
 /* ---------------------------------------------------------
          compute total volume once at the beginning
@@ -131,7 +144,7 @@ void Analysis (const Data *d, Grid *grid)
 
   if (first_call){
     voltot = 0.0;
-    DOM_LOOP(k,j,i) voltot += dVr[i]*dVth[j]*dVphi[k];
+    DOM_LOOP(k,j,i) voltot += grid->dV[k][j][i];
     #ifdef PARALLEL
      MPI_Allreduce (&voltot, &kin, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
      MPI_Barrier (MPI_COMM_WORLD);
@@ -145,7 +158,7 @@ void Analysis (const Data *d, Grid *grid)
 
   pmtot = Tmtot = 0.0;
   DOM_LOOP(k,j,i){
-    vol = dVr[i]*dVth[j]*dVphi[k]/voltot;
+    vol = grid->dV[k][j][i]/voltot;
 
     for (nv = NVAR; nv--;   ) v[nv] = d->Vc[nv][k][j][i];
 
@@ -209,9 +222,9 @@ void UserDefBoundary (const Data *d, RBox *box, int side, Grid *grid)
   double c0, cs, qx, qy, qz, s, v[256];
   double *r, *th, *phi;
  
-  r   = grid[IDIR].xgc;
-  th  = grid[JDIR].xgc;
-  phi = grid[KDIR].xgc;
+  r   = grid->xgc[IDIR];
+  th  = grid->xgc[JDIR];
+  phi = grid->xgc[KDIR];
   c0  = g_inputParam[H_R];
   
   if (side == 0) {    /* -- check solution inside domain -- */

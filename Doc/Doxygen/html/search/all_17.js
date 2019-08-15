@@ -6,9 +6,10 @@ var searchData=
   ['x2_5fend',['X2_END',['../pluto_8h.html#a52d6403c5c865c6f33f5ffd64f936212',1,'pluto.h']]],
   ['x3_5fbeg',['X3_BEG',['../pluto_8h.html#aa989a7ec1710c398e719db9f4bda5093',1,'pluto.h']]],
   ['x3_5fend',['X3_END',['../pluto_8h.html#aef96c2e36404c8e100dd4b9472dd1ce5',1,'pluto.h']]],
-  ['x_5fglob',['x_glob',['../struct_grid.html#a302fd48975e3b9331fdcb6de8e5b0ee4',1,'Grid']]],
-  ['xf',['xf',['../struct_grid.html#a7b7c93f8c3467be289c2040694792627',1,'Grid']]],
-  ['xgc',['xgc',['../struct_grid.html#ad026d66c0e25aa9ec5fa7a317c32da7e',1,'Grid']]],
-  ['xl_5fglob',['xl_glob',['../struct_grid.html#acbc6d913f3224a4dcf089ead35ba4865',1,'Grid']]],
-  ['xr_5fglob',['xr_glob',['../struct_grid.html#a40ce2d680c71ba77788308100d77017e',1,'Grid']]]
+  ['x_5fglob',['x_glob',['../struct_grid.html#a20e998b0d5917aba6b142404c175895c',1,'Grid']]],
+  ['xend',['xend',['../struct_grid.html#af29a51b541bcd21f06be40edba2230ab',1,'Grid']]],
+  ['xend_5fglob',['xend_glob',['../struct_grid.html#ae88c8246fe3371aab194bfa36bf3842b',1,'Grid']]],
+  ['xgc',['xgc',['../struct_grid.html#ac0c0d10b4a46dc427a3b546ef608e544',1,'Grid']]],
+  ['xl_5fglob',['xl_glob',['../struct_grid.html#a141a95ce25149827bf19a4318c842752',1,'Grid']]],
+  ['xr_5fglob',['xr_glob',['../struct_grid.html#ae175490d263ede930b546cd0b7d4454c',1,'Grid']]]
 ];

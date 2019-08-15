@@ -18,10 +18,10 @@ void Radiat (double *v, double *rhs)
    ------------------------------------------- */
 
   if (T_tab == NULL){
-    print1 (" > Reading table from disk...\n");
+    print (" > Reading table from disk...\n");
     fcool = fopen("cooltable.dat","r");
     if (fcool == NULL){
-      print1 ("! Radiat: cooltable.dat could not be found.\n");
+      print ("! Radiat: cooltable.dat could not be found.\n");
       QUIT_PLUTO(1);
     }
     L_tab = ARRAY_1D(20000, double);

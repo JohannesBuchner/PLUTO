@@ -51,6 +51,20 @@ void Init (double *us, double x1, double x2, double x3)
   us[AX1] = us[AX2] = 0.0;
   us[AX3] = y*us[BX1] - x*us[BX2];
 }
+
+/* ********************************************************************* */
+void InitDomain (Data *d, Grid *grid)
+/*! 
+ * Assign initial condition by looping over the computational domain.
+ * Called after the usual Init() function to assign initial conditions
+ * on primitive variables.
+ * Value assigned here will overwrite those prescribed during Init().
+ *
+ *
+ *********************************************************************** */
+{
+}
+
 /* ********************************************************************* */
 void Analysis (const Data *d, Grid *grid)
 /* 

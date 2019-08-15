@@ -21,7 +21,7 @@
   implements the source term part.
 
   \author A. Mignone (mignone@ph.unito.it)
-  \date   July 03, 2015
+  \date   March 16, 2018
 */
 /* ///////////////////////////////////////////////////////////////////// */
 #include "pluto.h"
@@ -110,8 +110,7 @@ void PrimRHS (double *w, double *dw, double cs2, double h, double *Adw)
 }
 
 /* *********************************************************************  */
-void PrimSource (const State_1D *state, int beg, int end, 
-                 double *a2, double *h, double **src, Grid *grid)
+void PrimSource (const State *state, double **src, int beg, int end, Grid *grid)
 /*!
  * Compute source terms of the RHD equations in primitive variables.
  *
@@ -124,31 +123,30 @@ void PrimSource (const State_1D *state, int beg, int end,
  *  For instance, in polar or cylindrical coordinates, curvilinear source
  *  terms are included during the radial sweep only.
  * 
- * \param [in]  state pointer to a State_1D structure;
- * \param [in]  beg   initial index of computation;
- * \param [in]  end   final   index of computation;
- * \param [in]  a2    array of sound speed; 
- * \param [in]  h     array of enthalpies (not needed in MHD);
- * \param [out] src   array of source terms;
- * \param [in]  grid  pointer to a Grid structure.
- * \return This function has no return value.
+ * \param [in]  state   pointer to a Sweep structure
+ * \param [out] src     array of source terms
+ * \param [in]  beg     initial index of computation
+ * \param [in]  end     final   index of computation
+ * \param [in]  grid    pointer to a Grid structure
  *
  *********************************************************************** */
 {
   int    nv, i;
   double r_1, scrh, alpha;
   double vel2, delta;
-  double *q, *x1, *x2, *x3, g[3];
+  double *v, *x1, *x2, *x3, g[3];
+  double *a2 = state->a2;
+  double *h  = state->h;
 
-  #if GEOMETRY == CYLINDRICAL
-   x1 = grid[IDIR].xgc;
-   x2 = grid[JDIR].xgc;
-   x3 = grid[KDIR].xgc;
-  #else  
-   x1 = grid[IDIR].x; 
-   x2 = grid[JDIR].x; 
-   x3 = grid[KDIR].x; 
-  #endif
+#if GEOMETRY == CYLINDRICAL
+  x1 = grid->xgc[IDIR];
+  x2 = grid->xgc[JDIR];
+  x3 = grid->xgc[KDIR];
+#else  
+  x1 = grid->x[IDIR]; 
+  x2 = grid->x[JDIR]; 
+  x3 = grid->x[KDIR]; 
+#endif
 
   for (i = beg; i <= end; i++){
   for (nv = NVAR; nv--;  ){
@@ -163,33 +161,33 @@ void PrimSource (const State_1D *state, int beg, int end,
     for (i = beg; i <= end; i++) {
  
       r_1  = 1.0/x1[i];
-      q    = state->v[i];
-      vel2 = EXPAND(q[VX1]*q[VX1], +q[VX2]*q[VX2], +q[VX3]*q[VX3]);
+      v    = state->v[i];
+      vel2 = EXPAND(v[VX1]*v[VX1], +v[VX2]*v[VX2], +v[VX3]*v[VX3]);
 
       #if RECONSTRUCT_4VEL
       scrh    = sqrt(1.0 + vel2);
-      alpha   = q[VXn]*r_1*scrh/(1.0 + vel2*(1.0 - a2[i]));
+      alpha   = v[VXn]*r_1*scrh/(1.0 + vel2*(1.0 - a2[i]));
       scrh    = a2[i]*alpha;
-      print1 ("! Primitive source terms not yet implemented\n");
-      print1 ("! with 4-vel. Please try 3-vel\n");
+      print ("! Primitive source terms not yet implemented\n");
+      print ("! with 4-vel. Please try 3-vel\n");
       QUIT_PLUTO(1);
       #else
-      alpha = q[VXn]*r_1/(1.0 - a2[i]*vel2);
+      alpha = v[VXn]*r_1/(1.0 - a2[i]*vel2);
       scrh  = a2[i]*(1.0 - vel2)*alpha;
       #endif
 
-      src[i][RHO] = -q[RHO]*alpha;
-      EXPAND (src[i][VX1] = scrh*q[VX1];  ,
-              src[i][VX2] = scrh*q[VX2];  ,
-              src[i][VX3] = scrh*q[VX3];)
+      src[i][RHO] = -v[RHO]*alpha;
+      EXPAND (src[i][VX1] = scrh*v[VX1];  ,
+              src[i][VX2] = scrh*v[VX2];  ,
+              src[i][VX3] = scrh*v[VX3];)
 
       #if COMPONENTS == 3
-      EXPAND(src[i][iVR]   +=  q[iVPHI]*q[iVPHI]*r_1;   ,
+      EXPAND(src[i][iVR]   +=  v[iVPHI]*v[iVPHI]*r_1;   ,
                                                         ,
-             src[i][iVPHI] += -q[iVPHI]*q[iVR]*r_1;)
+             src[i][iVPHI] += -v[iVPHI]*v[iVR]*r_1;)
       #endif
 
-      src[i][PRS] = -a2[i]*q[RHO]*h[i]*alpha;
+      src[i][PRS] = -a2[i]*v[RHO]*h[i]*alpha;
 
     }
   }
@@ -200,22 +198,22 @@ void PrimSource (const State_1D *state, int beg, int end,
     for (i = beg; i <= end; i++) {
  
       r_1  = 1.0/x1[i];
-      q    = state->v[i];
-      vel2 = EXPAND(q[VX1]*q[VX1], +q[VX2]*q[VX2], +q[VX3]*u[VX3]);
+      v    = state->v[i];
+      vel2 = EXPAND(v[VX1]*v[VX1], +v[VX2]*v[VX2], +v[VX3]*u[VX3]);
 
       #if RECONSTRUCT_4VEL 
-      print1 ("! PrimRHSD(): primitive source terms not yet implemented\n");
-      print1 ("!            with 4-vel. Please try 3-vel\n");
+      print ("! PrimRHSD(): primitive source terms not yet implemented\n");
+      print ("!            with 4-vel. Please try 3-vel\n");
       QUIT_PLUTO(1);
       #else
       delta = 1.0 - vel2*a2[i];
-      scrh  = 2.0*q[iVR]/delta*r_1;
+      scrh  = 2.0*v[iVR]/delta*r_1;
       #endif
 
-      src[i][RHO] = -q[RHO]*scrh;
-      EXPAND (src[i][VX1] = scrh*q[VX1]*a2[i]*(1.0 - vel2);  ,
-              src[i][VX2] = scrh*q[VX2]*a2[i]*(1.0 - vel2);  ,
-              src[i][VX3] = scrh*q[VX3]*a2[i]*(1.0 - vel2);)
+      src[i][RHO] = -v[RHO]*scrh;
+      EXPAND (src[i][VX1] = scrh*v[VX1]*a2[i]*(1.0 - vel2);  ,
+              src[i][VX2] = scrh*v[VX2]*a2[i]*(1.0 - vel2);  ,
+              src[i][VX3] = scrh*v[VX3]*a2[i]*(1.0 - vel2);)
 
       src[i][PRS] = src[i][RHO]*h[i]*a2[i];
     }
@@ -223,8 +221,8 @@ void PrimSource (const State_1D *state, int beg, int end,
 
 #else 
 
-  print1 ("! PrimRHS(): primitive source terms not available for this geometry\n");
-  print1 ("!            Use RK integrators\n");
+  print ("! PrimRHS(): primitive source terms not available for this geometry\n");
+  print ("!            Use RK integrators\n");
   QUIT_PLUTO(1);
 
 #endif   

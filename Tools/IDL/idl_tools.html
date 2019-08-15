@@ -14,7 +14,7 @@ this routine, refer to the IDL Online Help Navigator
 or type: <P>
 <PRE>     ? mk_html_help</PRE><P>
 at the IDL command line prompt.<P>
-<STRONG>Last modified: </STRONG>Mon Aug 17 11:13:56 2015.<P>
+<STRONG>Last modified: </STRONG>Fri Jun 15 22:46:22 2018.<P>
  
 <HR>
  
@@ -26,12 +26,17 @@ at the IDL command line prompt.<P>
 <LI><A HREF="#EXTREMA">EXTREMA</A>
 <LI><A HREF="#FIELD_LINE[1]">FIELD_LINE[1]</A>
 <LI><A HREF="#FIELD_LINE[2]">FIELD_LINE[2]</A>
+<LI><A HREF="#FIND_SHOCK">FIND_SHOCK</A>
 <LI><A HREF="#FOURIER">FOURIER</A>
 <LI><A HREF="#GET_FRAME">GET_FRAME</A>
 <LI><A HREF="#H5LOAD">H5LOAD</A>
 <LI><A HREF="#HDF5LOAD">HDF5LOAD</A>
 <LI><A HREF="#MIRROR">MIRROR</A>
 <LI><A HREF="#OPLOTBOX">OPLOTBOX</A>
+<LI><A HREF="#PARTICLES_LOAD[1]">PARTICLES_LOAD[1]</A>
+<LI><A HREF="#PARTICLES_LOAD[2]">PARTICLES_LOAD[2]</A>
+<LI><A HREF="#PARTICLES_LOAD[3]">PARTICLES_LOAD[3]</A>
+<LI><A HREF="#PARTICLES_OPLOT">PARTICLES_OPLOT</A>
 <LI><A HREF="#PLOAD[1]">PLOAD[1]</A>
 <LI><A HREF="#PLOAD[2]">PLOAD[2]</A>
 <LI><A HREF="#PLOAD[3]">PLOAD[3]</A>
@@ -44,7 +49,6 @@ at the IDL command line prompt.<P>
 <LI><A HREF="#PUT_EPS">PUT_EPS</A>
 <LI><A HREF="#REGRID">REGRID</A>
 <LI><A HREF="#SET_MULTI_PLOT_POS">SET_MULTI_PLOT_POS</A>
-<LI><A HREF="#SHOCKFIND">SHOCKFIND</A>
 <LI><A HREF="#TEMPERATURE">TEMPERATURE</A>
 <LI><A HREF="#VECFIELD">VECFIELD</A>
 <LI><A HREF="#VTK_LOAD">VTK_LOAD</A>
@@ -306,22 +310,24 @@ at the IDL command line prompt.<P>
 <A HREF="#ROUTINELIST">[List of Routines]</A>
 <PRE>
 
- NAME:      extrema
+ NAME:      EXTREMA
 
  AUTHOR:    Andrea Mignone
 
- DATE:      April 21, 2004
+ SYNTAX:    indx = EXTREMA(f)
 
- PURPOSE:   Find maxima/minima in a function f. 
-            f is a 1-D vector.
+ PURPOSE:   Find maxima in a 1D array f[].
+            On output, indx is an integer array whose elements are the
+            indices of the extrema of f.
+            If no maximum is found, return -1.
 
- SYNOPSIS:  Result = extrema(f). On output
-            result is an integer array whose
-            elements are the indexes k of the
-            extrema of f.  
+ ARGUMENTS:
+
+   f        a 1D array
 
  KEYWORD:   none
 
+ LAST MODIFIED:   Dec 21, 2016 by A. Mignone 
 
 </PRE><P>
 <STRONG>(See extrema.pro)</STRONG><P>
@@ -357,7 +363,7 @@ at the IDL command line prompt.<P>
 <A NAME="FIELD_LINE[2]">
 <H2>FIELD_LINE[2]</H2></A>
 <A HREF="#FIELD_LINE[1]">[Previous Routine]</A>
-<A HREF="#FOURIER">[Next Routine]</A>
+<A HREF="#FIND_SHOCK">[Next Routine]</A>
 <A HREF="#ROUTINELIST">[List of Routines]</A>
 <PRE>
 
@@ -446,9 +452,55 @@ at the IDL command line prompt.<P>
 <STRONG>(See field_line.pro)</STRONG><P>
 <HR>
  
+<A NAME="FIND_SHOCK">
+<H2>FIND_SHOCK</H2></A>
+<A HREF="#FIELD_LINE[2]">[Previous Routine]</A>
+<A HREF="#FOURIER">[Next Routine]</A>
+<A HREF="#ROUTINELIST">[List of Routines]</A>
+<PRE>
+
+ NAME:         FIND_SHOCK
+
+ AUTHOR:       Andrea Mignone (mignone@to.astro.it)
+
+ PURPOSE:      Find shocks in a multidimensional plane
+
+ SYNTAX:       array = FIND_SHOCK(p, vx, vy, vz
+                                  [,eps_min=eps_min][,eps_max=eps_max])
+
+ DESCRIPTION:  shockfind returns a multi-D array (with dimensionality
+               equal to the input arrays) whose elements are
+               numbers between 0 (no shock) and 1 (strong shock).
+
+               A shock is detected when div.V &lt; 0
+               and |grad p|*dl_min/p &gt; eps_min. 
+
+               The strength of the shock is controlled by
+
+               eps_min &lt;  |grad p|/p &lt; eps_max
+
+               This function requires PTOOLS.
+
+ ARGUMENTS and KEYWORDS:
+
+              p:    an array giving the pressure distribution
+              vx:   an array giving the x-component of velocity
+              vy:   an array giving the y-component of velocity
+              vz:   an array giving the z-component of velocity
+              eps_min:  the minimum threshold for a shock to exist
+              eps_max:  the maximum strength of a shock (in units
+                        of |grad p|/p).
+
+
+ LAST MODIFIED:   May 30, 2016 by A.Mignone (mignone@to.astro.it)
+
+</PRE><P>
+<STRONG>(See find_shock.pro)</STRONG><P>
+<HR>
+ 
 <A NAME="FOURIER">
 <H2>FOURIER</H2></A>
-<A HREF="#FIELD_LINE[2]">[Previous Routine]</A>
+<A HREF="#FIND_SHOCK">[Previous Routine]</A>
 <A HREF="#GET_FRAME">[Next Routine]</A>
 <A HREF="#ROUTINELIST">[List of Routines]</A>
 <PRE>
@@ -619,7 +671,7 @@ at the IDL command line prompt.<P>
 
  LAST MODIFIED
 
-   Oct 19, 2012 by A. Mignone (mignone@ph.unito.it) &amp; C. Zanni (zanni@oato.inaf.it)
+   Sept 7, 2015 by A. Mignone (mignone@ph.unito.it) &amp; C. Zanni (zanni@oato.inaf.it)
 </PRE><P>
 <STRONG>(See hdf5load.pro)</STRONG><P>
 <HR>
@@ -664,7 +716,7 @@ at the IDL command line prompt.<P>
 <A NAME="OPLOTBOX">
 <H2>OPLOTBOX</H2></A>
 <A HREF="#MIRROR">[Previous Routine]</A>
-<A HREF="#PLOAD[1]">[Next Routine]</A>
+<A HREF="#PARTICLES_LOAD[1]">[Next Routine]</A>
 <A HREF="#ROUTINELIST">[List of Routines]</A>
 <PRE>
 
@@ -723,9 +775,262 @@ at the IDL command line prompt.<P>
 <STRONG>(See oplotbox.pro)</STRONG><P>
 <HR>
  
+<A NAME="PARTICLES_LOAD[1]">
+<H2>PARTICLES_LOAD[1]</H2></A>
+<A HREF="#OPLOTBOX">[Previous Routine]</A>
+<A HREF="#PARTICLES_LOAD[2]">[Next Routine]</A>
+<A HREF="#ROUTINELIST">[List of Routines]</A>
+<PRE>
+
+ NAME:      PARTICLES_BINARY_LOAD
+
+ AUTHOR:    Andrea Mignone
+
+ PURPOSE:
+
+   Read PLUTO particle file in .flt or .dbl binary data format. 
+   Called from PARTICLES_LOAD with the /FLOAT (or no) keywords.
+   
+ SYNTAX:
+
+   PARTICLES_BINARY_LOAD, fname[, /FLOAT][, /SILENT], endianity, err
+   
+ ARGUMENTS:
+
+   fname      The name of a valid .flt or .dbl particle file.
+
+ KEYWORDS:
+
+
+ EXAMPLES:
+
+  * Example #1: Load the 10-th particles output file:
+
+    IDL&gt; PARTICLES_LOAD, 10
+
+
+ LAST MODIFIED:
+
+  May 15, 2018 by D. Mukherjee &amp; A. Mignone (dipanjan.mukherjee@unito.it)
+
+</PRE><P>
+<STRONG>(See particles_load.pro)</STRONG><P>
+<HR>
+ 
+<A NAME="PARTICLES_LOAD[2]">
+<H2>PARTICLES_LOAD[2]</H2></A>
+<A HREF="#PARTICLES_LOAD[1]">[Previous Routine]</A>
+<A HREF="#PARTICLES_LOAD[3]">[Next Routine]</A>
+<A HREF="#ROUTINELIST">[List of Routines]</A>
+<PRE>
+
+ NAME:      PARTICLES_VTK_LOAD
+
+ AUTHOR:    Andrea Mignone
+
+ PURPOSE:
+
+   Read PLUTO particles file in .vtk data format. 
+   Called from PARTICLES_LOAD with the /VTK keyword.
+   
+ SYNTAX:
+
+   PARTICLES_VTKLOAD, fname
+   
+ ARGUMENTS:
+
+   fname      The name of a valid .vtk paticle file.
+
+ KEYWORDS:
+
+
+ EXAMPLES:
+
+  * Example #1: Load the 10-th particles output file:
+
+    IDL&gt; PARTICLES_LOAD, /VTK,10
+
+
+ LAST MODIFIED:
+
+  April 6, 2018 by D. Mukherjee (dipanjan.mukherjee@unito.it)
+
+</PRE><P>
+<STRONG>(See particles_load.pro)</STRONG><P>
+<HR>
+ 
+<A NAME="PARTICLES_LOAD[3]">
+<H2>PARTICLES_LOAD[3]</H2></A>
+<A HREF="#PARTICLES_LOAD[2]">[Previous Routine]</A>
+<A HREF="#PARTICLES_OPLOT">[Next Routine]</A>
+<A HREF="#ROUTINELIST">[List of Routines]</A>
+<PRE>
+
+ NAME:      PARTICLES_LOAD
+
+ AUTHOR:    Andrea Mignone
+
+ PURPOSE:  
+
+   Read PLUTO particles file in .dbl, .flt and .vtk format.
+   By default, if neither /VTK or /FLOAT are given, double precision 
+   raw-binary files are read (particles.nnnn.dbl). 
+   
+   Data is read and stored in the 'particle' array of structures which has
+   variables size depending on the actual number of particles (nparticles).
+   Both particle and nparticles can be shared among different routines using
+   the PLUTO_VAR common block.    
+
+ SYNTAX:
+
+   PARTICLES_LOAD, nout[, DIR=DIR][, SILENT=SILENT][, FLOAT=FLOAT][, VTK = VTK]
+
+ ARGUMENTS:
+
+   nout = the output number, e.g., 0,1,2, ...
+
+ KEYWORDS:
+
+   DIR        the directory name where output files are located (e.g. 
+              DIR = 'Data1/'). Default is current directory.
+
+   /SILENT    set this keyword to suppress printing information
+
+   /FLOAT     set this keyword to read single precision binary datafile
+              (particles.nnnn.flt). 
+              
+   /VTK       set this keyword to read .vtk particle files.
+              In this case, the PARTICLES_VTKLOAD procedure is invoked.
+
+   /REDUCED   Assume particle data files have been written with
+              the PARTCILES_REDUCE_FLT switch turned to YES.
+              In this case, the particle structure will contain
+              fewer fields.
+
+ EXAMPLES:
+
+  * Example #1: Load the 7-th particles output file in single precision
+                and print the x2-component of velocity of the 4-th particle:
+
+    IDL&gt; PARTICLES_LOAD, /FLOAT, 10
+    IDL&gt; PRINT,particles[4].vx2
+
+
+ LAST MODIFIED:
+
+  April 6, 2018 by D. Mukherjee (dipanjan.mukherjee@unito.it)
+
+</PRE><P>
+<STRONG>(See particles_load.pro)</STRONG><P>
+<HR>
+ 
+<A NAME="PARTICLES_OPLOT">
+<H2>PARTICLES_OPLOT</H2></A>
+<A HREF="#PARTICLES_LOAD[3]">[Previous Routine]</A>
+<A HREF="#PLOAD[1]">[Next Routine]</A>
+<A HREF="#ROUTINELIST">[List of Routines]</A>
+<PRE>
+ NAME:      PARTICLES_OPLOT
+
+ AUTHOR:    Andrea Mignone
+
+ PURPOSE:  
+
+   Overlay point particles on a pre-existing 2D plot.
+
+ SYNTAX:
+
+   PARTICLES_OPLOT[, cvalue_max = cvalue_max][, cvalue_min = cvalue_min]
+                  [, field=field][, symsize=symsize]
+
+
+ ARGUMENTS:
+
+   none
+
+ KEYWORDS:
+
+   symsize      = the symbol size. By default particles are plotted with
+                  circles.
+
+
+   color        = defines the color of the particle. To color all particles
+		   with same value, put one number. To color each particle 
+		   differently based on some attribute e.g. particle kinetic energy
+                  or part.color, give an array of size number of particles. The 
+                  color is normalised to lie in range 0-255 of the session's color
+                  table. Default 255.
+
+
+   cmax         = the maximum value of the color to be plotted. Values higher are
+		   set to 255.
+
+
+   cmin         = the minimum value of the color to be plotted. Values lower are
+		   set to 0.
+
+
+   x1p          = An array of dimension: nparticles, giving the x1 coordinates
+		   to be plotted
+
+
+   x2p          = An array of dimension: nparticles, giving the x2 coordinates 
+                  to be plotted. 
+		   For 2D plots, default is x1=x1,x2=x2. Need not be specified.
+		   For 3D runs, x1,x2 should be specified if x3 coordinate
+		   need to be plotted.
+		   
+
+ EXAMPLES:
+
+  * Example #1: Load fluid and particles data. Overplot them.
+
+    IDL&gt; PLOAD, 10                    ; Load fluid data file (in .dbl format)
+    IDL&gt; DISPLAY,rho, x1=x1, x2=x2    ; Display density
+    IDL&gt; PARTICLES_LOAD, 10           ; Load particle data file (int .dbl format)
+    IDL&gt; PARTICLES_OPLOT, particles   ; Overlay particles on the plot generated
+                                      ; by previous DISPLAY call.
+
+  * Example #2: Overplot just a subsamples of particles
+
+    IDL&gt; Ek    = 0.5*(particle.vx1^2 + particle.vx2^2 + particle.vx3^2)
+    IDL&gt; indx  = WHERE (Ek GT 0.9*MAX(Ek)); Select most energetic particles
+    IDL&gt; part1 = particle(indx) 
+    IDL&gt; PARTICLES_OPLOT, part1        
+
+
+  * Example #3: Overplot for 3D PLUTO data array to make x-z slice
+
+    IDL&gt; PLOAD, 1, var='vx3'                                        
+    IDL&gt; PARTICLES_LOAD,1                                         
+    IDL&gt; DISPLAY, x1=x1, x2=x3, (vx3[*,nx2/2,*]), /vbar   
+
+    ;---Select particles in the y=0 plane. See particles_slice.pro for more.
+    IDL&gt; part1 = PARTICLES_SLICE(particles, xar=x2, dx=dx2, /xz) 
+
+    ;---Plot all particles with color=255 
+    IDL&gt; PARTICLES_OPLOT, part, x1p=part1.x1, x2p=part.x3, color=255
+
+    ;---Plot particles with color based on value of field color
+    IDL&gt; PARTICLES_OPLOT,part, x1p=part.x1, x2p=part.x3, $
+        color=part.color, cvalue_min=0, cvalue_max=4
+
+    ;---Plot particles with color based on kinetic energy
+    IDL&gt;  ek = 0.5*(part.vx1^2.+part.vx2^2.+part.vx3^2.)         
+    IDL&gt;  PARTICLES_OPLOT, part, x1p=part.x1, x2p=part.x3, color=ek 
+
+
+ LAST MODIFIED:
+
+ June 15, D. Mukherjee (dipanjan.mukherjee@unito.it) 
+
+</PRE><P>
+<STRONG>(See particles_oplot.pro)</STRONG><P>
+<HR>
+ 
 <A NAME="PLOAD[1]">
 <H2>PLOAD[1]</H2></A>
-<A HREF="#OPLOTBOX">[Previous Routine]</A>
+<A HREF="#PARTICLES_OPLOT">[Previous Routine]</A>
 <A HREF="#PLOAD[2]">[Next Routine]</A>
 <A HREF="#ROUTINELIST">[List of Routines]</A>
 <PRE>
@@ -832,10 +1137,10 @@ at the IDL command line prompt.<P>
 
       rho           = density
       vx1, vx2, vx3 = velocity components
-      bx1, bx2, bx3 = magnetic field components
+      Bx1, Bx2, Bx3 = magnetic field components
       prs           = pressure
       tr1, ...      = passive scalars
-      bx1s, bx2s, bx3s = staggered components of magnetic field (only with 
+      Bx1s, Bx2s, Bx3s = staggered components of magnetic field (only with 
                          double precision binary data files) available with 
                          constrained transport.
                       
@@ -961,7 +1266,7 @@ at the IDL command line prompt.<P>
 
  LAST MODIFIED:
 
-  Sept 22, 2014 by A. Mignone (mignone@ph.unito.it)
+  May 25, 2018 by A. Mignone (mignone@ph.unito.it)
 
 </PRE><P>
 <STRONG>(See pload.pro)</STRONG><P>
@@ -1071,7 +1376,7 @@ at the IDL command line prompt.<P>
 
  SYNTAX:      dq = PDIFF(q, /X1_DIR, /X2_DIR, /X3_DIR, /PERIODIC)
 
- PURPOSE:     compute the derivative of a 2D or 3D array &quot;q&quot; in the 
+ PURPOSE:     Compute the derivative of a 2D or 3D array &quot;q&quot; in the 
               direction given by either one of /X1_DIR, /X2_DIR or /X3_DIR.
               The computational grid is defined from the most recent call 
               to the PLOAD function.
@@ -1095,7 +1400,7 @@ at the IDL command line prompt.<P>
    PERIODIC   assume the domain is periodic in the specified direction. 
               Central difference is used throughout, including boundaries.
               
- LAST MODIFIED:   Apr 11, 2013 by A. Mignone (mignone@ph.unito.it)
+ LAST MODIFIED:   Dec 28, 2016 by A. Mignone (mignone@ph.unito.it)
 
 </PRE><P>
 <STRONG>(See ptools.pro)</STRONG><P>
@@ -1120,9 +1425,9 @@ at the IDL command line prompt.<P>
               On output, &quot;curl_v&quot; contains the three components of the curl
               stored as 
 
-                 dq(*,*,*,0) -&gt; (curl_v)_x1
-                 dq(*,*,*,1) -&gt; (curl_v)_x2
-                 dq(*,*,*,2) -&gt; (curl_v)_x3
+                 dq[*,*,*,0] -&gt; (curl_v)_x1
+                 dq[*,*,*,1] -&gt; (curl_v)_x2
+                 dq[*,*,*,2] -&gt; (curl_v)_x3
               
               Note: if only 2 vector components are supplied, the output
                     consists in a single 2D array w which, in the case
@@ -1136,7 +1441,7 @@ at the IDL command line prompt.<P>
  KEYWORDS:
 
    geometry   specify the geometry. 
-              Possible options are /polar or /spherical. 
+              Possible options are /cylindrical (only 2D), /polar or /spherical. 
               If none is given, Cartesian coordinates are assumed.
                           
  EXAMPLES:
@@ -1149,9 +1454,9 @@ at the IDL command line prompt.<P>
                 Cartesian coordinates and take the modulus:
 
     IDL&gt; J = PCURL(Bx1, Bx2, Bx3)
-    IDL&gt; J2 = J(*,*,*,0)^2 + J(*,*,*,1)^2 + J(*,*,*,2)^2
+    IDL&gt; J2 = J[*,*,*,0]^2 + J[*,*,*,1]^2 + J[*,*,*,2]^2
 
- LAST MODIFIED:   Jan 29, 2012 by A. Mignone (mignone@ph.unito.it)
+ LAST MODIFIED:   Dec 28, 2016 by A. Mignone (mignone@ph.unito.it)
 
 </PRE><P>
 <STRONG>(See ptools.pro)</STRONG><P>
@@ -1176,9 +1481,9 @@ at the IDL command line prompt.<P>
               On output &quot;dq&quot; contains the three components of the gradient
               stored as 
 
-                 dq(*,*,*,0) -&gt; dq/dx1
-                 dq(*,*,*,1) -&gt; dq/dx2
-                 dq(*,*,*,2) -&gt; dq/dx3
+                 dq[*,*,*,0] -&gt; dq/dx1
+                 dq[*,*,*,1] -&gt; dq/dx2
+                 dq[*,*,*,2] -&gt; dq/dx3
               
  ARGUMENTS:   
 
@@ -1198,7 +1503,7 @@ at the IDL command line prompt.<P>
 
     IDL&gt; drho = PGRAD(rho, /SPHERICAL)
 
- LAST MODIFIED:   Sep 25, 2012 by A. Mignone (mignone@ph.unito.it)
+ LAST MODIFIED:   Dec 28, 2016 by A. Mignone (mignone@ph.unito.it)
 
 </PRE><P>
 <STRONG>(See ptools.pro)</STRONG><P>
@@ -1215,7 +1520,7 @@ at the IDL command line prompt.<P>
 
  AUTHOR:      A. Mignone (mignone@ph.unito.it)
 
- SYNTAX:      div_v = PDIV(v1,v1[,v3],/geometry)
+ SYNTAX:      div_v = PDIV(v1,v2[,v3],/geometry)
 
  PURPOSE:     compute the divergence of a vector field {v1,v2} (in 2D) or 
               {v1,v2,v3} (in 2.5D or 3D) on the computational grid defined
@@ -1241,7 +1546,7 @@ at the IDL command line prompt.<P>
     IDL&gt; divB = PDIV(Bx1,Bx2, /polar)
 
 
- LAST MODIFIED:   July 11, 2013 by A. Mignone (mignone@ph.unito.it)
+ LAST MODIFIED:   Dec 28, 2016 by A. Mignone (mignone@ph.unito.it)
 
 </PRE><P>
 <STRONG>(See ptools.pro)</STRONG><P>
@@ -1322,7 +1627,7 @@ at the IDL command line prompt.<P>
 
      cbposition = lower left position of the colorbar
 
-  LAST MODIFIED:  Nov 5 2013 by A. Mignone (mignone@ph.unito.it)
+  LAST MODIFIED:  Oct 31, 2017 by A. Mignone (mignone@ph.unito.it)
 
 </PRE><P>
 <STRONG>(See put_eps.pro)</STRONG><P>
@@ -1387,7 +1692,7 @@ at the IDL command line prompt.<P>
 <A NAME="SET_MULTI_PLOT_POS">
 <H2>SET_MULTI_PLOT_POS</H2></A>
 <A HREF="#REGRID">[Previous Routine]</A>
-<A HREF="#SHOCKFIND">[Next Routine]</A>
+<A HREF="#TEMPERATURE">[Next Routine]</A>
 <A HREF="#ROUTINELIST">[List of Routines]</A>
 <PRE>
 
@@ -1439,53 +1744,9 @@ at the IDL command line prompt.<P>
 <STRONG>(See set_multi_plot_pos.pro)</STRONG><P>
 <HR>
  
-<A NAME="SHOCKFIND">
-<H2>SHOCKFIND</H2></A>
-<A HREF="#SET_MULTI_PLOT_POS">[Previous Routine]</A>
-<A HREF="#TEMPERATURE">[Next Routine]</A>
-<A HREF="#ROUTINELIST">[List of Routines]</A>
-<PRE>
-
- NAME:       shockfind
-
- AUTHOR:    Andrea Mignone (mignone@to.astro.it)
-
- PURPOSE:    find shocks in a multidimensional plane
-
- SYNTAX:      array = shockfind(p, vx,vy[,eps_min=eps_min][,eps_max=eps_max])
-
- DESCRIPTION:  shockfind returns a multi-D array (with dimensionality
-               equal to the input arrays) whose elements are
-               numbers between 0 (no shock) and 1 (strong shock).
-
-               A shock is detected when div.V &lt; 0
-               and |grad p|/p &gt; eps. Divergence and gradients
-               are undivided differences.
-
-               The strength of the shock is controlled by
-
-               eps_min &lt;  |grad p|/p &lt; eps_max
-
-
- ARGUMENTS and KEYWORDS:
-
-              p:    an array giving the pressure distribution
-              vx:   an array giving the x-component of velocity
-              vy:   an array giving the y-component of velocity
-              eps_min:  the minimum threshold for a shock to exist
-              eps_max:  the maximum strength of a shock (in units
-                        of |grad p|/p).
-
-
- LAST MODIFIED:   Aug 6 2006 by A.Mignone (mignone@to.astro.it)
-
-</PRE><P>
-<STRONG>(See shockfind.pro)</STRONG><P>
-<HR>
- 
 <A NAME="TEMPERATURE">
 <H2>TEMPERATURE</H2></A>
-<A HREF="#SHOCKFIND">[Previous Routine]</A>
+<A HREF="#SET_MULTI_PLOT_POS">[Previous Routine]</A>
 <A HREF="#VECFIELD">[Next Routine]</A>
 <A HREF="#ROUTINELIST">[List of Routines]</A>
 <PRE>

@@ -518,7 +518,7 @@ int Table2DInterpolate(Table2D *tab, double x, double y, double *f)
     s2 = tab->d[j+1][i] + xn*(tab->c[j+1][i] + xn*(tab->b[j+1][i] + xn*tab->a[j+1][i]));
     *f = s1*(1.0 - yn) + s2*yn;
   }else{
-    print1 ("! Table2DInterpolate(): table interpolation not corretly defined\n");
+    print ("! Table2DInterpolate(): table interpolation not corretly defined\n");
     QUIT_PLUTO(1);
   }
   return 0;  /* success */
